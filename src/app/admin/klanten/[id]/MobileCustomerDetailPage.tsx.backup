@@ -1,0 +1,777 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calculator, Edit, Trash2, Download, Share2, Eye, X, Ruler, TrendingUp, Plus, Clock, Target, Award } from 'lucide-react';
+import { useRouter, useParams } from 'next/navigation';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+export default function MobileCustomerDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const { t } = useLanguage();
+  const customerId = Array.isArray(params?.id) ? params.id[0] : (params?.id || '1');
+  
+  const [customer, setCustomer] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    joinDate: string;
+    status: string;
+    trainingFrequency?: number;
+    totalSessions: number;
+    rating: number;
+    lastWorkout?: string | null;
+    notes?: string;
+    goals?: string[];
+  } | null>(null);
+  const [customerWorkouts, setCustomerWorkouts] = useState<Array<{
+    id: string;
+    status: string;
+    assignedAt: string;
+    notes?: string;
+    workout: {
+      id: string;
+      name: string;
+      category: string;
+      difficulty: string;
+      duration: number;
+      exercises: number;
+      lastUsed: string;
+    };
+  }>>([]);
+  const [customerNutritionPlans, setCustomerNutritionPlans] = useState<Array<{
+    id: string;
+    status: string;
+    assignedAt: string;
+    notes?: string;
+    nutritionPlan: {
+      id: string;
+      name: string;
+      goal: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    };
+  }>>([]);
+  const [customerMeasurements, setCustomerMeasurements] = useState<Array<{
+    id: string;
+    date: string;
+    weight: number;
+    bodyFat: number;
+    muscleMass: number;
+    notes?: string;
+  }>>([]);
+  const [customerPricing, setCustomerPricing] = useState<Array<{
+    id: string;
+    service: string;
+    duration: number;
+    frequency: number;
+    discount: number;
+    finalPrice: number;
+    includeNutritionPlan: boolean;
+    createdAt: string;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showAssignWorkoutModal, setShowAssignWorkoutModal] = useState(false);
+  const [showAssignNutritionPlanModal, setShowAssignNutritionPlanModal] = useState(false);
+  const [availableWorkouts, setAvailableWorkouts] = useState<Array<{
+    id: string;
+    name: string;
+    category: string;
+    difficulty: string;
+    duration: number;
+    exercises: number;
+  }>>([]);
+  const [availableNutritionPlans, setAvailableNutritionPlans] = useState<Array<{
+    id: string;
+    name: string;
+    goal: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }>>([]);
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState('');
+  const [selectedNutritionPlanId, setSelectedNutritionPlanId] = useState('');
+  const [workoutNotes, setWorkoutNotes] = useState('');
+  const [nutritionPlanNotes, setNutritionPlanNotes] = useState('');
+
+  useEffect(() => {
+    const loadCustomerData = async () => {
+      try {
+        setLoading(true);
+        
+        // Load customer data
+        const customerResponse = await fetch(`/api/users/${customerId}`);
+        if (customerResponse.ok) {
+          const customerData = await customerResponse.json();
+          setCustomer(customerData);
+        }
+
+        // Load customer workouts
+        const workoutsResponse = await fetch(`/api/customer-workouts?customerId=${customerId}`);
+        if (workoutsResponse.ok) {
+          const workoutsData = await workoutsResponse.json();
+          setCustomerWorkouts(workoutsData);
+        }
+
+        // Load customer nutrition plans
+        const nutritionResponse = await fetch(`/api/customer-nutrition-plans?customerId=${customerId}`);
+        if (nutritionResponse.ok) {
+          const nutritionData = await nutritionResponse.json();
+          setCustomerNutritionPlans(nutritionData);
+        }
+
+        // Load customer measurements
+        const measurementsResponse = await fetch(`/api/customer-measurements?customerId=${customerId}`);
+        if (measurementsResponse.ok) {
+          const measurementsData = await measurementsResponse.json();
+          setCustomerMeasurements(measurementsData);
+        }
+
+        // Load customer pricing
+        const pricingResponse = await fetch(`/api/pricing-calculations?customerId=${customerId}`);
+        if (pricingResponse.ok) {
+          const pricingData = await pricingResponse.json();
+          setCustomerPricing(pricingData);
+        }
+
+        // Load available workouts
+        const availableWorkoutsResponse = await fetch('/api/workouts');
+        if (availableWorkoutsResponse.ok) {
+          const availableWorkoutsData = await availableWorkoutsResponse.json();
+          setAvailableWorkouts(availableWorkoutsData);
+        }
+
+        // Load available nutrition plans
+        const availableNutritionResponse = await fetch('/api/nutrition-plans');
+        if (availableNutritionResponse.ok) {
+          const availableNutritionData = await availableNutritionResponse.json();
+          setAvailableNutritionPlans(availableNutritionData);
+        }
+
+      } catch (error) {
+        console.error('Error loading customer data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCustomerData();
+  }, [customerId]);
+
+  const handleAssignWorkout = async () => {
+    if (!selectedWorkoutId) {
+      alert('Please select a workout');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/customer-workouts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId,
+          workoutId: selectedWorkoutId,
+          notes: workoutNotes
+        }),
+      });
+
+      if (response.ok) {
+        const newWorkout = await response.json();
+        setCustomerWorkouts([...customerWorkouts, newWorkout]);
+        setShowAssignWorkoutModal(false);
+        setSelectedWorkoutId('');
+        setWorkoutNotes('');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to assign workout');
+      }
+    } catch (error) {
+      console.error('Error assigning workout:', error);
+      alert('Failed to assign workout');
+    }
+  };
+
+  const handleAssignNutritionPlan = async () => {
+    if (!selectedNutritionPlanId) {
+      alert('Please select a nutrition plan');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/customer-nutrition-plans', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId,
+          nutritionPlanId: selectedNutritionPlanId,
+          notes: nutritionPlanNotes
+        }),
+      });
+
+      if (response.ok) {
+        const newNutritionPlan = await response.json();
+        setCustomerNutritionPlans([...customerNutritionPlans, newNutritionPlan]);
+        setShowAssignNutritionPlanModal(false);
+        setSelectedNutritionPlanId('');
+        setNutritionPlanNotes('');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to assign nutrition plan');
+      }
+    } catch (error) {
+      console.error('Error assigning nutrition plan:', error);
+      alert('Failed to assign nutrition plan');
+    }
+  };
+
+  const handleRemoveWorkout = async (workoutId: string) => {
+    if (confirm('Are you sure you want to remove this workout assignment?')) {
+      try {
+        const response = await fetch(`/api/customer-workouts/${workoutId}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          setCustomerWorkouts(customerWorkouts.filter(w => w.id !== workoutId));
+        } else {
+          console.error('Error removing workout');
+        }
+      } catch (error) {
+        console.error('Error removing workout:', error);
+      }
+    }
+  };
+
+  const handleRemoveNutritionPlan = async (nutritionPlanId: string) => {
+    if (confirm('Are you sure you want to remove this nutrition plan assignment?')) {
+      try {
+        const response = await fetch(`/api/customer-nutrition-plans/${nutritionPlanId}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          setCustomerNutritionPlans(customerNutritionPlans.filter(n => n.id !== nutritionPlanId));
+        } else {
+          console.error('Error removing nutrition plan');
+        }
+      } catch (error) {
+        console.error('Error removing nutrition plan:', error);
+      }
+    }
+  };
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: Eye },
+    { id: 'workouts', label: 'Workouts', icon: Dumbbell },
+    { id: 'nutrition', label: 'Nutrition', icon: Apple },
+    { id: 'measurements', label: 'Measurements', icon: Ruler },
+    { id: 'pricing', label: 'Pricing', icon: Calculator }
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading customer data...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-800 mb-4">Customer Not Found</h1>
+            <button
+              onClick={() => router.back()}
+              className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="container mx-auto px-3 sm:px-4 py-4">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => router.back()}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-gray-800">{customer.name}</h1>
+              <p className="text-gray-600">Customer Details</p>
+            </div>
+          </div>
+
+          {/* Customer Info Card */}
+          <div className="bg-white rounded-2xl shadow-lg border border-white/20 p-4 sm:p-6 mb-6">
+            <div className="flex items-center mb-4">
+              <div className="w-16 h-16 bg-gradient-to-r from-rose-400 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-2xl">
+                {customer.name.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div className="ml-4 flex-1">
+                <h2 className="text-xl font-bold text-gray-800">{customer.name}</h2>
+                <p className="text-gray-600">Member since {new Date(customer.joinDate).toLocaleDateString()}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    customer.status === 'active' 
+                      ? 'bg-green-100 text-green-800' 
+                      : customer.status === 'inactive'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {customer.status}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                    <span className="text-sm font-medium text-gray-800">{customer.rating}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center text-gray-600">
+                <Mail className="w-4 h-4 mr-2" />
+                <span className="text-gray-800">{customer.email}</span>
+              </div>
+              {customer.phone && (
+                <div className="flex items-center text-gray-600">
+                  <Phone className="w-4 h-4 mr-2" />
+                  <span className="text-gray-800">{customer.phone}</span>
+                </div>
+              )}
+              <div className="flex items-center text-gray-600">
+                <Dumbbell className="w-4 h-4 mr-2" />
+                <span className="text-gray-800">{customer.totalSessions} sessions</span>
+              </div>
+              <div className="flex items-center text-gray-600">
+                <Clock className="w-4 h-4 mr-2" />
+                <span className="text-gray-800">{customer.trainingFrequency}x per week</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Tabs */}
+        <div className="bg-white rounded-2xl shadow-lg border border-white/20 p-3 sm:p-4 mb-6">
+          <div className="flex overflow-x-auto gap-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-rose-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <div className="bg-white rounded-2xl shadow-lg border border-white/20 p-4 sm:p-6">
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Overview</h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Dumbbell className="w-5 h-5 text-blue-500" />
+                    <span className="font-medium text-gray-800">Workouts</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-800">{customerWorkouts.length}</p>
+                  <p className="text-sm text-gray-600">Assigned</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Apple className="w-5 h-5 text-green-500" />
+                    <span className="font-medium text-gray-800">Nutrition Plans</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-800">{customerNutritionPlans.length}</p>
+                  <p className="text-sm text-gray-600">Assigned</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Ruler className="w-5 h-5 text-purple-500" />
+                    <span className="font-medium text-gray-800">Measurements</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-800">{customerMeasurements.length}</p>
+                  <p className="text-sm text-gray-600">Records</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calculator className="w-5 h-5 text-orange-500" />
+                    <span className="font-medium text-gray-800">Pricing</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-800">{customerPricing.length}</p>
+                  <p className="text-sm text-gray-600">Calculations</p>
+                </div>
+              </div>
+
+              {customer.notes && (
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-2">Notes</h4>
+                  <p className="text-gray-600 bg-gray-50 rounded-lg p-3">{customer.notes}</p>
+                </div>
+              )}
+
+              {customer.goals && customer.goals.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-2">Goals</h4>
+                  <div className="space-y-2">
+                    {customer.goals.map((goal, index) => (
+                      <div key={index} className="flex items-center gap-2 text-gray-600">
+                        <Target className="w-4 h-4 text-rose-500" />
+                        <span>{goal}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'workouts' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-800">Assigned Workouts</h3>
+                <button
+                  onClick={() => setShowAssignWorkoutModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Assign Workout
+                </button>
+              </div>
+
+              {customerWorkouts.length > 0 ? (
+                <div className="space-y-3">
+                  {customerWorkouts.map((workout) => (
+                    <div key={workout.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-gray-800">{workout.workout.name}</h4>
+                        <button
+                          onClick={() => handleRemoveWorkout(workout.id)}
+                          className="p-1 text-red-500 hover:bg-red-100 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div>Category: {workout.workout.category}</div>
+                        <div>Difficulty: {workout.workout.difficulty}</div>
+                        <div>Duration: {workout.workout.duration} min</div>
+                        <div>Exercises: {workout.workout.exercises}</div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">
+                        Assigned: {new Date(workout.assignedAt).toLocaleDateString()}
+                      </div>
+                      {workout.notes && (
+                        <div className="text-sm text-gray-600 mt-2 bg-gray-50 rounded p-2">
+                          {workout.notes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Dumbbell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No workouts assigned yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'nutrition' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-800">Assigned Nutrition Plans</h3>
+                <button
+                  onClick={() => setShowAssignNutritionPlanModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Assign Plan
+                </button>
+              </div>
+
+              {customerNutritionPlans.length > 0 ? (
+                <div className="space-y-3">
+                  {customerNutritionPlans.map((nutritionPlan) => (
+                    <div key={nutritionPlan.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-gray-800">{nutritionPlan.nutritionPlan.name}</h4>
+                        <button
+                          onClick={() => handleRemoveNutritionPlan(nutritionPlan.id)}
+                          className="p-1 text-red-500 hover:bg-red-100 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div>Goal: {nutritionPlan.nutritionPlan.goal}</div>
+                        <div>Calories: {nutritionPlan.nutritionPlan.calories}</div>
+                        <div>Protein: {nutritionPlan.nutritionPlan.protein}g</div>
+                        <div>Carbs: {nutritionPlan.nutritionPlan.carbs}g</div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">
+                        Assigned: {new Date(nutritionPlan.assignedAt).toLocaleDateString()}
+                      </div>
+                      {nutritionPlan.notes && (
+                        <div className="text-sm text-gray-600 mt-2 bg-gray-50 rounded p-2">
+                          {nutritionPlan.notes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Apple className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No nutrition plans assigned yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'measurements' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800">Body Measurements</h3>
+
+              {customerMeasurements.length > 0 ? (
+                <div className="space-y-3">
+                  {customerMeasurements.map((measurement) => (
+                    <div key={measurement.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-gray-800">
+                          {new Date(measurement.date).toLocaleDateString()}
+                        </h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div>Weight: {measurement.weight} kg</div>
+                        <div>Body Fat: {measurement.bodyFat}%</div>
+                        <div>Muscle Mass: {measurement.muscleMass} kg</div>
+                      </div>
+                      {measurement.notes && (
+                        <div className="text-sm text-gray-600 mt-2 bg-gray-50 rounded p-2">
+                          {measurement.notes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Ruler className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No measurements recorded yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'pricing' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800">Pricing History</h3>
+
+              {customerPricing.length > 0 ? (
+                <div className="space-y-3">
+                  {customerPricing.map((pricing) => (
+                    <div key={pricing.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-gray-800">{pricing.service}</h4>
+                        <span className="text-lg font-bold text-rose-600">€{pricing.finalPrice}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div>Duration: {pricing.duration} months</div>
+                        <div>Frequency: {pricing.frequency}x per week</div>
+                        <div>Discount: {pricing.discount}%</div>
+                        <div>Nutrition Plan: {pricing.includeNutritionPlan ? 'Yes' : 'No'}</div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">
+                        Created: {new Date(pricing.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Calculator className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No pricing history found.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Assign Workout Modal */}
+        {showAssignWorkoutModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Assign Workout</h3>
+                <button
+                  onClick={() => setShowAssignWorkoutModal(false)}
+                  className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Workout</label>
+                  <select
+                    value={selectedWorkoutId}
+                    onChange={(e) => setSelectedWorkoutId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  >
+                    <option value="">Choose a workout</option>
+                    {availableWorkouts.map(workout => (
+                      <option key={workout.id} value={workout.id}>
+                        {workout.name} ({workout.category})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                  <textarea
+                    value={workoutNotes}
+                    onChange={(e) => setWorkoutNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Add any notes for this workout assignment..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowAssignWorkoutModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAssignWorkout}
+                  className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
+                >
+                  Assign Workout
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Assign Nutrition Plan Modal */}
+        {showAssignNutritionPlanModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Assign Nutrition Plan</h3>
+                <button
+                  onClick={() => setShowAssignNutritionPlanModal(false)}
+                  className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Nutrition Plan</label>
+                  <select
+                    value={selectedNutritionPlanId}
+                    onChange={(e) => setSelectedNutritionPlanId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  >
+                    <option value="">Choose a nutrition plan</option>
+                    {availableNutritionPlans.map(plan => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name} ({plan.goal})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                  <textarea
+                    value={nutritionPlanNotes}
+                    onChange={(e) => setNutritionPlanNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    rows={3}
+                    placeholder="Add any notes for this nutrition plan assignment..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowAssignNutritionPlanModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAssignNutritionPlan}
+                  className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
+                >
+                  Assign Plan
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

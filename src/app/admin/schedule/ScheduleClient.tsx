@@ -1,0 +1,1029 @@
+'use client';
+
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { 
+  Calendar, 
+  Clock, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  User, 
+  ArrowLeft, 
+  ChevronLeft, 
+  ChevronRight,
+  Users,
+  Euro,
+  Target,
+  X
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getWeekDates } from '@/lib/utils';
+
+interface TrainingSession {
+  id: string;
+  customerId: string;
+  customerName: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
+  type: '1:1' | 'group' | 'own-training' | 'workout-plan';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
+  notes?: string;
+  trainingType?: string; // Full Body, Upper/Lower Split, Push/Pull/Legs, etc.
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  trainingFrequency: number; // sessions per week
+  status: string;
+  plan: string;
+  discount?: number; // discount percentage from pricing calculation
+  customerWorkouts?: Array<{
+    id: string;
+    assignedAt: string;
+    workout: {
+      id: string;
+      name: string;
+      trainingType?: string;
+    };
+  }>;
+  scheduleAssignments?: Array<{
+    id: string;
+    weekday: number;
+    trainingDay: number;
+    workout: {
+      id: string;
+      name: string;
+      trainingType?: string;
+    };
+  }>;
+}
+
+interface ScheduleClientProps {
+  initialSessions: TrainingSession[];
+  initialCustomers: Customer[];
+  initialWeekDates: string[];
+  initialCurrentWeek: string;
+}
+
+export default function ScheduleClient({
+  initialSessions,
+  initialCustomers,
+  initialWeekDates,
+  initialCurrentWeek,
+}: ScheduleClientProps) {
+  const router = useRouter();
+  const { t } = useLanguage();
+  const [currentWeek, setCurrentWeek] = useState(new Date(initialCurrentWeek));
+  const [sessions, setSessions] = useState<TrainingSession[]>(initialSessions);
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [showNewSessionModal, setShowNewSessionModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showSessionDetailsModal, setShowSessionDetailsModal] = useState(false);
+  
+  // New session form state
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedStartTime, setSelectedStartTime] = useState('');
+  const [sessionNotes, setSessionNotes] = useState('');
+  const [scheduleRecurring, setScheduleRecurring] = useState(false);
+  
+  // Mihaela's own training states
+  const [showOwnTrainingModal, setShowOwnTrainingModal] = useState(false);
+  const [ownTrainingDate, setOwnTrainingDate] = useState('');
+  const [ownTrainingStartTime, setOwnTrainingStartTime] = useState('');
+
+  // Generate time slots from 08:30 to 20:30
+  const timeSlots = Array.from({ length: 25 }, (_, i) => {
+    const hour = 8 + Math.floor((i + 1) / 2);
+    const minute = (i + 1) % 2 === 0 ? '00' : '30';
+    return `${hour.toString().padStart(2, '0')}:${minute}`;
+  });
+
+  // Helper to convert HH:MM to minutes since midnight
+  const timeToMinutes = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  // Check if time slot is during break time (12:30-14:30 and 17:30-19:30)
+  const isBreakTime = (timeSlot: string) => {
+    const timeInMinutes = timeToMinutes(timeSlot);
+    
+    // First break: 12:30-14:30 (exclude 12:30, include 14:30)
+    const break1Start = 12 * 60 + 30;  // 12:30
+    const break1End = 14 * 60 + 30;    // 14:30
+    
+    // Second break: 17:30-19:30 (exclude 17:30, include 19:30)
+    const break2Start = 17 * 60 + 30;  // 17:30
+    const break2End = 19 * 60 + 30;    // 19:30
+    
+    // Break times exclude the start time (12:30 and 17:30 are available)
+    return (timeInMinutes > break1Start && timeInMinutes < break1End) ||
+           (timeInMinutes > break2Start && timeInMinutes < break2End);
+  };
+
+  // Check if time slot is available (not booked and not break time)
+  const isTimeSlotAvailable = (date: string, timeSlot: string, duration: number = 1) => {
+    if (isBreakTime(timeSlot)) return false;
+    
+    const [startHours, startMinutes] = timeSlot.split(':').map(Number);
+    const startTimeInMinutes = startHours * 60 + startMinutes;
+    const endTimeInMinutes = startTimeInMinutes + (duration * 60);
+    
+    // Check for conflicts with existing sessions
+    return !sessions.some(session => {
+      if (session.date !== date) return false;
+      
+      const [sessionStartHours, sessionStartMinutes] = session.startTime.split(':').map(Number);
+      const [sessionEndHours, sessionEndMinutes] = session.endTime.split(':').map(Number);
+      const sessionStartTimeInMinutes = sessionStartHours * 60 + sessionStartMinutes;
+      const sessionEndTimeInMinutes = sessionEndHours * 60 + sessionEndMinutes;
+      
+      // Check for overlap: two time ranges overlap if one starts before the other ends
+      // and ends after the other starts
+      const hasOverlap = startTimeInMinutes < sessionEndTimeInMinutes && 
+                        endTimeInMinutes > sessionStartTimeInMinutes;
+      
+      return hasOverlap;
+    });
+  };
+
+  // Days of the week (Monday to Saturday)
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayAbbr = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const currentWeekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
+
+  useEffect(() => {
+    const loadScheduleData = async () => {
+      try {
+        // Load customers with their workout assignments
+        const customersResponse = await fetch('/api/users');
+        const customersData = await customersResponse.json();
+        
+        // Load workout assignments and discount for each customer
+        const customersWithWorkouts = await Promise.all(
+          customersData.map(async (customer: any) => {
+            let discount = 0;
+            try {
+              const pricingResponse = await fetch(`/api/pricing-calculations?customerId=${customer.id}`);
+              if (pricingResponse.ok) {
+                const calculations = await pricingResponse.json();
+                if (calculations.length > 0) {
+                  discount = calculations[0].discount || 0;
+                }
+              }
+            } catch (error) {
+              console.error(`Error loading discount for customer ${customer.id}:`, error);
+            }
+            return { ...customer, discount };
+          })
+        );
+        
+        setCustomers(customersWithWorkouts);
+        
+        // Load training sessions for current week
+        const startDate = currentWeekDates[0].toISOString().split('T')[0];
+        const endDate = currentWeekDates[5].toISOString().split('T')[0];
+        
+        const sessionsResponse = await fetch(`/api/training-sessions?startDate=${startDate}&endDate=${endDate}`);
+        const sessionsData = await sessionsResponse.json();
+        
+        // Transform sessions to ensure date format is correct and customer name is available
+        const transformedSessions = sessionsData.map((session: any) => {
+          let transformedDate;
+          if (typeof session.date === 'string') {
+            transformedDate = session.date.split('T')[0];
+          } else if (session.date instanceof Date) {
+            transformedDate = session.date.toISOString().split('T')[0];
+          } else {
+            transformedDate = new Date(session.date).toISOString().split('T')[0];
+          }
+          
+          return {
+            ...session,
+            date: transformedDate,
+            customerName: session.customer?.name || 'Unknown Customer'
+          };
+        });
+        
+        setSessions(transformedSessions);
+      } catch (error) {
+        console.error('Error loading schedule data:', error);
+        setCustomers([]);
+        setSessions([]);
+      }
+    };
+
+    loadScheduleData();
+  }, [currentWeek, currentWeekDates]);
+
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newWeek = new Date(currentWeek);
+    newWeek.setDate(currentWeek.getDate() + (direction === 'next' ? 7 : -7));
+    setCurrentWeek(newWeek);
+    router.push(`/admin/schedule?week=${newWeek.toISOString().split('T')[0]}`);
+  };
+
+  const getSessionsForDayAndTime = useCallback((date: Date, timeSlot: string) => {
+    const dateStr = date.toISOString().split('T')[0];
+    
+    // Get all training sessions (scheduled, completed, cancelled, no-show)
+    const actualSessions = sessions.filter(session => {
+      if (session.date !== dateStr) {
+        return false;
+      }
+      
+      // Convert times to minutes for easier comparison
+      const sessionStartMinutes = timeToMinutes(session.startTime);
+      const sessionEndMinutes = timeToMinutes(session.endTime);
+      const timeSlotMinutes = timeToMinutes(timeSlot);
+      
+      // Show session if it's active during this time slot (starts before or at timeSlot, ends after timeSlot)
+      return sessionStartMinutes <= timeSlotMinutes && sessionEndMinutes > timeSlotMinutes;
+    });
+
+    return actualSessions;
+  }, [sessions, timeToMinutes]);
+
+  const getCustomerTrainingType = (customer: Customer) => {
+    if (customer.customerWorkouts && customer.customerWorkouts.length > 0) {
+      const latestWorkout = customer.customerWorkouts[0];
+      const trainingType = latestWorkout.workout.trainingType;
+      
+      if (trainingType?.toLowerCase().includes('push/pull/legs')) {
+        return 'Push/Pull/Legs';
+      } else if (trainingType?.toLowerCase().includes('upper/lower')) {
+        return 'Upper/Lower Split';
+      } else if (trainingType?.toLowerCase().includes('full body')) {
+        return 'Full Body';
+      }
+      return trainingType || 'Workout Plan';
+    }
+    return 'No Plan';
+  };
+
+  const getMuscleGroupForDay = (trainingType: string, trainingDay: number) => {
+    switch (trainingType?.toLowerCase()) {
+      case 'push/pull/legs':
+        switch (trainingDay) {
+          case 1: return 'Legs & Glutes';
+          case 2: return 'Back + Triceps + Abs';
+          case 3: return 'Chest + Shoulders + Biceps + Abs';
+          default: return `Day ${trainingDay}`;
+        }
+      case 'upper/lower split':
+        switch (trainingDay) {
+          case 1: return 'Upper Body';
+          case 2: return 'Lower Body';
+          default: return `Day ${trainingDay}`;
+        }
+      case 'full body':
+        return 'Full Body';
+      default:
+        return trainingType || 'Workout Plan';
+    }
+  };
+
+  const getSessionTypeColor = (type: string, status: string) => {
+    // Override colors based on status first
+    if (status === 'completed') {
+      return 'bg-green-100 text-green-800 border-green-200';
+    } else if (status === 'cancelled') {
+      return 'bg-red-100 text-red-800 border-red-200';
+    } else if (status === 'no-show') {
+      return 'bg-orange-100 text-orange-800 border-orange-200';
+    }
+    
+    // Default colors based on type
+    switch (type) {
+      case '1:1': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'group': return 'bg-green-100 text-green-800 border-green-200';
+      case 'own-training': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'workout-plan': return 'bg-orange-100 text-orange-800 border-orange-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getSessionStatusColor = (status: string) => {
+    switch (status) {
+      case 'scheduled': return 'bg-blue-100 text-blue-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  const formatTime = (time: string) => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const handleCreateSession = async () => {
+    if (!selectedCustomerId || !selectedDate || !selectedStartTime) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const endTime = `${(parseInt(selectedStartTime.split(':')[0]) + 1).toString().padStart(2, '0')}:${selectedStartTime.split(':')[1]}`;
+      
+      const response = await fetch('/api/training-sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: selectedCustomerId,
+          date: selectedDate,
+          startTime: selectedStartTime,
+          endTime: endTime,
+          type: '1:1',
+          status: 'scheduled',
+          notes: sessionNotes
+        }),
+      });
+
+      if (response.ok) {
+        const newSession = await response.json();
+        setSessions(prev => [...prev, {
+          ...newSession,
+          date: newSession.date.split('T')[0],
+          customerName: newSession.customer?.name || 'Unknown Customer'
+        }]);
+        setShowNewSessionModal(false);
+        setSelectedCustomerId('');
+        setSelectedDate('');
+        setSelectedStartTime('');
+        setSessionNotes('');
+        alert('Session created successfully!');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Error creating session');
+      }
+    } catch (error) {
+      console.error('Error creating session:', error);
+      alert('Error creating session. Please try again.');
+    }
+  };
+
+  const handleCreateOwnTraining = async () => {
+    if (!ownTrainingDate || !ownTrainingStartTime) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const endTime = `${(parseInt(ownTrainingStartTime.split(':')[0]) + 1).toString().padStart(2, '0')}:${ownTrainingStartTime.split(':')[1]}`;
+      
+      const response = await fetch('/api/training-sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: 'mihaela-own-training', // Special ID for Mihaela's own training
+          date: ownTrainingDate,
+          startTime: ownTrainingStartTime,
+          endTime: endTime,
+          type: 'own-training',
+          status: 'scheduled',
+          notes: 'Mihaela\'s own training session'
+        }),
+      });
+
+      if (response.ok) {
+        const newSession = await response.json();
+        setSessions(prev => [...prev, {
+          ...newSession,
+          date: newSession.date.split('T')[0],
+          customerName: 'Mihaela (Own Training)'
+        }]);
+        setShowOwnTrainingModal(false);
+        setOwnTrainingDate('');
+        setOwnTrainingStartTime('');
+        alert('Own training session created successfully!');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Error creating own training session');
+      }
+    } catch (error) {
+      console.error('Error creating own training session:', error);
+      alert('Error creating own training session. Please try again.');
+    }
+  };
+
+  // Auto-complete past sessions
+  const handleAutoCompleteSessions = async () => {
+    try {
+      const response = await fetch('/api/training-sessions/auto-complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Auto-complete result:', result);
+        
+        // Reload sessions to reflect changes
+        const sessionsResponse = await fetch('/api/training-sessions');
+        if (sessionsResponse.ok) {
+          const updatedSessions = await sessionsResponse.json();
+          setSessions(updatedSessions);
+        }
+        
+        alert(`Auto-completed ${result.updatedCount} sessions`);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to auto-complete sessions');
+      }
+    } catch (error) {
+      console.error('Error auto-completing sessions:', error);
+      alert('Failed to auto-complete sessions');
+    }
+  };
+
+  // Handle updating session status
+  const handleUpdateSessionStatus = async (sessionId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/training-sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus
+        }),
+      });
+
+      if (response.ok) {
+        // Update session in local state
+        setSessions(prev => prev.map(session => 
+          session.id === sessionId 
+            ? { ...session, status: newStatus }
+            : session
+        ));
+        
+        // Update selected session if it's the same one
+        if (selectedSession && selectedSession.id === sessionId) {
+          setSelectedSession({ ...selectedSession, status: newStatus });
+        }
+        
+        setShowEditModal(false);
+        alert(`Session status updated to ${newStatus}`);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to update session status');
+      }
+    } catch (error) {
+      console.error('Error updating session status:', error);
+      alert('Failed to update session status');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <main className="container mx-auto px-4 py-8">
+        <div
+          className="bg-white rounded-2xl shadow-xl p-6 md:p-8"
+        >
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 flex items-center">
+                <Calendar className="w-8 h-8 mr-3 text-rose-500" />
+                Coaching Schedule
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Manage your training sessions and client schedules
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+              <button
+                onClick={handleAutoCompleteSessions}
+                className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition-colors duration-200"
+              >
+                <Clock className="w-5 h-5 mr-2" />
+                Auto Complete
+              </button>
+              <button
+                onClick={() => setShowOwnTrainingModal(true)}
+                className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg shadow hover:bg-purple-600 transition-colors duration-200"
+              >
+                <Target className="w-5 h-5 mr-2" />
+                Own Training
+              </button>
+              <button
+                onClick={() => setShowNewSessionModal(true)}
+                className="flex items-center px-4 py-2 bg-rose-500 text-white rounded-lg shadow hover:bg-rose-600 transition-colors duration-200"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                New Session
+              </button>
+            </div>
+          </div>
+
+          {/* Week Navigation */}
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => navigateWeek('prev')}
+              className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            >
+              <ChevronLeft className="w-5 h-5 mr-2" />
+              Previous Week
+            </button>
+            
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-gray-800">
+                {currentWeekDates[0].toLocaleDateString('en-US', { 
+                  month: 'long', 
+                  day: 'numeric' 
+                })} - {currentWeekDates[5].toLocaleDateString('en-US', { 
+                  month: 'long', 
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </h2>
+            </div>
+            
+            <button
+              onClick={() => navigateWeek('next')}
+              className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+            >
+              Next Week
+              <ChevronRight className="w-5 h-5 ml-2" />
+            </button>
+          </div>
+
+          {/* Schedule Grid */}
+          <div className="overflow-x-auto">
+            <div className="min-w-full">
+              {/* Header Row */}
+              <div className="grid grid-cols-7 gap-1 mb-4">
+                <div className="p-3 text-center font-semibold text-gray-600 bg-gray-50 rounded-lg">
+                  Time
+                </div>
+                {days.map((day, index) => (
+                  <div key={day} className="p-3 text-center font-semibold text-gray-600 bg-gray-50 rounded-lg">
+                    <div className="text-sm">{dayAbbr[index]}</div>
+                    <div className="text-xs text-gray-500">{formatDate(currentWeekDates[index])}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Time Slots */}
+              {timeSlots.map((timeSlot) => (
+                <div key={timeSlot} className="grid grid-cols-7 gap-1 mb-1">
+                  {/* Time Column */}
+                  <div className="p-2 text-sm text-gray-600 bg-gray-50 rounded-lg flex items-center justify-center">
+                    {formatTime(timeSlot)}
+                  </div>
+                  
+                  {/* Day Columns */}
+                  {days.map((day, dayIndex) => {
+                    const date = currentWeekDates[dayIndex];
+                    const daySessions = getSessionsForDayAndTime(date, timeSlot);
+                    const isAvailable = isTimeSlotAvailable(date.toISOString().split('T')[0], timeSlot);
+                    
+                    return (
+                      <div
+                        key={`${day}-${timeSlot}`}
+                        className={`min-h-[60px] p-2 rounded-lg border-2 border-dashed transition-colors duration-200 ${
+                          isAvailable 
+                            ? 'border-gray-200 bg-gray-50 hover:bg-gray-100' 
+                            : 'border-gray-300 bg-gray-100'
+                        }`}
+                      >
+                        {daySessions.map((session) => (
+                          <div
+                            key={session.id}
+                            className={`p-2 rounded-lg text-xs font-medium mb-1 cursor-pointer transition-all duration-200 hover:shadow-md ${getSessionTypeColor(session.type, session.status)}`}
+                            onClick={() => {
+                              setSelectedSession(session);
+                              setShowSessionDetailsModal(true);
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <User className="w-3 h-3 mr-1" />
+                                <span className="truncate">{session.customerName}</span>
+                              </div>
+                              <div className={`px-1 py-0.5 rounded text-xs ${getSessionStatusColor(session.status)}`}>
+                                {session.status}
+                              </div>
+                            </div>
+                            {session.trainingType && (
+                              <div className="text-xs text-gray-600 mt-1 truncate">
+                                {session.trainingType}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500 mt-1">
+                              {formatTime(session.startTime)} - {formatTime(session.endTime)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Customer Summary */}
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Customer Overview</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customers.map((customer) => (
+                <div key={customer.id} className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-800">{customer.name}</h4>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      customer.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {customer.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <div className="flex items-center">
+                      <Users className="w-4 h-4 mr-2" />
+                      {customer.trainingFrequency}x per week
+                    </div>
+                    <div className="flex items-center">
+                      <Target className="w-4 h-4 mr-2" />
+                      {getCustomerTrainingType(customer)}
+                    </div>
+                    {customer.discount && customer.discount > 0 && (
+                      <div className="flex items-center">
+                        <Euro className="w-4 h-4 mr-2" />
+                        {customer.discount}% discount
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* New Session Modal */}
+        {showNewSessionModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div
+              className="bg-white rounded-2xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800">New Training Session</h3>
+                <button
+                  onClick={() => setShowNewSessionModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Customer *
+                  </label>
+                  <select
+                    value={selectedCustomerId}
+                    onChange={(e) => setSelectedCustomerId(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
+                  >
+                    <option value="">Select a customer</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time *
+                  </label>
+                  <select
+                    value={selectedStartTime}
+                    onChange={(e) => setSelectedStartTime(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
+                  >
+                    <option value="">Select start time</option>
+                    {timeSlots.map((timeSlot) => (
+                      <option key={timeSlot} value={timeSlot}>
+                        {formatTime(timeSlot)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Notes
+                  </label>
+                  <textarea
+                    value={sessionNotes}
+                    onChange={(e) => setSessionNotes(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
+                    rows={3}
+                    placeholder="Add any notes for this session..."
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowNewSessionModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateSession}
+                    className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
+                  >
+                    Create Session
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Own Training Modal */}
+        {showOwnTrainingModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div
+              className="bg-white rounded-2xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Own Training Session</h3>
+                <button
+                  onClick={() => setShowOwnTrainingModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={ownTrainingDate}
+                    onChange={(e) => setOwnTrainingDate(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Start Time *
+                  </label>
+                  <select
+                    value={ownTrainingStartTime}
+                    onChange={(e) => setOwnTrainingStartTime(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">Select start time</option>
+                    {timeSlots.map((timeSlot) => (
+                      <option key={timeSlot} value={timeSlot}>
+                        {formatTime(timeSlot)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowOwnTrainingModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateOwnTraining}
+                    className="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                  >
+                    Create Session
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Session Details Modal */}
+        {showSessionDetailsModal && selectedSession && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div
+              className="bg-white rounded-2xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Session Details</h3>
+                <button
+                  onClick={() => setShowSessionDetailsModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Customer
+                  </label>
+                  <p className="text-gray-800">{selectedSession.customerName}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date & Time
+                  </label>
+                  <p className="text-gray-800">
+                    {new Date(selectedSession.date).toLocaleDateString()} at {formatTime(selectedSession.startTime)} - {formatTime(selectedSession.endTime)}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type
+                  </label>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSessionTypeColor(selectedSession.type)}`}>
+                    {selectedSession.type}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSessionStatusColor(selectedSession.status)}`}>
+                    {selectedSession.status}
+                  </span>
+                </div>
+
+                {selectedSession.notes && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes
+                    </label>
+                    <p className="text-gray-800">{selectedSession.notes}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowSessionDetailsModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSessionDetailsModal(false);
+                      setShowEditModal(true);
+                    }}
+                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Session Modal */}
+        {showEditModal && selectedSession && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800">Edit Session</h3>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Customer
+                  </label>
+                  <p className="text-gray-800">{selectedSession.customerName}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date & Time
+                  </label>
+                  <p className="text-gray-800">
+                    {new Date(selectedSession.date).toLocaleDateString()} at {formatTime(selectedSession.startTime)} - {formatTime(selectedSession.endTime)}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Update Status
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleUpdateSessionStatus(selectedSession.id, 'completed')}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedSession.status === 'completed'
+                          ? 'bg-green-500 text-white'
+                          : 'bg-green-100 text-green-800 hover:bg-green-200'
+                      }`}
+                    >
+                      ✅ Completed
+                    </button>
+                    <button
+                      onClick={() => handleUpdateSessionStatus(selectedSession.id, 'cancelled')}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedSession.status === 'cancelled'
+                          ? 'bg-red-500 text-white'
+                          : 'bg-red-100 text-red-800 hover:bg-red-200'
+                      }`}
+                    >
+                      ❌ Cancelled
+                    </button>
+                    <button
+                      onClick={() => handleUpdateSessionStatus(selectedSession.id, 'scheduled')}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedSession.status === 'scheduled'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                      }`}
+                    >
+                      📅 Scheduled
+                    </button>
+                    <button
+                      onClick={() => handleUpdateSessionStatus(selectedSession.id, 'no-show')}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedSession.status === 'no-show'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+                      }`}
+                    >
+                      🚫 No Show
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+  );
+}

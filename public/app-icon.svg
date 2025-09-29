@@ -1,0 +1,10 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <rect width="192" height="192" rx="48" fill="#EC4899"/>
+  
+  <!-- Inner rounded square -->
+  <rect x="36" y="36" width="120" height="120" rx="24" fill="#F9A8D4"/>
+  
+  <!-- MF Text -->
+  <text x="96" y="130" font-family="Arial, sans-serif" font-size="84" font-weight="bold" text-anchor="middle" fill="white">MF</text>
+</svg>

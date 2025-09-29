@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), Inter, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #e11d48;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #be123c;
+}
+
+/* Rose scrollbar for time selection */
+.rose-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rose-scrollbar::-webkit-scrollbar-track {
+  background: #fdf2f8; /* rose-50 */
+  border-radius: 4px;
+}
+
+.rose-scrollbar::-webkit-scrollbar-thumb {
+  background: #f9a8d4; /* rose-300 */
+  border-radius: 4px;
+}
+
+.rose-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #f472b6; /* rose-400 */
+}
+
+/* Minimal transitions for better performance */
+button, a, input, select, textarea {
+  transition-property: color, background-color, border-color;
+  transition-timing-function: ease;
+  transition-duration: 100ms;
+}
+
+/* Hide scrollbar */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Improve touch targets */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better spacing for mobile */
+  .space-y-6 > * + * {
+    margin-top: 1rem;
+  }
+  
+  /* Improve table responsiveness */
+  table {
+    font-size: 0.875rem;
+  }
+  
+  /* Better card spacing */
+  .grid > * {
+    margin-bottom: 1rem;
+  }
+  
+  /* Improve text readability on mobile */
+  h1 {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+  
+  /* Better form inputs on mobile */
+  input, select, textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 475px) {
+  .xs\:inline {
+    display: inline;
+  }
+  
+  .xs\:hidden {
+    display: none;
+  }
+}

@@ -1,0 +1,665 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Calculator, Plus, Save, Download, Euro, Users, Clock, Target, TrendingUp } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { serviceService, pricingService, userService } from '@/lib/database';
+import jsPDF from 'jspdf';
+
+export default function TarievenPage() {
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [selectedService, setSelectedService] = useState('personal-training-1-1');
+  const [includeNutritionPlan, setIncludeNutritionPlan] = useState(false);
+  const [duration, setDuration] = useState<number | ''>('');
+  const [frequency, setFrequency] = useState<number | ''>('');
+  const [discount, setDiscount] = useState<number | ''>('');
+
+  const [services, setServices] = useState<{
+    id: string;
+    name: string;
+    basePrice: number;
+    description?: string;
+  }[]>([]);
+
+  const [customers, setCustomers] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    status: string;
+    plan: string;
+  }>([]);
+
+  // Default service data for immediate calculation
+  const defaultService = {
+    id: 'personal-training-1-1',
+    name: 'Personal Training 1:1',
+    basePrice: 50,
+    description: '1-on-1 personal training session. Price varies by frequency: 1x=50 RON, 2x=45 RON, 3x=42 RON, 4x=41 RON, 5x=40 RON'
+  };
+
+  const nutritionPlanPrice = 0; // FREE
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        console.log('Fetching customers data...');
+        const customersData = await userService.getAllUsers();
+        console.log('Customers data:', customersData);
+        console.log('Customers data length:', customersData?.length);
+        
+        if (customersData && Array.isArray(customersData)) {
+          setCustomers(customersData);
+          console.log('Customers state updated with:', customersData.length, 'items');
+        } else {
+          console.error('Invalid customers data:', customersData);
+          setCustomers([]);
+        }
+      } catch (error) {
+        console.error('Error fetching customers data:', error);
+        // Set empty array if database is not available
+        setCustomers([]);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const selectedServiceData = defaultService;
+  const selectedCustomerData = customers.find(c => c.id === selectedCustomer);
+  
+  // Debug log for customers state
+  console.log('Current customers state:', customers);
+  console.log('Customers length in render:', customers.length);
+
+  // Frequency-based pricing for training sessions
+  const getPricePerSession = (frequency: number | '') => {
+    if (typeof frequency !== 'number') return 0;
+    switch (frequency) {
+      case 1: return 50;
+      case 2: return 45;
+      case 3: return 42;
+      case 4: return 41;
+      case 5: return 40;
+      default: return 50;
+    }
+  };
+
+  const calculatePrice = () => {
+    // Return zero values if duration or frequency are not set
+    if (typeof duration !== 'number' || typeof frequency !== 'number') {
+      return {
+        basePrice: 0,
+        totalPrice: 0,
+        discountAmount: 0,
+        priceAfterDiscount: 0,
+        finalPrice: 0,
+        isNutritionPlan: includeNutritionPlan
+      };
+    }
+
+    // Training session pricing - frequency-based
+    const pricePerSession = getPricePerSession(frequency);
+    const totalSessions = duration * frequency;
+    let totalPrice = pricePerSession * totalSessions;
+    
+    // Add nutrition plan if selected
+    if (includeNutritionPlan) {
+      totalPrice += nutritionPlanPrice;
+    }
+    
+    const discountAmount = (totalPrice * (typeof discount === 'number' ? discount : 0)) / 100;
+    const priceAfterDiscount = totalPrice - discountAmount;
+    const finalPrice = Math.round(priceAfterDiscount);
+    
+    return {
+      basePrice: pricePerSession,
+      totalPrice,
+      discountAmount,
+      priceAfterDiscount,
+      finalPrice,
+      isNutritionPlan: includeNutritionPlan
+    };
+  };
+
+  const priceCalculation = calculatePrice();
+
+  const saveCalculation = async () => {
+    if (!selectedCustomer) {
+      alert('Please select a customer first');
+      return;
+    }
+
+    if (typeof duration !== 'number' || typeof frequency !== 'number') {
+      alert('Please enter duration and frequency');
+      return;
+    }
+
+    try {
+      await pricingService.saveCalculation({
+        customerId: selectedCustomer,
+        customerName: selectedCustomerData?.name || '',
+        service: selectedServiceData?.name || '',
+        includeNutritionPlan,
+        duration,
+        frequency,
+        discount: typeof discount === 'number' ? discount : 0,
+        finalPrice: priceCalculation.finalPrice
+      });
+      alert(`Calculation saved for ${selectedCustomerData?.name}!`);
+    } catch (error) {
+      console.error('Error saving calculation:', error);
+      alert('An error occurred while saving the calculation.');
+    }
+  };
+
+  const exportCalculation = () => {
+    const data = {
+      customer: selectedCustomerData?.name,
+      service: selectedServiceData?.name,
+      includeNutritionPlan,
+      duration,
+      frequency,
+      discount: typeof discount === 'number' ? discount : 0,
+      calculations: priceCalculation,
+      timestamp: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pricing-calculation-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Header with logo area
+    doc.setFillColor(225, 29, 72); // Rose background
+    doc.rect(0, 0, 210, 25, 'F');
+    
+    doc.setFontSize(24);
+    doc.setTextColor(255, 255, 255); // White text
+    doc.setFont('helvetica', 'bold');
+    doc.text('Mihaela Fitness', 20, 18);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Professional Training Services', 20, 22);
+    
+    // Report title
+    doc.setFontSize(18);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Pricing Calculation Report', 20, 45);
+    
+    // Customer and Service details in a nice box
+    doc.setFillColor(248, 250, 252); // Light gray background
+    doc.rect(15, 55, 180, 50, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(15, 55, 180, 50, 'S');
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Customer Information', 20, 70);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Customer: ${selectedCustomerData?.name || 'Not selected'}`, 20, 80);
+    doc.text(`Service: ${selectedServiceData.name}`, 20, 88);
+    doc.text(`Duration: ${duration || 'Not set'} weeks`, 20, 96);
+    doc.text(`Frequency: ${frequency || 'Not set'} sessions per week`, 20, 104);
+    
+    // Pricing breakdown table
+    const tableStartY = 120;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Pricing Breakdown', 20, tableStartY);
+    
+    // Table headers
+    const tableY = tableStartY + 15;
+    doc.setFillColor(225, 29, 72);
+    doc.rect(20, tableY - 5, 170, 8, 'F');
+    
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Description', 25, tableY);
+    doc.text('Quantity', 120, tableY);
+    doc.text('Unit Price', 150, tableY);
+    doc.text('Total', 180, tableY);
+    
+    // Table rows
+    let currentY = tableY + 10;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    
+    // Training sessions row
+    doc.text('Personal Training Sessions', 25, currentY);
+    doc.text(`${duration * frequency}`, 120, currentY);
+    doc.text(`${priceCalculation.basePrice} RON`, 150, currentY);
+    doc.text(`${(priceCalculation.basePrice * duration * frequency).toFixed(0)} RON`, 180, currentY);
+    currentY += 8;
+    
+    // Nutrition plan row (if included)
+    if (includeNutritionPlan) {
+      doc.text('Nutrition Plan', 25, currentY);
+      doc.text('1', 120, currentY);
+      doc.text('FREE', 150, currentY);
+      doc.text('FREE', 180, currentY);
+      currentY += 8;
+    }
+    
+    // Subtotal row
+    currentY += 5;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, currentY - 2, 190, currentY - 2);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Subtotal:', 25, currentY);
+    doc.text(`${priceCalculation.totalPrice.toFixed(0)} RON`, 180, currentY);
+    currentY += 8;
+    
+    // Discount row (if applicable)
+    if (typeof discount === 'number' && discount > 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 150, 0); // Green for discount
+      doc.text(`Discount (${discount}%):`, 25, currentY);
+      doc.text(`-${priceCalculation.discountAmount.toFixed(0)} RON`, 180, currentY);
+      currentY += 8;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('After Discount:', 25, currentY);
+      doc.text(`${priceCalculation.priceAfterDiscount.toFixed(0)} RON`, 180, currentY);
+      currentY += 8;
+    }
+    
+    // Total row with highlight
+    currentY += 5;
+    doc.setDrawColor(225, 29, 72);
+    doc.line(20, currentY - 2, 190, currentY - 2);
+    
+    doc.setFillColor(225, 29, 72);
+    doc.rect(20, currentY - 5, 170, 10, 'F');
+    
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL:', 25, currentY + 2);
+    doc.text(`${priceCalculation.finalPrice.toFixed(0)} RON`, 180, currentY + 2);
+    
+    // Platform access information
+    currentY += 25;
+    doc.setFontSize(12);
+    doc.setTextColor(225, 29, 72);
+    doc.setFont('helvetica', 'bold');
+    doc.text('✨ Included Platform Access:', 20, currentY);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    doc.text('• Academy - Training videos and courses', 20, currentY + 10);
+    doc.text('• Mindset - Mental coaching and motivation', 20, currentY + 18);
+    doc.text('• Progressie - Progress tracking and analytics', 20, currentY + 26);
+    doc.text('• Motivation - Daily inspiration and support', 20, currentY + 34);
+    
+    // Important note
+    currentY += 50;
+    doc.setFillColor(255, 248, 220); // Light yellow background
+    doc.rect(15, currentY - 5, 180, 15, 'F');
+    doc.setDrawColor(255, 193, 7); // Yellow border
+    doc.rect(15, currentY - 5, 180, 15, 'S');
+    
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ℹ️ Important:', 20, currentY + 3);
+    doc.setFont('helvetica', 'normal');
+    doc.text('All prices are inclusive - no additional VAT or fees', 20, currentY + 10);
+    
+    // Footer
+    const footerY = 280;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, footerY, 190, footerY);
+    
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated on: ${new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, 20, footerY + 8);
+    doc.text('Mihaela Fitness - Professional Training Services', 20, footerY + 15);
+    doc.text('Contact: info@mihaelafitness.com', 20, footerY + 22);
+    
+    // Save the PDF
+    const fileName = `pricing-calculation-${selectedCustomerData?.name?.replace(/\s+/g, '-').toLowerCase() || 'customer'}-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <main className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2">Pricing Calculator</h1>
+              <p className="text-gray-600">Calculate prices and rates for your services</p>
+            </div>
+            <div className="flex gap-2 mt-4 md:mt-0">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={saveCalculation}
+                className="bg-green-500 text-white px-3 sm:px-4 py-2 rounded-xl font-medium hover:bg-green-600 transition-colors duration-200 flex items-center gap-2 text-sm sm:text-base"
+              >
+                <Save className="w-4 h-4" />
+                Save
+              </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={exportToPDF}
+                    className="bg-blue-500 text-white px-3 sm:px-4 py-2 rounded-xl font-medium hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2 text-sm sm:text-base"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export PDF
+                  </motion.button>
+            </div>
+          </div>
+        </motion.div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+              {/* Calculator Form */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg border border-white/20"
+              >
+            <h2 className="text-xl font-bold text-gray-800 mb-6">Calculation Settings</h2>
+            
+            <div className="space-y-6">
+                {/* Customer Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Customer *</label>
+                  <select
+                    value={selectedCustomer}
+                    onChange={(e) => setSelectedCustomer(e.target.value)}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                    required
+                  >
+                    <option value="">Select a customer... ({customers.length} available)</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.email}) - {customer.plan}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedCustomerData && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      {selectedCustomerData.name} • {selectedCustomerData.plan} • {selectedCustomerData.status}
+                    </p>
+                  )}
+                </div>
+
+                {/* Service Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Service</label>
+                  <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-800">
+                    Personal Training 1:1 - 50 RON
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2">{selectedServiceData.description}</p>
+                </div>
+
+                {/* Nutrition Plan Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Include Nutrition Plan</label>
+                  <select
+                    value={includeNutritionPlan ? 'yes' : 'no'}
+                    onChange={(e) => setIncludeNutritionPlan(e.target.value === 'yes')}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                  >
+                    <option value="no">No</option>
+                    <option value="yes">Yes: FREE</option>
+                  </select>
+                  <p className="text-sm text-gray-600 mt-2">Personalized nutrition plan with meal recommendations and dietary guidelines</p>
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Duration (weeks)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="52"
+                    value={duration}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '') {
+                        setDuration('');
+                      } else {
+                        setDuration(parseInt(value) || '');
+                      }
+                    }}
+                    placeholder="Enter number of weeks"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                  />
+                  <p className="text-sm text-gray-600 mt-2">1 month (4 weeks) and 3 months (12 weeks)</p>
+                </div>
+
+                {/* Frequency */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Frequency (sessions per week)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={frequency}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '') {
+                        setFrequency('');
+                      } else {
+                        const numValue = parseInt(value) || '';
+                        if (typeof numValue === 'number') {
+                          setFrequency(Math.min(Math.max(numValue, 1), 5));
+                        } else {
+                          setFrequency('');
+                        }
+                      }
+                    }}
+                    placeholder="Enter sessions per week (max 5)"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                  />
+                </div>
+
+                {/* Discount */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Discount (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={discount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '') {
+                        setDiscount('');
+                      } else {
+                        setDiscount(parseInt(value) || 0);
+                      }
+                    }}
+                    placeholder="Enter discount percentage"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                  />
+                </div>
+
+            </div>
+          </motion.div>
+
+              {/* Price Calculation */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg border border-white/20"
+              >
+            <h2 className="text-xl font-bold text-gray-800 mb-6">Price Calculation</h2>
+            
+            <div className="space-y-4">
+              {/* Customer Info */}
+              {selectedCustomerData && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-5 h-5 text-blue-600" />
+                    <span className="font-semibold text-blue-800">Customer</span>
+                  </div>
+                  <p className="text-sm text-blue-700">
+                    {selectedCustomerData.name} • {selectedCustomerData.plan} • {selectedCustomerData.status}
+                  </p>
+                </div>
+              )}
+
+              <>
+                {/* Training Session Pricing */}
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-600">Price per session ({frequency}x per week):</span>
+                  <span className="font-semibold">{priceCalculation.basePrice} RON</span>
+                </div>
+
+                {/* Total Sessions */}
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-600">Total sessions ({duration} weeks × {frequency}/week):</span>
+                  <span className="font-semibold">{duration * frequency}</span>
+                </div>
+
+                {/* Training Sessions Subtotal */}
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-600">Training sessions:</span>
+                  <span className="font-semibold">{(priceCalculation.basePrice * duration * frequency).toFixed(0)} RON</span>
+                </div>
+
+                {/* Nutrition Plan */}
+                {includeNutritionPlan && (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-gray-600">Nutrition Plan:</span>
+                    <span className="font-semibold text-green-600">FREE</span>
+                  </div>
+                )}
+
+                {/* Subtotal */}
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="font-semibold">{priceCalculation.totalPrice.toFixed(0)} RON</span>
+                </div>
+
+                {/* Discount */}
+                {typeof discount === 'number' && discount > 0 && (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-gray-600">Discount ({discount}%):</span>
+                    <span className="font-semibold text-green-600">-{priceCalculation.discountAmount.toFixed(0)} RON</span>
+                  </div>
+                )}
+
+                {/* Price after discount */}
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-600">After discount:</span>
+                  <span className="font-semibold">{priceCalculation.priceAfterDiscount.toFixed(0)} RON</span>
+                </div>
+
+                {/* Final Price */}
+                <div className="flex justify-between items-center py-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl px-4">
+                  <span className="text-lg font-bold text-gray-800">Total:</span>
+                  <span className="text-lg sm:text-xl md:text-2xl font-bold text-rose-600">{priceCalculation.finalPrice.toFixed(0)} RON</span>
+                </div>
+
+                {/* Price per session */}
+                <div className="text-center py-4 bg-gray-50 rounded-xl">
+                  <p className="text-sm text-gray-600">Price per session:</p>
+                  <p className="text-lg font-semibold text-gray-800">
+                    {(priceCalculation.finalPrice / (duration * frequency)).toFixed(0)} RON
+                  </p>
+                </div>
+
+                {/* Platform Access Info */}
+                <div className="text-center py-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl border border-rose-200">
+                  <p className="text-sm font-semibold text-rose-700 mb-2">✨ All prices include unlimited access to:</p>
+                  <p className="text-sm text-gray-800">• Academy</p>
+                  <p className="text-sm text-gray-800">• Mindset</p>
+                  <p className="text-sm text-gray-800">• Progressie</p>
+                  <p className="text-sm text-gray-800">• Motivation</p>
+                </div>
+              </>
+            </div>
+          </motion.div>
+        </div>
+
+            {/* Quick Stats */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-8"
+            >
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Service Type</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Personal Training</p>
+                </div>
+                <Calculator className="w-8 h-8 text-blue-500" />
+              </div>
+            </div>
+          
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Price Range</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">40-50 RON</p>
+                </div>
+                <Euro className="w-8 h-8 text-green-500" />
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">1x per week</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">50 RON</p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-purple-500" />
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">5x per week</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">40 RON</p>
+                </div>
+                <Target className="w-8 h-8 text-orange-500" />
+              </div>
+            </div>
+        </motion.div>
+  );
+}

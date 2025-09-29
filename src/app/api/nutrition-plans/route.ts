@@ -1,0 +1,121 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(request: NextRequest) {
+  try {
+    const nutritionPlans = await prisma.nutritionPlan.findMany({
+      select: {
+        id: true,
+        name: true,
+        goal: true,
+        calories: true,
+        protein: true,
+        carbs: true,
+        fat: true,
+        meals: true,
+        clients: true,
+        status: true,
+        description: true,
+        weekMenu: true,
+        created: true,
+        lastUsed: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        customerNutritionPlans: {
+          select: {
+            id: true,
+            customerId: true,
+            status: true,
+            assignedAt: true,
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    return NextResponse.json(nutritionPlans)
+  } catch (error) {
+    console.error('Error fetching nutrition plans:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch nutrition plans' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const data = await request.json()
+    console.log('📊 Creating nutrition plan with data:', JSON.stringify(data, null, 2))
+    
+    const nutritionPlan = await prisma.nutritionPlan.create({
+      data: {
+        name: data.name,
+        goal: data.goal || 'weight_loss',
+        calories: data.totalCalories || data.calories,
+        protein: data.totalProtein || data.protein,
+        carbs: data.totalCarbs || data.carbs,
+        fat: data.totalFat || data.fat,
+        meals: data.meals || 0,
+        clients: data.clients || 0,
+        status: data.status || 'active',
+        description: data.description,
+        weekMenu: data.weekMenu,
+        userId: data.userId
+      }
+    })
+
+    console.log('✅ Nutrition plan created successfully:', nutritionPlan.id)
+    return NextResponse.json(nutritionPlan, { status: 201 })
+  } catch (error) {
+    console.error('❌ Error creating nutrition plan:', error)
+    console.error('❌ Error details:', error.message)
+    return NextResponse.json(
+      { error: 'Failed to create nutrition plan', details: error.message },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Nutrition plan ID is required' },
+        { status: 400 }
+      )
+    }
+
+    await prisma.nutritionPlan.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting nutrition plan:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete nutrition plan' },
+      { status: 500 }
+    )
+  }
+}

@@ -1,0 +1,382 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     String                       @id @default(cuid())
+  email                  String                       @unique
+  name                   String
+  phone                  String?
+  goal                   String?
+  joinDate               DateTime                     @default(now())
+  status                 String                       @default("active")
+  plan                   String                       @default("Basic")
+  trainingFrequency      Int                          @default(1)
+  lastWorkout            DateTime?
+  totalSessions          Int                          @default(0)
+  rating                 Float?                       @default(0)
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+  achievements           Achievement[]
+  measurements           CustomerMeasurement[]
+  customerNutritionPlans CustomerNutritionPlan[]
+  progressions           CustomerProgression[]
+  scheduleAssignments    CustomerScheduleAssignment[]
+  customerWorkouts       CustomerWorkout[]
+  customerPhotos         CustomerPhoto[]
+  goals                  Goal[]
+  nutritionPlans         NutritionPlan[]
+  trainingSessions       TrainingSession[]
+  workouts               Workout[]
+  todos                  Todo[]
+  payments               Payment[]
+
+  @@map("users")
+}
+
+model Workout {
+  id                  String                       @id @default(cuid())
+  name                String
+  category            String
+  difficulty          String
+  duration            Int
+  exercises           Int
+  trainingType        String?
+  clients             Int                          @default(0)
+  status              String                       @default("active")
+  description         String?
+  created             DateTime                     @default(now())
+  lastUsed            DateTime                     @default(now())
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  userId              String?
+  scheduleAssignments CustomerScheduleAssignment[]
+  customerWorkouts    CustomerWorkout[]
+  workoutExercises    WorkoutExercise[]
+  user                User?                        @relation(fields: [userId], references: [id])
+
+  @@map("workouts")
+}
+
+model NutritionPlan {
+  id                     String                  @id @default(cuid())
+  name                   String
+  goal                   String
+  calories               Int
+  protein                Int
+  carbs                  Int
+  fat                    Int
+  meals                  Int
+  clients                Int                     @default(0)
+  status                 String                  @default("active")
+  description            String?
+  weekMenu               Json?
+  created                DateTime                @default(now())
+  lastUsed               DateTime                @default(now())
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  userId                 String?
+  customerNutritionPlans CustomerNutritionPlan[]
+  user                   User?                   @relation(fields: [userId], references: [id])
+
+  @@map("nutrition_plans")
+}
+
+model Achievement {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  points      Int       @default(0)
+  completed   Boolean   @default(false)
+  date        DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("achievements")
+}
+
+model Goal {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  target      String
+  current     String
+  deadline    DateTime?
+  completed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("goals")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  basePrice   Float
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("services")
+}
+
+model PricingCalculation {
+  id                   String   @id @default(cuid())
+  service              String
+  duration             Int
+  frequency            Int
+  discount             Float    @default(0)
+  vat                  Float    @default(21)
+  finalPrice           Float
+  includeNutritionPlan Boolean  @default(false)
+  nutritionPlanCount   Int      @default(0)
+  customerId           String?
+  customerName         String?
+  createdAt            DateTime @default(now())
+
+  @@map("pricing_calculations")
+}
+
+model CustomerWorkout {
+  id         String   @id @default(cuid())
+  customerId String
+  workoutId  String
+  assignedAt DateTime @default(now())
+  status     String   @default("active")
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, workoutId])
+  @@map("customer_workouts")
+}
+
+model CustomerNutritionPlan {
+  id              String        @id @default(cuid())
+  customerId      String
+  nutritionPlanId String
+  assignedAt      DateTime      @default(now())
+  status          String        @default("active")
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  customer        User          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  nutritionPlan   NutritionPlan @relation(fields: [nutritionPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, nutritionPlanId])
+  @@map("customer_nutrition_plans")
+}
+
+model TrainingSession {
+  id         String   @id @default(cuid())
+  customerId String
+  date       DateTime
+  startTime  String
+  endTime    String
+  type       String   @default("1:1")
+  status     String   @default("scheduled")
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("training_sessions")
+}
+
+model NutritionCalculation {
+  id                  String   @id @default(cuid())
+  customerId          String
+  customerName        String
+  gender              String
+  age                 Int
+  height              Int
+  weight              Float
+  activityLevel       String
+  bmr                 Float
+  maintenanceCalories Float
+  protein             Float
+  carbs               Float
+  fat                 Float
+  createdAt           DateTime @default(now())
+
+  @@map("nutrition_calculations")
+}
+
+model CustomerMeasurement {
+  id         String   @id @default(cuid())
+  customerId String
+  week       Int
+  date       DateTime
+  weight     Float?
+  height     Float?
+  age        Int?
+  chest      Float?
+  waist      Float?
+  hips       Float?
+  thigh      Float?
+  arm        Float?
+  neck       Float?
+  bodyFat    Float?
+  muscleMass Float?
+  bmi        Float?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("customer_measurements")
+}
+
+model CustomerProgression {
+  id             String   @id @default(cuid())
+  customerId     String
+  week           Int
+  date           DateTime
+  endurance      Float?
+  strength       Float?
+  flexibility    Float?
+  balance        Float?
+  goalAchieved   Boolean  @default(false)
+  goalProgress   Float?
+  goalNotes      String?
+  progressRating Int?
+  trainerNotes   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  customer       User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("customer_progression")
+}
+
+model Exercise {
+  id               String            @id @default(cuid())
+  name             String
+  description      String?
+  muscleGroup      String
+  equipment        String?
+  difficulty       String            @default("beginner")
+  category         String            @default("strength")
+  instructions     String?
+  tips             String?
+  videoUrl         String?
+  imageUrl         String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  workoutExercises WorkoutExercise[]
+
+  @@map("exercises")
+}
+
+model WorkoutExercise {
+  id         String   @id @default(cuid())
+  workoutId  String
+  exerciseId String
+  day        Int
+  order      Int
+  sets       Int      @default(3)
+  reps       String
+  weight     String?
+  restTime   String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@map("workout_exercises")
+}
+
+model CustomerScheduleAssignment {
+  id          String   @id @default(cuid())
+  customerId  String
+  workoutId   String
+  weekday     Int
+  trainingDay Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  customer    User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  workout     Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, weekday])
+  @@map("customer_schedule_assignments")
+}
+
+model Ingredient {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  per       String?  // Per 100g, per stuk, etc.
+  calories  Float
+  protein   Float
+  carbs     Float
+  fat       Float
+  fiber     Float?
+  sugar     Float?
+  category  String?
+  aliases  String[] // Array of alternative names
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ingredients")
+}
+
+model CustomerPhoto {
+  id         String   @id @default(cuid())
+  customerId String
+  week       Int
+  position   String   // 'front', 'side', 'back'
+  date       DateTime
+  imageUrl   String
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, week, position])
+  @@map("customer_photos")
+}
+
+model Todo {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  priority    String    @default("medium") // 'low', 'medium', 'high'
+  deadline    DateTime?
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("todos")
+}
+
+model Payment {
+  id            String    @id @default(cuid())
+  customerId    String
+  customer      User      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  amount        Float
+  paymentMethod String    // 'cash', 'card', 'bank_transfer', 'online'
+  paymentType   String    // 'full', 'installment', 'monthly'
+  status        String    @default("completed") // 'pending', 'completed', 'failed', 'refunded'
+  notes         String?
+  paymentDate   DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("payments")
+}
