@@ -15,3 +15,4 @@ CREATE TABLE IF NOT EXISTS "payments" (
 
 -- Create index for better performance
 CREATE INDEX IF NOT EXISTS "payments_customerId_idx" ON "payments"("customerId");
+

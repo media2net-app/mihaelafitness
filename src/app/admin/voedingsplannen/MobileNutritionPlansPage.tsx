@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Search, Filter, Download, Eye, Edit, Trash2, Apple, Users, Calendar, Target, UserPlus, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { nutritionService } from '@/lib/database';
+import IngredientSelector from '@/components/IngredientSelector';
 
 export default function MobileNutritionPlansPage() {
   const { t } = useLanguage();
@@ -28,6 +29,20 @@ export default function MobileNutritionPlansPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  
+  // New plan form state
+  const [newPlanForm, setNewPlanForm] = useState({
+    name: '',
+    goal: 'weight-loss',
+    description: '',
+    meals: 3,
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0
+  });
+  const [selectedIngredients, setSelectedIngredients] = useState([]);
+  const [creatingPlan, setCreatingPlan] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -132,6 +147,92 @@ export default function MobileNutritionPlansPage() {
     } catch (error) {
       console.error('Error assigning nutrition plan:', error);
       alert('Failed to assign nutrition plan');
+    }
+  };
+
+  const handleCreatePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingPlan(true);
+
+    try {
+      // Calculate total macros from ingredients if any are selected
+      let totalCalories = newPlanForm.calories;
+      let totalProtein = newPlanForm.protein;
+      let totalCarbs = newPlanForm.carbs;
+      let totalFat = newPlanForm.fat;
+
+      if (selectedIngredients.length > 0) {
+        const ingredientTotals = selectedIngredients.reduce((totals, ingredient) => {
+          const multiplier = ingredient.amount / 100;
+          return {
+            calories: totals.calories + (ingredient.calories * multiplier),
+            protein: totals.protein + (ingredient.protein * multiplier),
+            carbs: totals.carbs + (ingredient.carbs * multiplier),
+            fat: totals.fat + (ingredient.fat * multiplier)
+          };
+        }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+        totalCalories = Math.round(ingredientTotals.calories);
+        totalProtein = Math.round(ingredientTotals.protein);
+        totalCarbs = Math.round(ingredientTotals.carbs);
+        totalFat = Math.round(ingredientTotals.fat);
+      }
+
+      const planData = {
+        name: newPlanForm.name,
+        goal: newPlanForm.goal,
+        description: newPlanForm.description,
+        calories: totalCalories,
+        protein: totalProtein,
+        carbs: totalCarbs,
+        fat: totalFat,
+        meals: newPlanForm.meals,
+        status: 'active',
+        ingredients: selectedIngredients.map(ingredient => ({
+          id: ingredient.id,
+          name: ingredient.name,
+          amount: ingredient.amount,
+          calories: Math.round(ingredient.calories * ingredient.amount / 100),
+          protein: Math.round(ingredient.protein * ingredient.amount / 100),
+          carbs: Math.round(ingredient.carbs * ingredient.amount / 100),
+          fat: Math.round(ingredient.fat * ingredient.amount / 100)
+        }))
+      };
+
+      const response = await fetch('/api/nutrition-plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(planData)
+      });
+
+      if (response.ok) {
+        const newPlan = await response.json();
+        setVoedingsplannen([newPlan, ...voedingsplannen]);
+        setShowNewPlanModal(false);
+        
+        // Reset form
+        setNewPlanForm({
+          name: '',
+          goal: 'weight-loss',
+          description: '',
+          meals: 3,
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0
+        });
+        setSelectedIngredients([]);
+        
+        alert('Nutrition plan created successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error creating nutrition plan:', error);
+      alert('Error creating nutrition plan');
+    } finally {
+      setCreatingPlan(false);
     }
   };
 
@@ -379,17 +480,139 @@ export default function MobileNutritionPlansPage() {
       {/* New Plan Modal */}
       {showNewPlanModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold text-gray-800 mb-6">Create New Nutrition Plan</h3>
-            <p className="text-gray-600 mb-6">This feature is coming soon! For now, nutrition plans are managed through the database.</p>
-            <div className="flex gap-3">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-800">Create New Nutrition Plan</h3>
               <button
                 onClick={() => setShowNewPlanModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
               >
-                Close
+                <X className="w-5 h-5" />
               </button>
             </div>
+
+            <form onSubmit={handleCreatePlan} className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Plan Name</label>
+                  <input
+                    type="text"
+                    value={newPlanForm.name}
+                    onChange={(e) => setNewPlanForm({...newPlanForm, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    placeholder="e.g., Weight Loss Week 1"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Goal</label>
+                  <select
+                    value={newPlanForm.goal}
+                    onChange={(e) => setNewPlanForm({...newPlanForm, goal: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  >
+                    <option value="weight-loss">Weight Loss</option>
+                    <option value="muscle-gain">Muscle Gain</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="performance">Performance</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={newPlanForm.description}
+                  onChange={(e) => setNewPlanForm({...newPlanForm, description: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Describe this nutrition plan..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Meals per Day</label>
+                  <input
+                    type="number"
+                    value={newPlanForm.meals}
+                    onChange={(e) => setNewPlanForm({...newPlanForm, meals: parseInt(e.target.value) || 3})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    min="1"
+                    max="6"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
+                  <input
+                    type="number"
+                    value={newPlanForm.calories}
+                    onChange={(e) => setNewPlanForm({...newPlanForm, calories: parseInt(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    min="0"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Protein (g)</label>
+                  <input
+                    type="number"
+                    value={newPlanForm.protein}
+                    onChange={(e) => setNewPlanForm({...newPlanForm, protein: parseInt(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    min="0"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Carbs (g)</label>
+                  <input
+                    type="number"
+                    value={newPlanForm.carbs}
+                    onChange={(e) => setNewPlanForm({...newPlanForm, carbs: parseInt(e.target.value) || 0})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    min="0"
+                  />
+                </div>
+              </div>
+
+              {/* Ingredient Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ingredients</label>
+                <IngredientSelector
+                  selectedIngredients={selectedIngredients}
+                  onIngredientsChange={setSelectedIngredients}
+                />
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowNewPlanModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingPlan || !newPlanForm.name}
+                  className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {creatingPlan ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Plan'
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calculator, Edit, Trash2, Download, Share2, Eye, X, Ruler, TrendingUp, Plus, Clock, Target, Award, Camera, Upload, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calculator, Edit, Trash2, Download, Share2, Eye, X, Ruler, TrendingUp, Plus, Clock, Target, Award, Camera, Upload, Image as ImageIcon, DollarSign } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -1550,6 +1550,7 @@ export default function MobileCustomerDetailPage() {
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Overview</h3>
               
+              {/* Key Metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="bg-gray-50 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -1585,6 +1586,93 @@ export default function MobileCustomerDetailPage() {
                   </div>
                   <p className="text-2xl font-bold text-gray-800">{customerPricing.length}</p>
                   <p className="text-sm text-gray-600">Calculations</p>
+                </div>
+              </div>
+
+              {/* Progress Photos Section */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-purple-600" />
+                  Progress Photos
+                </h4>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-2xl font-bold text-gray-800">{customerPhotos.length}</p>
+                    <p className="text-sm text-gray-600">Photos uploaded</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('photos')}
+                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm flex items-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View Photos
+                  </button>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              <div className="space-y-4">
+                {/* Recent Sessions */}
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    Recent Sessions
+                  </h4>
+                  {trainingSessions.length > 0 ? (
+                    <div className="space-y-2">
+                      {trainingSessions.slice(0, 3).map((session) => (
+                        <div key={session.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              session.status === 'completed' ? 'bg-green-500' :
+                              session.status === 'scheduled' ? 'bg-blue-500' : 'bg-gray-400'
+                            }`}></div>
+                            <div>
+                              <p className="text-xs font-medium text-gray-800">
+                                {new Date(session.date).toLocaleDateString()}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {session.startTime} - {session.endTime}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            session.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            session.status === 'scheduled' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {session.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No recent sessions</p>
+                  )}
+                </div>
+
+                {/* Financial Summary */}
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                    Financial Summary
+                  </h4>
+                  {customerPricing.length > 0 ? (
+                    <div className="space-y-2">
+                      {customerPricing.slice(0, 2).map((pricing) => (
+                        <div key={pricing.id} className="p-2 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-gray-800">{pricing.service}</span>
+                            <span className="text-xs font-bold text-green-600">{pricing.finalPrice} RON</span>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {pricing.duration} weeks • {pricing.frequency}x/week
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No pricing information</p>
+                  )}
                 </div>
               </div>
 

@@ -17,7 +17,7 @@ interface PaymentOverview {
       id: string;
       name: string;
       email: string;
-    };
+    } | null;
     totalRevenue: number;
     totalPaid: number;
     outstanding: number;
@@ -47,7 +47,7 @@ interface PaymentOverview {
     finalPrice: number;
     customer: {
       name: string;
-    };
+    } | null;
     createdAt: string;
   }>;
 }
@@ -268,8 +268,8 @@ export default function PaymentsPage() {
                         <tr key={customer.customerId} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-4 px-4">
                             <div>
-                              <div className="font-medium text-gray-900">{customer.customer.name}</div>
-                              <div className="text-sm text-gray-500">{customer.customer.email}</div>
+                              <div className="font-medium text-gray-900">{customer.customer?.name || 'Unknown Customer'}</div>
+                              <div className="text-sm text-gray-500">{customer.customer?.email || 'No email'}</div>
                             </div>
                           </td>
                           <td className="py-4 px-4 font-semibold text-gray-900">
@@ -383,7 +383,7 @@ export default function PaymentsPage() {
                             {new Date(pricing.createdAt).toLocaleDateString()}
                           </td>
                           <td className="py-4 px-4 font-medium text-gray-900">
-                            {pricing.customer.name}
+                            {pricing.customer?.name || 'Unknown Customer'}
                           </td>
                           <td className="py-4 px-4 text-gray-600">
                             {pricing.service}
@@ -438,3 +438,4 @@ export default function PaymentsPage() {
     </div>
   );
 }
+

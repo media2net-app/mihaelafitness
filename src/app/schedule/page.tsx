@@ -1,13 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Edit3, Trash2, Check } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import Header from '@/components/Header';
 
+interface Workout {
+  id: string;
+  title: string;
+  type: string;
+  date: string;
+  time: string;
+  endTime: string;
+  duration: number;
+  description: string;
+  completed: boolean;
+  status: string;
+  customerName?: string;
+  workout?: {
+    id: string;
+    name: string;
+    category: string;
+    difficulty: string;
+    duration: number;
+    trainingType: string;
+  };
+}
+
 export default function SchedulePage() {
   const { t } = useLanguage();
   const [showAddWorkout, setShowAddWorkout] = useState(false);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newWorkout, setNewWorkout] = useState({
     title: '',
     type: '',
@@ -17,47 +41,154 @@ export default function SchedulePage() {
     description: ''
   });
 
-  const [workouts, setWorkouts] = useState([
-    {
-      id: 1,
-      title: t.dashboard.morningCardio,
-      type: t.dashboard.cardio,
-      date: '2024-01-15',
-      time: '07:00',
-      duration: '45',
-      description: t.dashboard.morningRun,
-      completed: false
-    },
-    {
-      id: 2,
-      title: t.dashboard.strengthTraining,
-      type: t.dashboard.strength,
-      date: '2024-01-15',
-      time: '18:00',
-      duration: '60',
-      description: t.dashboard.upperBodyWorkout,
-      completed: false
-    },
-    {
-      id: 3,
-      title: t.dashboard.yogaSession,
-      type: t.dashboard.yoga,
-      date: '2024-01-16',
-      time: '19:00',
-      duration: '30',
-      description: t.dashboard.eveningYoga,
-      completed: true
-    }
-  ]);
+  // Fetch workouts from API and auto-complete past sessions
+  useEffect(() => {
+    const fetchWorkouts = async () => {
+      try {
+        setLoading(true);
+        // For now, we'll use a default customer ID - in a real app this would come from auth context
+        const customerId = 'cmg29hgp90004dvgyol5vasje'; // Replace with actual customer ID from auth
+        
+        // Get current week's date range with proper timezone handling
+        const today = new Date();
+        const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        
+        // Calculate start of week (Monday = 1, so we adjust accordingly)
+        const startOfWeek = new Date(today);
+        const daysFromMonday = currentDay === 0 ? 6 : currentDay - 1; // Sunday = 6 days from Monday
+        startOfWeek.setDate(today.getDate() - daysFromMonday);
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        // Calculate end of week (Sunday)
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+        
+        // Debug logging for mobile calendar
+        console.log('Current date info:', {
+          today: today.toDateString(),
+          currentDay: currentDay,
+          dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][currentDay],
+          startOfWeek: startOfWeek.toDateString(),
+          endOfWeek: endOfWeek.toDateString()
+        });
+        
+        const response = await fetch(
+          `/api/schedule?customerId=${customerId}&startDate=${startOfWeek.toISOString().split('T')[0]}&endDate=${endOfWeek.toISOString().split('T')[0]}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setWorkouts(data);
+          
+          // Auto-complete past sessions
+          await autoCompletePastSessions(data, customerId);
+        } else {
+          console.error('Failed to fetch workouts');
+        }
+      } catch (error) {
+        console.error('Error fetching workouts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleAddWorkout = () => {
+    fetchWorkouts();
+  }, []);
+
+  const autoCompletePastSessions = async (workouts: Workout[], customerId: string) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Today at 00:00:00
+    const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+    
+    for (const workout of workouts) {
+      const workoutDate = new Date(workout.date);
+      const workoutTime = workout.time;
+      
+      // Check if the workout is in the past
+      const isPastDate = workoutDate < today;
+      const isToday = workoutDate.toDateString() === today.toDateString();
+      const isPastTime = isToday && workoutTime < currentTime;
+      
+      if ((isPastDate || isPastTime) && !workout.completed) {
+        try {
+          // Auto-complete the session
+          const response = await fetch('/api/training-sessions', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: workout.id,
+              customerId,
+              date: workout.date,
+              startTime: workout.time,
+              endTime: workout.endTime,
+              type: '1:1',
+              status: 'completed',
+              notes: workout.description
+            })
+          });
+
+          if (response.ok) {
+            // Update local state
+            setWorkouts(prevWorkouts => 
+              prevWorkouts.map(w => 
+                w.id === workout.id 
+                  ? { ...w, completed: true, status: 'completed' }
+                  : w
+              )
+            );
+          }
+        } catch (error) {
+          console.error('Error auto-completing session:', error);
+        }
+      }
+    }
+  };
+
+  const handleAddWorkout = async () => {
     if (newWorkout.title && newWorkout.type && newWorkout.date && newWorkout.time) {
-      const workout = {
-        id: Date.now(),
-        ...newWorkout,
-        completed: false
-      };
-      setWorkouts([...workouts, workout]);
+      try {
+        // Create training session via API
+        const response = await fetch('/api/training-sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerId: 'cmg29hgp90004dvgyol5vasje', // Replace with actual customer ID
+            date: newWorkout.date,
+            startTime: newWorkout.time,
+            endTime: calculateEndTime(newWorkout.time, parseInt(newWorkout.duration)),
+            type: '1:1',
+            status: 'scheduled',
+            notes: newWorkout.description
+          })
+        });
+
+        if (response.ok) {
+          // Refresh workouts with improved date logic
+          const today = new Date();
+          const currentDay = today.getDay();
+          const startOfWeek = new Date(today);
+          const daysFromMonday = currentDay === 0 ? 6 : currentDay - 1;
+          startOfWeek.setDate(today.getDate() - daysFromMonday);
+          startOfWeek.setHours(0, 0, 0, 0);
+          
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          endOfWeek.setHours(23, 59, 59, 999);
+          
+          const refreshResponse = await fetch(
+            `/api/schedule?customerId=cmg29hgp90004dvgyol5vasje&startDate=${startOfWeek.toISOString().split('T')[0]}&endDate=${endOfWeek.toISOString().split('T')[0]}`
+          );
+          
+          if (refreshResponse.ok) {
+            const data = await refreshResponse.json();
+            setWorkouts(data);
+          }
+          
       setNewWorkout({
         title: '',
         type: '',
@@ -67,17 +198,34 @@ export default function SchedulePage() {
         description: ''
       });
       setShowAddWorkout(false);
+        }
+      } catch (error) {
+        console.error('Error adding workout:', error);
+      }
     }
   };
 
-  const handleDeleteWorkout = (id: number) => {
+  const handleDeleteWorkout = async (id: string) => {
+    try {
+      const response = await fetch(`/api/training-sessions?id=${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
     setWorkouts(workouts.filter(workout => workout.id !== id));
+      }
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+    }
   };
 
-  const handleToggleComplete = (id: number) => {
-    setWorkouts(workouts.map(workout => 
-      workout.id === id ? { ...workout, completed: !workout.completed } : workout
-    ));
+
+  const calculateEndTime = (startTime: string, durationMinutes: number): string => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startDate = new Date();
+    startDate.setHours(hours, minutes, 0, 0);
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+    return endDate.toTimeString().slice(0, 5);
   };
 
   const getWorkoutsByDate = () => {
@@ -92,15 +240,49 @@ export default function SchedulePage() {
     return Object.entries(grouped).sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime());
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+        <Header />
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading schedule...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
       <Header />
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Add Workout Button */}
+        <div className="mb-6 flex justify-end">
+          <button
+            onClick={() => setShowAddWorkout(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl hover:from-rose-600 hover:to-pink-600 transition-all duration-300"
+          >
+            <Plus className="w-5 h-5" />
+            {t.dashboard.addNewWorkout}
+          </button>
+        </div>
+
         {/* Schedule by Date */}
         <div className="space-y-6">
-          {getWorkoutsByDate().map(([date, dateWorkouts], dateIndex) => (
+          {getWorkoutsByDate().length === 0 ? (
+            <div className="text-center py-12">
+              <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-600 mb-2">No workouts scheduled</h3>
+              <p className="text-gray-500">Add your first workout to get started!</p>
+            </div>
+          ) : (
+            getWorkoutsByDate().map(([date, dateWorkouts], dateIndex) => (
             <div
               key={date}
               className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20"
@@ -146,16 +328,6 @@ export default function SchedulePage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleToggleComplete(workout.id)}
-                          className={`p-1 rounded transition-colors duration-200 ${
-                            workout.completed 
-                              ? 'bg-green-100 text-green-600 hover:bg-green-200' 
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          <Check className="w-3 h-3" />
-                        </button>
-                        <button
                           onClick={() => handleDeleteWorkout(workout.id)}
                           className="p-1 rounded bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200"
                         >
@@ -177,7 +349,8 @@ export default function SchedulePage() {
                 ))}
               </div>
             </div>
-          ))}
+          ))
+          )}
         </div>
 
         {/* Add Workout Modal */}

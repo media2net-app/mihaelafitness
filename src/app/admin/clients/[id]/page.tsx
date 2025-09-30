@@ -626,10 +626,12 @@ export default function ClientDetailPage() {
 
         // Load customer photos (structured by week and position)
         try {
+          console.log('Loading photos for customer ID:', clientId);
           const customerPhotosResponse = await fetch(`/api/customer-photos?customerId=${clientId}`);
           if (customerPhotosResponse.ok) {
             const customerPhotosData = await customerPhotosResponse.json();
             console.log('Customer photos loaded:', customerPhotosData.length);
+            console.log('Photos data:', customerPhotosData);
             setCustomerPhotos(customerPhotosData);
             setPhotos(customerPhotosData); // Also set for legacy compatibility
           } else {
@@ -719,6 +721,37 @@ export default function ClientDetailPage() {
       loadClientData();
     }
   }, [clientId]);
+
+  // Keyboard navigation for photo viewer
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!selectedPhoto) return;
+      
+      const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
+      
+      switch (event.key) {
+        case 'ArrowLeft':
+          event.preventDefault();
+          const prevPhoto = customerPhotos[currentIndex - 1];
+          if (prevPhoto) setSelectedPhoto(prevPhoto);
+          break;
+        case 'ArrowRight':
+          event.preventDefault();
+          const nextPhoto = customerPhotos[currentIndex + 1];
+          if (nextPhoto) setSelectedPhoto(nextPhoto);
+          break;
+        case 'Escape':
+          event.preventDefault();
+          setSelectedPhoto(null);
+          break;
+      }
+    };
+
+    if (selectedPhoto) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [selectedPhoto, customerPhotos]);
 
   const handleAddMeasurement = async (formData: any) => {
     try {
@@ -922,6 +955,7 @@ export default function ClientDetailPage() {
             <div className="space-y-4 sm:space-y-6">
               <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Overview</h3>
               
+              {/* Key Metrics */}
               <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -955,6 +989,111 @@ export default function ClientDetailPage() {
                     <span className="text-xs sm:text-sm font-medium text-gray-700">Status</span>
                   </div>
                   <div className="text-sm font-bold text-gray-800 capitalize">{client.status}</div>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                {/* Recent Sessions */}
+                <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6">
+                  <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                    Recent Sessions
+                  </h4>
+                  {trainingSessions.length > 0 ? (
+                    <div className="space-y-2 sm:space-y-3">
+                      {trainingSessions.slice(0, 3).map((session) => (
+                        <div key={session.id} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className={`w-2 h-2 rounded-full ${
+                              session.status === 'completed' ? 'bg-green-500' :
+                              session.status === 'scheduled' ? 'bg-blue-500' : 'bg-gray-400'
+                            }`}></div>
+                            <div>
+                              <p className="text-xs sm:text-sm font-medium text-gray-800">
+                                {new Date(session.date).toLocaleDateString()}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {session.startTime} - {session.endTime} • {session.type}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            session.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            session.status === 'scheduled' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {session.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No recent sessions</p>
+                  )}
+                </div>
+
+                {/* Financial Summary */}
+                <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6">
+                  <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                    Financial Summary
+                  </h4>
+                  {customerPricing.length > 0 ? (
+                    <div className="space-y-2 sm:space-y-3">
+                      {customerPricing.slice(0, 2).map((pricing) => (
+                        <div key={pricing.id} className="p-2 sm:p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs sm:text-sm font-medium text-gray-800">{pricing.service}</span>
+                            <span className="text-xs sm:text-sm font-bold text-green-600">{pricing.finalPrice} RON</span>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {pricing.duration} weeks • {pricing.frequency}x/week
+                          </div>
+                        </div>
+                      ))}
+                      {payments.length > 0 && (
+                        <div className="pt-2 border-t border-gray-200">
+                          <div className="flex items-center justify-between text-xs sm:text-sm">
+                            <span className="text-gray-600">Total Paid:</span>
+                            <span className="font-semibold text-gray-800">
+                              {payments.reduce((sum, payment) => sum + payment.amount, 0)} RON
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No pricing information</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress Overview */}
+              <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6">
+                <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                  Progress Overview
+                </h4>
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <div className="text-lg sm:text-xl font-bold text-gray-800">{measurements.length}</div>
+                    <div className="text-xs text-gray-500">Measurements</div>
+                  </div>
+                  <div 
+                    className="text-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => {
+                      console.log('Progress Photos card clicked, customerPhotos:', customerPhotos);
+                      setShowPhotoGalleryModal(true);
+                    }}
+                  >
+                    <div className="text-lg sm:text-xl font-bold text-gray-800">{customerPhotos.length}</div>
+                    <div className="text-xs text-gray-500">Progress Photos</div>
+                    <div className="text-xs text-blue-600 mt-1">Click to view</div>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                    <div className="text-lg sm:text-xl font-bold text-gray-800">{nutritionPlans.length}</div>
+                    <div className="text-xs text-gray-500">Nutrition Plans</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1105,6 +1244,7 @@ export default function ClientDetailPage() {
                                     alt={`${position} view week ${week}`}
                                     className="w-full h-48 object-contain bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
                                     onClick={() => {
+                                      console.log('Photo clicked:', photo);
                                       setSelectedPhoto(photo);
                                       setShowPhotoGalleryModal(true);
                                     }}
@@ -1851,26 +1991,166 @@ export default function ClientDetailPage() {
         )}
 
         {showPhotoGalleryModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-800">Photo Gallery</h2>
-                <button
-                  onClick={() => setShowPhotoGalleryModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50">
+            <div className="relative w-full max-w-6xl max-h-[90vh] bg-black rounded-2xl overflow-hidden">
+              {/* Header */}
+              <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/70 to-transparent p-6">
+                <div className="flex items-center justify-between">
+                  <div className="text-white">
+                    <h2 className="text-2xl font-bold">Photo Gallery</h2>
+                    <p className="text-sm text-gray-300">
+                      {customerPhotos.length} photos • {Array.from(new Set(customerPhotos.map(p => p.week))).length} weeks
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowPhotoGalleryModal(false)}
+                    className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {photos.map((photo) => (
-                  <img
-                    key={photo.id}
-                    src={photo.url}
-                    alt={`Photo ${photo.id}`}
-                    className="w-full h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
-                  />
+
+              {/* Photo Grid */}
+              <div className="p-6 pt-20 pb-4 overflow-y-auto max-h-[90vh]">
+                {Array.from(new Set(customerPhotos.map(p => p.week))).sort((a, b) => b - a).map(week => (
+                  <div key={week} className="mb-8">
+                    <h3 className="text-xl font-semibold text-white mb-4">Week {week}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {['front', 'side', 'back'].map(position => {
+                        const photo = customerPhotos.find(p => p.week === week && p.position === position);
+                        return (
+                          <div key={position} className="relative group">
+                            <div className="bg-gray-800 rounded-lg p-4">
+                              <h4 className="text-lg font-medium text-white mb-3 capitalize flex items-center gap-2">
+                                <div className={`w-3 h-3 rounded-full ${
+                                  position === 'front' ? 'bg-green-500' :
+                                  position === 'side' ? 'bg-blue-500' : 'bg-purple-500'
+                                }`}></div>
+                                {position} View
+                              </h4>
+                              {photo ? (
+                                <div className="relative">
+                                  <img
+                                    src={photo.imageUrl}
+                                    alt={`${position} view week ${week}`}
+                                    className="w-full h-64 object-contain bg-gray-900 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => {
+                                      // Open individual photo view
+                                      setSelectedPhoto(photo);
+                                      setShowPhotoGalleryModal(false);
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
+                                    <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </div>
+                                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                    {new Date(photo.date).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-full h-64 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600 flex items-center justify-center">
+                                  <div className="text-center text-gray-400">
+                                    <div className="w-12 h-12 mx-auto mb-2 opacity-50">
+                                      <svg fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                    <p className="text-sm">No {position} photo</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Individual Photo Viewer Modal */}
+        {selectedPhoto && (
+          <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center p-4 z-50">
+            <div className="relative w-full max-w-5xl max-h-[95vh] bg-black rounded-2xl overflow-hidden">
+              {/* Header */}
+              <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-6">
+                <div className="flex items-center justify-between">
+                  <div className="text-white">
+                    <h3 className="text-2xl font-bold capitalize flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full ${
+                        selectedPhoto.position === 'front' ? 'bg-green-500' :
+                        selectedPhoto.position === 'side' ? 'bg-blue-500' : 'bg-purple-500'
+                      }`}></div>
+                      {selectedPhoto.position} View
+                    </h3>
+                    <p className="text-sm text-gray-300">
+                      Week {selectedPhoto.week} • {new Date(selectedPhoto.date).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedPhoto(null)}
+                    className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Photo */}
+              <div className="flex items-center justify-center p-6 pt-20 pb-6">
+                <img
+                  src={selectedPhoto.imageUrl}
+                  alt={`${selectedPhoto.position} view week ${selectedPhoto.week}`}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                />
+              </div>
+
+              {/* Navigation */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                <div className="flex items-center justify-between text-white">
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => {
+                        const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
+                        const prevPhoto = customerPhotos[currentIndex - 1];
+                        if (prevPhoto) setSelectedPhoto(prevPhoto);
+                      }}
+                      className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                      disabled={customerPhotos.findIndex(p => p.id === selectedPhoto.id) === 0}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <span className="text-sm">
+                      {customerPhotos.findIndex(p => p.id === selectedPhoto.id) + 1} of {customerPhotos.length}
+                    </span>
+                    <button
+                      onClick={() => {
+                        const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
+                        const nextPhoto = customerPhotos[currentIndex + 1];
+                        if (nextPhoto) setSelectedPhoto(nextPhoto);
+                      }}
+                      className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                      disabled={customerPhotos.findIndex(p => p.id === selectedPhoto.id) === customerPhotos.length - 1}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="text-sm text-gray-300">
+                    {selectedPhoto.notes && (
+                      <p className="max-w-xs truncate" title={selectedPhoto.notes}>
+                        {selectedPhoto.notes}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

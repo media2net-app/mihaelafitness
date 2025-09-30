@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function TarievenPage() {
   const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [selectedService, setSelectedService] = useState('personal-training-1-1');
   const [includeNutritionPlan, setIncludeNutritionPlan] = useState(false);
   const [nutritionPlanCount, setNutritionPlanCount] = useState<number | ''>('');
@@ -22,13 +23,23 @@ export default function TarievenPage() {
     plan: string;
   }[]>([]);
 
-  // Default service data for immediate calculation
-  const defaultService = {
-    id: 'personal-training-1-1',
-    name: 'Personal Training 1:1',
-    basePrice: 50,
-    description: '1-on-1 personal training session. Price varies by frequency: 1x=50 RON, 2x=45 RON, 3x=42 RON, 4x=41 RON, 5x=40 RON'
-  };
+  // Service options
+  const services = [
+    {
+      id: 'personal-training-1-1',
+      name: 'Personal Training 1:1',
+      basePrice: 50,
+      description: '1-on-1 personal training session. Price varies by frequency: 1x=50 RON, 2x=45 RON, 3x=42 RON, 4x=41 RON, 5x=40 RON'
+    },
+    {
+      id: 'group-training',
+      name: 'Group Training',
+      basePrice: 25,
+      description: 'Group training session (2-6 people). Price per person varies by group size: 2-3 people=25 RON, 4-5 people=20 RON, 6+ people=18 RON'
+    }
+  ];
+
+  const selectedServiceData = services.find(s => s.id === selectedService) || services[0];
 
   const nutritionPlanPrice = 200; // 200 RON per nutrition plan
 
@@ -49,19 +60,27 @@ export default function TarievenPage() {
     fetchCustomers();
   }, []);
 
-  const selectedServiceData = defaultService;
   const selectedCustomerData = customers.find(c => c.id === selectedCustomer);
 
   // Frequency-based pricing for training sessions
-  const getPricePerSession = (frequency: number | '') => {
+  const getPricePerSession = (frequency: number | '', serviceType: string, groupSize: number = 1) => {
     if (typeof frequency !== 'number') return 0;
-    switch (frequency) {
-      case 1: return 50;
-      case 2: return 45;
-      case 3: return 42;
-      case 4: return 41;
-      case 5: return 40;
-      default: return 50;
+    
+    if (serviceType === 'group-training') {
+      // Group training pricing based on group size
+      if (groupSize >= 6) return 18;
+      if (groupSize >= 4) return 20;
+      return 25; // 2-3 people
+    } else {
+      // Personal training pricing based on frequency
+      switch (frequency) {
+        case 1: return 50;
+        case 2: return 45;
+        case 3: return 42;
+        case 4: return 41;
+        case 5: return 40;
+        default: return 50;
+      }
     }
   };
 
@@ -74,26 +93,35 @@ export default function TarievenPage() {
         discountAmount: 0,
         priceAfterDiscount: 0,
         finalPrice: 0,
-        isNutritionPlan: includeNutritionPlan
+        isNutritionPlan: includeNutritionPlan,
+        groupSize: selectedCustomers.length || 1
       };
     }
 
     let totalPrice = 0;
+    const groupSize = selectedService === 'group-training' ? Math.max(selectedCustomers.length, 2) : 1;
 
-    // Check for specific pricing combinations
-    if (duration === 4 && frequency === 3) {
-      totalPrice = 500; // 4 weeks / 3 times a week = 500 RON
-    } else if (duration === 12 && frequency === 3) {
-      totalPrice = 1500; // 12 weeks / 3 times a week = 1500 RON
-    } else if (duration === 4 && frequency === 5) {
-      totalPrice = 800; // 4 weeks / 5 times a week = 800 RON
-    } else if (duration === 12 && frequency === 5) {
-      totalPrice = 2400; // 12 weeks / 5 times a week = 2400 RON
-    } else {
-      // Use existing frequency-based pricing for other combinations
-      const pricePerSession = getPricePerSession(frequency);
+    if (selectedService === 'group-training') {
+      // Group training pricing
+      const pricePerSession = getPricePerSession(frequency, 'group-training', groupSize);
       const totalSessions = duration * frequency;
       totalPrice = pricePerSession * totalSessions;
+    } else {
+      // Personal training pricing - check for specific pricing combinations
+      if (duration === 4 && frequency === 3) {
+        totalPrice = 500; // 4 weeks / 3 times a week = 500 RON
+      } else if (duration === 12 && frequency === 3) {
+        totalPrice = 1500; // 12 weeks / 3 times a week = 1500 RON
+      } else if (duration === 4 && frequency === 5) {
+        totalPrice = 800; // 4 weeks / 5 times a week = 800 RON
+      } else if (duration === 12 && frequency === 5) {
+        totalPrice = 2400; // 12 weeks / 5 times a week = 2400 RON
+      } else {
+        // Use existing frequency-based pricing for other combinations
+        const pricePerSession = getPricePerSession(frequency, 'personal-training-1-1');
+        const totalSessions = duration * frequency;
+        totalPrice = pricePerSession * totalSessions;
+      }
     }
     
     // Add nutrition plan if selected
@@ -111,15 +139,21 @@ export default function TarievenPage() {
       discountAmount,
       priceAfterDiscount,
       finalPrice,
-      isNutritionPlan: includeNutritionPlan
+      isNutritionPlan: includeNutritionPlan,
+      groupSize: groupSize
     };
   };
 
   const priceCalculation = calculatePrice();
 
   const saveCalculation = async () => {
-    if (!selectedCustomer) {
-      alert('Please select a customer first');
+    if (selectedService === 'group-training' && selectedCustomers.length < 2) {
+      alert('Please select at least 2 customers for group training');
+      return;
+    }
+    
+    if (selectedService === 'personal-training-1-1' && !selectedCustomer) {
+      alert('Please select a customer for personal training');
       return;
     }
 
@@ -135,20 +169,26 @@ export default function TarievenPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          customerId: selectedCustomer,
-          customerName: selectedCustomerData?.name || '',
+          customerId: selectedService === 'group-training' ? selectedCustomers.join(',') : selectedCustomer,
+          customerName: selectedService === 'group-training' 
+            ? selectedCustomers.map(id => customers.find(c => c.id === id)?.name).filter(Boolean).join(', ')
+            : selectedCustomerData?.name || '',
           service: selectedServiceData?.name || '',
           includeNutritionPlan,
           nutritionPlanCount: typeof nutritionPlanCount === 'number' ? nutritionPlanCount : 0,
           duration,
           frequency,
           discount: typeof discount === 'number' ? discount : 0,
-          finalPrice: priceCalculation.finalPrice
+          finalPrice: priceCalculation.finalPrice,
+          groupSize: priceCalculation.groupSize
         }),
       });
 
       if (response.ok) {
-        alert(`Calculation saved for ${selectedCustomerData?.name}!`);
+        const customerNames = selectedService === 'group-training' 
+          ? selectedCustomers.map(id => customers.find(c => c.id === id)?.name).filter(Boolean).join(', ')
+          : selectedCustomerData?.name || '';
+        alert(`Calculation saved for ${customerNames}!`);
       } else {
         alert('Error saving calculation');
       }
@@ -214,37 +254,93 @@ export default function TarievenPage() {
             <h2 className="text-xl font-bold text-gray-800 mb-6">Calculation Settings</h2>
             
             <div className="space-y-6">
-              {/* Customer Selection */}
+              {/* Service Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Customer *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Service *</label>
                 <select
-                  value={selectedCustomer}
-                  onChange={(e) => setSelectedCustomer(e.target.value)}
+                  value={selectedService}
+                  onChange={(e) => {
+                    setSelectedService(e.target.value);
+                    // Reset customer selections when changing service
+                    setSelectedCustomer('');
+                    setSelectedCustomers([]);
+                  }}
                   className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
                   required
                 >
-                  <option value="">Select a customer... ({customers.length} available)</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name} ({customer.email}) - {customer.plan}
+                  {services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} - {service.basePrice} RON
                     </option>
                   ))}
                 </select>
-                {selectedCustomerData && (
-                  <p className="text-sm text-gray-600 mt-2">
-                    {selectedCustomerData.name} • {selectedCustomerData.plan} • {selectedCustomerData.status}
-                  </p>
-                )}
-              </div>
-
-              {/* Service Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Service</label>
-                <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-800">
-                  Personal Training 1:1 - 50 RON
-                </div>
                 <p className="text-sm text-gray-600 mt-2">{selectedServiceData.description}</p>
               </div>
+
+              {/* Customer Selection - Personal Training */}
+              {selectedService === 'personal-training-1-1' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Customer *</label>
+                  <select
+                    value={selectedCustomer}
+                    onChange={(e) => setSelectedCustomer(e.target.value)}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                    required
+                  >
+                    <option value="">Select a customer... ({customers.length} available)</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.email}) - {customer.plan}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedCustomerData && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      {selectedCustomerData.name} • {selectedCustomerData.plan} • {selectedCustomerData.status}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Customer Selection - Group Training */}
+              {selectedService === 'group-training' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Customers (2-6 people) *</label>
+                  <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl bg-gray-50">
+                    {customers.map((customer) => (
+                      <label key={customer.id} className="flex items-center p-3 hover:bg-gray-100 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedCustomers.includes(customer.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              if (selectedCustomers.length < 6) {
+                                setSelectedCustomers([...selectedCustomers, customer.id]);
+                              }
+                            } else {
+                              setSelectedCustomers(selectedCustomers.filter(id => id !== customer.id));
+                            }
+                          }}
+                          className="mr-3 h-4 w-4 text-rose-600 focus:ring-rose-500 border-gray-300 rounded"
+                          disabled={!selectedCustomers.includes(customer.id) && selectedCustomers.length >= 6}
+                        />
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                          <div className="text-sm text-gray-500">{customer.email} • {customer.plan}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Selected: {selectedCustomers.length} customers
+                    {selectedCustomers.length > 0 && (
+                      <span className="ml-2">
+                        ({selectedCustomers.map(id => customers.find(c => c.id === id)?.name).filter(Boolean).join(', ')})
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
 
               {/* Nutrition Plan Selection */}
               <div>
@@ -374,7 +470,7 @@ export default function TarievenPage() {
             
             <div className="space-y-4">
               {/* Customer Info */}
-              {selectedCustomerData && (
+              {selectedService === 'personal-training-1-1' && selectedCustomerData && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="w-5 h-5 text-blue-600" />
@@ -386,10 +482,29 @@ export default function TarievenPage() {
                 </div>
               )}
 
+              {/* Group Training Info */}
+              {selectedService === 'group-training' && selectedCustomers.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-5 h-5 text-green-600" />
+                    <span className="font-semibold text-green-800">Group Training ({selectedCustomers.length} people)</span>
+                  </div>
+                  <p className="text-sm text-green-700">
+                    {selectedCustomers.map(id => customers.find(c => c.id === id)?.name).filter(Boolean).join(', ')}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    Price per person: {getPricePerSession(frequency, 'group-training', selectedCustomers.length)} RON
+                  </p>
+                </div>
+              )}
+
               <>
                 {/* Training Session Pricing */}
                 <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-600">Price per session ({frequency}x per week):</span>
+                  <span className="text-gray-600">
+                    Price per session ({frequency}x per week)
+                    {selectedService === 'group-training' && ` (${selectedCustomers.length} people)`}:
+                  </span>
                   <span className="font-semibold">{priceCalculation.basePrice} RON</span>
                 </div>
 
@@ -399,9 +514,19 @@ export default function TarievenPage() {
                   <span className="font-semibold">{duration * frequency}</span>
                 </div>
 
+                {/* Group Training Total */}
+                {selectedService === 'group-training' && (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-gray-600">Total for group ({selectedCustomers.length} people):</span>
+                    <span className="font-semibold">{(priceCalculation.basePrice * duration * frequency).toFixed(0)} RON</span>
+                  </div>
+                )}
+
                 {/* Training Sessions Subtotal */}
                 <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-600">Training sessions:</span>
+                  <span className="text-gray-600">
+                    {selectedService === 'group-training' ? 'Per person:' : 'Training sessions:'}
+                  </span>
                   <span className="font-semibold">{(priceCalculation.basePrice * duration * frequency).toFixed(0)} RON</span>
                 </div>
 

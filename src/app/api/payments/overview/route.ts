@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       
       return {
         customerId,
-        customer: pricing.customer,
+        customer: pricing.customer || null,
         totalRevenue: pricing.totalRevenue,
         totalPaid: payments.totalPaid,
         outstanding: pricing.totalRevenue - payments.totalPaid,
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
       recentPayments: payments.slice(0, 10),
       recentPricing: pricingCalculations.slice(0, 10).map(calc => ({
         ...calc,
-        customer: customerLookup[calc.customerId]
+        customer: customerLookup[calc.customerId] || null
       }))
     });
   } catch (error) {

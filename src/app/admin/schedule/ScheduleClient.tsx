@@ -111,21 +111,26 @@ export default function ScheduleClient({
     return hours * 60 + minutes;
   };
 
-  // Check if time slot is during break time (12:30-14:30 and 17:30-19:30)
+  // Check if time slot is during break time (12:30-14:00, 17:00-17:30, and 17:30-19:00)
   const isBreakTime = (timeSlot: string) => {
     const timeInMinutes = timeToMinutes(timeSlot);
     
-    // First break: 12:30-14:30 (exclude 12:30, include 14:30)
+    // First break: 12:30-14:00 (exclude 14:30, now available)
     const break1Start = 12 * 60 + 30;  // 12:30
-    const break1End = 14 * 60 + 30;    // 14:30
+    const break1End = 14 * 60 + 0;     // 14:00
     
-    // Second break: 17:30-19:30 (exclude 17:30, include 19:30)
-    const break2Start = 17 * 60 + 30;  // 17:30
-    const break2End = 19 * 60 + 30;    // 19:30
+    // Second break: 17:00-17:30 (new break time)
+    const break2Start = 17 * 60 + 0;   // 17:00
+    const break2End = 17 * 60 + 30;    // 17:30
     
-    // Break times exclude the start time (12:30 and 17:30 are available)
+    // Third break: 17:30-19:00 (exclude 19:30, now available)
+    const break3Start = 17 * 60 + 30;  // 17:30
+    const break3End = 19 * 60 + 0;     // 19:00
+    
+    // Break times exclude 14:30 and 19:30 (now available for booking)
     return (timeInMinutes > break1Start && timeInMinutes < break1End) ||
-           (timeInMinutes > break2Start && timeInMinutes < break2End);
+           (timeInMinutes > break2Start && timeInMinutes < break2End) ||
+           (timeInMinutes > break3Start && timeInMinutes < break3End);
   };
 
   // Check if time slot is available (not booked and not break time)

@@ -27,6 +27,17 @@ export default function ClientsPage() {
     completedSessions: number;
     rating?: number;
     subscriptionDuration?: number; // in weeks
+    groupSubscriptions?: Array<{
+      id: string;
+      service: string;
+      duration: number;
+      frequency: number;
+      finalPrice: number;
+      customerIds: string[];
+      customerNames: string[];
+      createdAt: string;
+      groupSize: number;
+    }>;
   }[]>([]);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -87,6 +98,10 @@ export default function ClientsPage() {
             const pricingResponse = await fetch(`/api/pricing-calculations?customerId=${user.id}`);
             const pricingData = pricingResponse.ok ? await pricingResponse.json() : [];
             
+            // Get group subscriptions
+            const groupSubscriptionsResponse = await fetch(`/api/group-subscriptions?customerId=${user.id}`);
+            const groupSubscriptions = groupSubscriptionsResponse.ok ? await groupSubscriptionsResponse.json() : [];
+            
             // Get the most recent pricing calculation to determine subscription duration
             let subscriptionDuration = null;
             if (pricingData.length > 0) {
@@ -125,7 +140,8 @@ export default function ClientsPage() {
               scheduledSessions: actualSessions,
               completedSessions,
               lastWorkout: user.lastWorkout || null,
-              subscriptionDuration: subscriptionDuration // Duration is already in weeks
+              subscriptionDuration: subscriptionDuration, // Duration is already in weeks
+              groupSubscriptions: groupSubscriptions
             };
           } catch (error) {
             console.error(`Error loading data for ${user.name}:`, error);
@@ -307,6 +323,12 @@ export default function ClientsPage() {
                     : 'No abonnement'
                   }
                 </span>
+                {/* Group Subscriptions */}
+                {client.groupSubscriptions && client.groupSubscriptions.length > 0 && (
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Group ({client.groupSubscriptions.length})
+                  </span>
+                )}
               </div>
               
               <div className="space-y-2 mb-4">
@@ -331,6 +353,23 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Star className="w-4 h-4 text-yellow-400 fill-current" />
                     <span>{client.rating}/5</span>
+                  </div>
+                )}
+                {/* Group Subscription Details */}
+                {client.groupSubscriptions && client.groupSubscriptions.length > 0 && (
+                  <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="w-4 h-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-800">Group Training</span>
+                    </div>
+                    {client.groupSubscriptions.map((group, index) => (
+                      <div key={group.id} className="text-xs text-green-700 mb-1">
+                        <div className="font-medium">{group.service}</div>
+                        <div>Duration: {group.duration} weeks • {group.frequency}x/week</div>
+                        <div>Group size: {group.groupSize} people</div>
+                        <div>Price: {group.finalPrice} RON</div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

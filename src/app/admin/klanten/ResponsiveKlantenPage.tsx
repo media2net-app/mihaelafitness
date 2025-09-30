@@ -26,6 +26,17 @@ export default function ResponsiveKlantenPage() {
     completedSessions: number;
     rating?: number;
     subscriptionDuration?: number; // in weeks
+    groupSubscriptions?: Array<{
+      id: string;
+      service: string;
+      duration: number;
+      frequency: number;
+      finalPrice: number;
+      customerIds: string[];
+      customerNames: string[];
+      createdAt: string;
+      groupSize: number;
+    }>;
   }[]>([]);
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -512,6 +523,15 @@ export default function ResponsiveKlantenPage() {
                   }
                 </span>
               </div>
+              {/* Group Subscriptions */}
+              {klant.groupSubscriptions && klant.groupSubscriptions.length > 0 && (
+                <div className="flex items-center text-sm text-gray-600">
+                  <span className="w-20 text-gray-500">Group:</span>
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    {klant.groupSubscriptions.length} group(s)
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
