@@ -42,7 +42,8 @@ export const userService = {
         body: JSON.stringify(data),
       });
       if (!response.ok) {
-        throw new Error('Failed to create user');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create user');
       }
       return await response.json();
     } catch (error) {

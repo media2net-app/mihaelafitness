@@ -34,8 +34,8 @@ export default function TarievenPage() {
     {
       id: 'group-training',
       name: 'Group Training',
-      basePrice: 25,
-      description: 'Group training session (2-6 people). Price per person varies by group size: 2-3 people=25 RON, 4-5 people=20 RON, 6+ people=18 RON'
+      basePrice: 40,
+      description: 'Group training session (2+ people). Fixed price per person: 40 RON regardless of group size'
     }
   ];
 
@@ -67,10 +67,8 @@ export default function TarievenPage() {
     if (typeof frequency !== 'number') return 0;
     
     if (serviceType === 'group-training') {
-      // Group training pricing based on group size
-      if (groupSize >= 6) return 18;
-      if (groupSize >= 4) return 20;
-      return 25; // 2-3 people
+      // Group training fixed pricing - 40 RON per person regardless of group size
+      return 40;
     } else {
       // Personal training pricing based on frequency
       switch (frequency) {
@@ -102,10 +100,10 @@ export default function TarievenPage() {
     const groupSize = selectedService === 'group-training' ? Math.max(selectedCustomers.length, 2) : 1;
 
     if (selectedService === 'group-training') {
-      // Group training pricing
-      const pricePerSession = getPricePerSession(frequency, 'group-training', groupSize);
+      // Group training pricing - fixed 40 RON per person per session
+      const pricePerSession = 40; // Fixed price per person
       const totalSessions = duration * frequency;
-      totalPrice = pricePerSession * totalSessions;
+      totalPrice = pricePerSession * totalSessions; // This is per person, not total for group
     } else {
       // Personal training pricing - check for specific pricing combinations
       if (duration === 4 && frequency === 3) {
@@ -129,13 +127,19 @@ export default function TarievenPage() {
       totalPrice += nutritionPlanPrice * nutritionPlanCount;
     }
     
-    const discountAmount = (totalPrice * (typeof discount === 'number' ? discount : 0)) / 100;
-    const priceAfterDiscount = totalPrice - discountAmount;
+    // For group training, calculate total price for all people
+    let finalTotalPrice = totalPrice;
+    if (selectedService === 'group-training') {
+      finalTotalPrice = totalPrice * selectedCustomers.length;
+    }
+    
+    const discountAmount = (finalTotalPrice * (typeof discount === 'number' ? discount : 0)) / 100;
+    const priceAfterDiscount = finalTotalPrice - discountAmount;
     const finalPrice = Math.round(priceAfterDiscount);
     
     return {
-      basePrice: totalPrice / (duration * frequency), // Calculate average price per session
-      totalPrice,
+      basePrice: totalPrice / (duration * frequency), // Calculate average price per session (per person for group)
+      totalPrice: finalTotalPrice, // Total price for all people in group
       discountAmount,
       priceAfterDiscount,
       finalPrice,
@@ -163,34 +167,66 @@ export default function TarievenPage() {
     }
 
     try {
-      const response = await fetch('/api/pricing-calculations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customerId: selectedService === 'group-training' ? selectedCustomers.join(',') : selectedCustomer,
-          customerName: selectedService === 'group-training' 
-            ? selectedCustomers.map(id => customers.find(c => c.id === id)?.name).filter(Boolean).join(', ')
-            : selectedCustomerData?.name || '',
-          service: selectedServiceData?.name || '',
-          includeNutritionPlan,
-          nutritionPlanCount: typeof nutritionPlanCount === 'number' ? nutritionPlanCount : 0,
-          duration,
-          frequency,
-          discount: typeof discount === 'number' ? discount : 0,
-          finalPrice: priceCalculation.finalPrice,
-          groupSize: priceCalculation.groupSize
-        }),
-      });
+      if (selectedService === 'group-training') {
+        // Create separate entries for each person in the group
+        const promises = selectedCustomers.map(async (customerId) => {
+          const customer = customers.find(c => c.id === customerId);
+          const response = await fetch('/api/pricing-calculations', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              customerId: customerId,
+              customerName: customer?.name || '',
+              service: selectedServiceData?.name || '',
+              includeNutritionPlan,
+              nutritionPlanCount: typeof nutritionPlanCount === 'number' ? nutritionPlanCount : 0,
+              duration,
+              frequency,
+              discount: typeof discount === 'number' ? discount : 0,
+              finalPrice: priceCalculation.finalPrice / selectedCustomers.length, // Price per person
+              groupSize: priceCalculation.groupSize
+            }),
+          });
+          return response;
+        });
 
-      if (response.ok) {
-        const customerNames = selectedService === 'group-training' 
-          ? selectedCustomers.map(id => customers.find(c => c.id === id)?.name).filter(Boolean).join(', ')
-          : selectedCustomerData?.name || '';
-        alert(`Calculation saved for ${customerNames}!`);
+        const responses = await Promise.all(promises);
+        const allSuccessful = responses.every(response => response.ok);
+        
+        if (allSuccessful) {
+          const customerNames = selectedCustomers.map(id => customers.find(c => c.id === id)?.name).filter(Boolean).join(', ');
+          alert(`Group training calculation saved for ${customerNames}! Each person has their own payment entry.`);
+        } else {
+          alert('Some calculations failed to save. Please try again.');
+        }
       } else {
-        alert('Error saving calculation');
+        // Personal training - single entry
+        const response = await fetch('/api/pricing-calculations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerId: selectedCustomer,
+            customerName: selectedCustomerData?.name || '',
+            service: selectedServiceData?.name || '',
+            includeNutritionPlan,
+            nutritionPlanCount: typeof nutritionPlanCount === 'number' ? nutritionPlanCount : 0,
+            duration,
+            frequency,
+            discount: typeof discount === 'number' ? discount : 0,
+            finalPrice: priceCalculation.finalPrice,
+            groupSize: priceCalculation.groupSize
+          }),
+        });
+
+        if (response.ok) {
+          alert(`Calculation saved for ${selectedCustomerData?.name}!`);
+        } else {
+          alert('Error saving calculation');
+        }
       }
     } catch (error) {
       console.error('Error saving calculation:', error);
@@ -493,7 +529,7 @@ export default function TarievenPage() {
                     {selectedCustomers.map(id => customers.find(c => c.id === id)?.name).filter(Boolean).join(', ')}
                   </p>
                   <p className="text-xs text-green-600 mt-1">
-                    Price per person: {getPricePerSession(frequency, 'group-training', selectedCustomers.length)} RON
+                    Price per person: 40 RON (fixed price)
                   </p>
                 </div>
               )}
@@ -518,7 +554,7 @@ export default function TarievenPage() {
                 {selectedService === 'group-training' && (
                   <div className="flex justify-between items-center py-2 border-b border-gray-200">
                     <span className="text-gray-600">Total for group ({selectedCustomers.length} people):</span>
-                    <span className="font-semibold">{(priceCalculation.basePrice * duration * frequency).toFixed(0)} RON</span>
+                    <span className="font-semibold">{(priceCalculation.basePrice * duration * frequency * selectedCustomers.length).toFixed(0)} RON</span>
                   </div>
                 )}
 

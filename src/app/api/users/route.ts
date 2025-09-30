@@ -68,8 +68,17 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(user, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating user:', error)
+    
+    // Handle specific Prisma errors
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'A user with this email already exists' },
+        { status: 409 }
+      )
+    }
+    
     return NextResponse.json(
       { error: 'Failed to create user' },
       { status: 500 }

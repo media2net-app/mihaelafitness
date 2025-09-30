@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Dumbbell, Apple, Calculator, BarChart3, Settings, Plus, Eye, Edit, Trash2, Calendar, TrendingUp, Clock, Ruler, X } from 'lucide-react';
+import { Users, Dumbbell, Apple, Calculator, BarChart3, Settings, Plus, Eye, Edit, Trash2, Calendar, TrendingUp, Clock, Ruler, X, DollarSign, CheckSquare, BookOpen } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { statsService } from '@/lib/database';
 import { useRouter } from 'next/navigation';
@@ -198,11 +198,25 @@ export default function MobileAdminDashboard() {
       color: 'bg-rose-500'
     },
     {
+      title: 'To-Do List',
+      description: 'Manage tasks and reminders',
+      icon: CheckSquare,
+      href: '/admin/to-do',
+      color: 'bg-yellow-500'
+    },
+    {
       title: t.admin.dashboard.trainingSchedules,
       description: t.admin.dashboard.trainingSchedulesDesc,
       icon: Dumbbell,
       href: '/admin/trainingschemas',
       color: 'bg-green-500'
+    },
+    {
+      title: t.admin.dashboard.exerciseLibrary,
+      description: 'Manage exercise database',
+      icon: Dumbbell,
+      href: '/admin/exercise-library',
+      color: 'bg-emerald-500'
     },
     {
       title: t.admin.dashboard.nutritionPlans,
@@ -212,11 +226,11 @@ export default function MobileAdminDashboard() {
       color: 'bg-orange-500'
     },
     {
-      title: t.admin.dashboard.pricingCalculator,
-      description: t.admin.dashboard.pricingCalculatorDesc,
-      icon: Calculator,
-      href: '/admin/tarieven',
-      color: 'bg-purple-500'
+      title: t.admin.dashboard.ingredients,
+      description: 'Manage ingredient database',
+      icon: BookOpen,
+      href: '/admin/ingredienten',
+      color: 'bg-amber-500'
     },
     {
       title: 'Nutrition Calculator',
@@ -224,6 +238,20 @@ export default function MobileAdminDashboard() {
       icon: Calculator,
       href: '/admin/nutrition-calculator',
       color: 'bg-teal-500'
+    },
+    {
+      title: t.admin.dashboard.pricingCalculator,
+      description: t.admin.dashboard.pricingCalculatorDesc,
+      icon: Calculator,
+      href: '/admin/tarieven',
+      color: 'bg-purple-500'
+    },
+    {
+      title: 'Payments',
+      description: 'View payment history and manage transactions',
+      icon: DollarSign,
+      href: '/admin/payments',
+      color: 'bg-green-600'
     }
   ];
 

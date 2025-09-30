@@ -11,23 +11,20 @@ export async function GET(request: NextRequest) {
     }
 
     const assignments = await prisma.customerScheduleAssignment.findMany({
-      where: { 
-        customerId,
-        isActive: true,
-      },
+      where: { customerId },
       include: {
         workout: {
-          include: {
-            workoutExercises: {
-              where: { day: 1 }, // Get first day exercises to determine training type
-              include: {
-                exercise: true,
-              },
-            },
-          },
-        },
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            difficulty: true,
+            duration: true,
+            trainingType: true
+          }
+        }
       },
-      orderBy: { weekday: 'asc' },
+      orderBy: { weekday: 'asc' }
     });
 
     return NextResponse.json(assignments);
@@ -43,27 +40,34 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    const { customerId, workoutId, weekday, trainingDay, isActive = true } = data;
 
-    // First, deactivate any existing assignments for this customer and weekday
-    await prisma.customerScheduleAssignment.updateMany({
-      where: {
-        customerId: data.customerId,
-        weekday: data.weekday,
-      },
-      data: { isActive: false },
-    });
+    if (!customerId || !workoutId || weekday === undefined) {
+      return NextResponse.json({ 
+        error: 'Customer ID, workout ID, and weekday are required' 
+      }, { status: 400 });
+    }
 
-    // Create new assignment
     const assignment = await prisma.customerScheduleAssignment.create({
       data: {
-        customerId: data.customerId,
-        workoutId: data.workoutId,
-        weekday: data.weekday,
-        trainingDay: data.trainingDay,
+        customerId,
+        workoutId,
+        weekday,
+        trainingDay: trainingDay || weekday,
+        isActive
       },
       include: {
-        workout: true,
-      },
+        workout: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            difficulty: true,
+            duration: true,
+            trainingType: true
+          }
+        }
+      }
     });
 
     return NextResponse.json(assignment);

@@ -5,6 +5,91 @@ import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calcula
 import { useRouter, useParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+// Workout Plan Tab Component
+function WorkoutPlanTab({ customerId }: { customerId: string }) {
+  const [workoutAssignments, setWorkoutAssignments] = useState<any[]>([]);
+  const [loadingWorkouts, setLoadingWorkouts] = useState(true);
+  
+  useEffect(() => {
+    const fetchWorkoutPlan = async () => {
+      try {
+        const response = await fetch(`/api/customer-schedule-assignments?customerId=${customerId}`);
+        if (response.ok) {
+          const assignments = await response.json();
+          setWorkoutAssignments(assignments);
+        }
+      } catch (error) {
+        console.error('Error fetching workout plan:', error);
+      } finally {
+        setLoadingWorkouts(false);
+      }
+    };
+    
+    fetchWorkoutPlan();
+  }, [customerId]);
+  
+  if (loadingWorkouts) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto"></div>
+        <p className="text-gray-600 mt-4">Loading workout plan...</p>
+      </div>
+    );
+  }
+  
+  if (workoutAssignments.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <Dumbbell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <p className="text-gray-600">No workout plan assigned yet</p>
+      </div>
+    );
+  }
+  
+  const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Workout Plan</h3>
+      
+      <div className="space-y-6">
+        {workoutAssignments.map((assignment) => (
+          <div key={assignment.id} className="bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl p-6 border border-rose-200">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="w-5 h-5 text-rose-600" />
+                  <span className="text-sm font-medium text-rose-600">{weekdayNames[assignment.weekday]}</span>
+                </div>
+                <h4 className="text-xl font-bold text-gray-800">{assignment.workout.name}</h4>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-600">Category</div>
+                <div className="text-sm font-medium text-gray-800">{assignment.workout.category}</div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="bg-white rounded-lg p-3">
+                <div className="text-xs text-gray-600 mb-1">Difficulty</div>
+                <div className="text-sm font-semibold text-gray-800 capitalize">{assignment.workout.difficulty}</div>
+              </div>
+              <div className="bg-white rounded-lg p-3">
+                <div className="text-xs text-gray-600 mb-1">Duration</div>
+                <div className="text-sm font-semibold text-gray-800">{assignment.workout.duration} min</div>
+              </div>
+              <div className="bg-white rounded-lg p-3">
+                <div className="text-xs text-gray-600 mb-1">Type</div>
+                <div className="text-sm font-semibold text-gray-800">{assignment.workout.trainingType}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Edit Measurement Form Component
 function EditMeasurementForm({ measurement, onSave, onCancel }: { measurement: any, onSave: (data: any) => void, onCancel: () => void }) {
   const { t } = useLanguage();
@@ -581,6 +666,30 @@ export default function ClientDetailPage() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showEditClientModal, setShowEditClientModal] = useState(false);
+
+  // Keyboard navigation for photo viewer
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!selectedPhoto) return;
+      
+      if (event.key === 'Escape') {
+        setSelectedPhoto(null);
+      } else if (event.key === 'ArrowLeft') {
+        const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
+        const prevPhoto = customerPhotos[currentIndex - 1];
+        if (prevPhoto) setSelectedPhoto(prevPhoto);
+      } else if (event.key === 'ArrowRight') {
+        const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
+        const nextPhoto = customerPhotos[currentIndex + 1];
+        if (nextPhoto) setSelectedPhoto(nextPhoto);
+      }
+    };
+
+    if (selectedPhoto) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [selectedPhoto, customerPhotos]);
   const [editFormData, setEditFormData] = useState({
     name: '',
     email: '',
@@ -923,12 +1032,13 @@ export default function ClientDetailPage() {
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-2 sm:p-4 mb-4 sm:mb-8">
-          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-1 sm:gap-2">
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-8 gap-1 sm:gap-2">
             {[
               { id: 'overview', label: 'Overview', icon: Target, shortLabel: 'Overview' },
               { id: 'measurements', label: 'Measurements', icon: Ruler, shortLabel: 'Measure' },
               { id: 'photos', label: 'Photos', icon: Camera, shortLabel: 'Photos' },
               { id: 'progress', label: 'Progress', icon: TrendingUp, shortLabel: 'Progress' },
+              { id: 'workout', label: 'Workout Plan', icon: Dumbbell, shortLabel: 'Workout' },
               { id: 'schedule', label: 'Training Schedule', icon: Calendar, shortLabel: 'Schedule' },
               { id: 'nutrition', label: 'Nutrition Calculator', icon: Apple, shortLabel: 'Nutrition' },
               { id: 'pricing', label: 'Pricing', icon: DollarSign, shortLabel: 'Pricing' }
@@ -1016,7 +1126,7 @@ export default function ClientDetailPage() {
                               <p className="text-xs text-gray-500">
                                 {session.startTime} - {session.endTime} • {session.type}
                               </p>
-                            </div>
+            </div>
                           </div>
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             session.status === 'completed' ? 'bg-green-100 text-green-800' :
@@ -1246,7 +1356,7 @@ export default function ClientDetailPage() {
                                     onClick={() => {
                                       console.log('Photo clicked:', photo);
                                       setSelectedPhoto(photo);
-                                      setShowPhotoGalleryModal(true);
+                                      // Don't open gallery modal, just show individual photo
                                     }}
                                   />
                                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
@@ -1744,6 +1854,11 @@ export default function ClientDetailPage() {
           </div>
         )}
 
+        {/* Workout Plan Tab */}
+        {activeTab === 'workout' && (
+          <WorkoutPlanTab customerId={params.id} />
+        )}
+
         {/* Pricing & Payments Tab */}
         {activeTab === 'pricing' && (
           <div className="space-y-4 sm:space-y-6">
@@ -2002,13 +2117,13 @@ export default function ClientDetailPage() {
                       {customerPhotos.length} photos • {Array.from(new Set(customerPhotos.map(p => p.week))).length} weeks
                     </p>
                   </div>
-                  <button
-                    onClick={() => setShowPhotoGalleryModal(false)}
+                <button
+                  onClick={() => setShowPhotoGalleryModal(false)}
                     className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
-                  >
+                >
                     <X className="w-6 h-6" />
-                  </button>
-                </div>
+                </button>
+              </div>
               </div>
 
               {/* Photo Grid */}
@@ -2072,84 +2187,88 @@ export default function ClientDetailPage() {
           </div>
         )}
 
-        {/* Individual Photo Viewer Modal */}
+        {/* Individual Photo Viewer Modal - Full Screen */}
         {selectedPhoto && (
-          <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center p-4 z-50">
-            <div className="relative w-full max-w-5xl max-h-[95vh] bg-black rounded-2xl overflow-hidden">
-              {/* Header */}
-              <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-6">
-                <div className="flex items-center justify-between">
-                  <div className="text-white">
-                    <h3 className="text-2xl font-bold capitalize flex items-center gap-3">
-                      <div className={`w-4 h-4 rounded-full ${
-                        selectedPhoto.position === 'front' ? 'bg-green-500' :
-                        selectedPhoto.position === 'side' ? 'bg-blue-500' : 'bg-purple-500'
-                      }`}></div>
-                      {selectedPhoto.position} View
-                    </h3>
-                    <p className="text-sm text-gray-300">
-                      Week {selectedPhoto.week} • {new Date(selectedPhoto.date).toLocaleDateString()}
-                    </p>
-                  </div>
+          <div className="fixed inset-0 bg-black z-50 flex flex-col">
+            {/* Header */}
+            <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/90 to-transparent p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div className="text-white">
+                  <h3 className="text-xl sm:text-2xl font-bold capitalize flex items-center gap-2 sm:gap-3">
+                    <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${
+                      selectedPhoto.position === 'front' ? 'bg-green-500' :
+                      selectedPhoto.position === 'side' ? 'bg-blue-500' : 'bg-purple-500'
+                    }`}></div>
+                    {selectedPhoto.position} View
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-300">
+                    Week {selectedPhoto.week} • {new Date(selectedPhoto.date).toLocaleDateString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedPhoto(null)}
+                  className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
+                >
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Main Photo - Full Screen */}
+            <div className="flex-1 flex items-center justify-center p-2 sm:p-4 pt-16 sm:pt-20">
+              <img
+                src={selectedPhoto.imageUrl}
+                alt={`${selectedPhoto.position} view week ${selectedPhoto.week}`}
+                className="max-w-full max-h-full object-contain"
+                style={{
+                  maxWidth: '100vw',
+                  maxHeight: '100vh',
+                  width: 'auto',
+                  height: 'auto'
+                }}
+              />
+            </div>
+
+            {/* Navigation */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 sm:p-6">
+              <div className="flex items-center justify-between text-white">
+                <div className="flex items-center gap-2 sm:gap-4">
                   <button
-                    onClick={() => setSelectedPhoto(null)}
-                    className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
+                    onClick={() => {
+                      const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
+                      const prevPhoto = customerPhotos[currentIndex - 1];
+                      if (prevPhoto) setSelectedPhoto(prevPhoto);
+                    }}
+                    className="p-2 sm:p-3 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                    disabled={customerPhotos.findIndex(p => p.id === selectedPhoto.id) === 0}
                   >
-                    <X className="w-6 h-6" />
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <span className="text-xs sm:text-sm">
+                    {customerPhotos.findIndex(p => p.id === selectedPhoto.id) + 1} of {customerPhotos.length}
+                  </span>
+                  <button
+                    onClick={() => {
+                      const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
+                      const nextPhoto = customerPhotos[currentIndex + 1];
+                      if (nextPhoto) setSelectedPhoto(nextPhoto);
+                    }}
+                    className="p-2 sm:p-3 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                    disabled={customerPhotos.findIndex(p => p.id === selectedPhoto.id) === customerPhotos.length - 1}
+                  >
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </button>
                 </div>
-              </div>
-
-              {/* Main Photo */}
-              <div className="flex items-center justify-center p-6 pt-20 pb-6">
-                <img
-                  src={selectedPhoto.imageUrl}
-                  alt={`${selectedPhoto.position} view week ${selectedPhoto.week}`}
-                  className="max-w-full max-h-[70vh] object-contain rounded-lg"
-                />
-              </div>
-
-              {/* Navigation */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                <div className="flex items-center justify-between text-white">
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => {
-                        const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
-                        const prevPhoto = customerPhotos[currentIndex - 1];
-                        if (prevPhoto) setSelectedPhoto(prevPhoto);
-                      }}
-                      className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
-                      disabled={customerPhotos.findIndex(p => p.id === selectedPhoto.id) === 0}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <span className="text-sm">
-                      {customerPhotos.findIndex(p => p.id === selectedPhoto.id) + 1} of {customerPhotos.length}
-                    </span>
-                    <button
-                      onClick={() => {
-                        const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
-                        const nextPhoto = customerPhotos[currentIndex + 1];
-                        if (nextPhoto) setSelectedPhoto(nextPhoto);
-                      }}
-                      className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
-                      disabled={customerPhotos.findIndex(p => p.id === selectedPhoto.id) === customerPhotos.length - 1}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="text-sm text-gray-300">
-                    {selectedPhoto.notes && (
-                      <p className="max-w-xs truncate" title={selectedPhoto.notes}>
-                        {selectedPhoto.notes}
-                      </p>
-                    )}
-                  </div>
+                <div className="text-xs sm:text-sm text-gray-300 max-w-xs">
+                  {selectedPhoto.notes && (
+                    <p className="truncate" title={selectedPhoto.notes}>
+                      {selectedPhoto.notes}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

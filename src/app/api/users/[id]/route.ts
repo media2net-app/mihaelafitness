@@ -84,11 +84,37 @@ export async function DELETE(
 ) {
   const { id } = await params;
   try {
+    // First, clean up orphaned pricing calculations and payments
+    console.log(`🧹 Cleaning up orphaned data for user ${id}...`);
+    
+    // Delete pricing calculations that reference this user
+    const deletedPricing = await prisma.pricingCalculation.deleteMany({
+      where: {
+        OR: [
+          { customerId: id },
+          { customerId: { contains: id } } // For group training entries
+        ]
+      }
+    });
+    console.log(`🗑️  Deleted ${deletedPricing.count} pricing calculations`);
+    
+    // Delete payments for this user
+    const deletedPayments = await prisma.payment.deleteMany({
+      where: { customerId: id }
+    });
+    console.log(`💳 Deleted ${deletedPayments.count} payments`);
+    
+    // Delete the user (this will cascade delete related data due to foreign keys)
     await prisma.user.delete({
       where: { id }
-    })
+    });
 
-    return NextResponse.json({ success: true })
+    console.log(`✅ User ${id} and all related data deleted successfully`);
+    return NextResponse.json({ 
+      success: true,
+      deletedPricing: deletedPricing.count,
+      deletedPayments: deletedPayments.count
+    })
   } catch (error) {
     console.error('Error deleting user:', error)
     return NextResponse.json(

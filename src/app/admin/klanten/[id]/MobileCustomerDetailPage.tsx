@@ -2661,107 +2661,115 @@ export default function MobileCustomerDetailPage() {
           </div>
         )}
 
-        {/* Photo Gallery Modal */}
+        {/* Photo Gallery Modal - Full Screen */}
         {showPhotoGalleryModal && selectedPhoto && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50">
-            <div className="relative w-full max-w-4xl max-h-[90vh] bg-black rounded-2xl overflow-hidden">
-              {/* Header */}
-              <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/70 to-transparent p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-white">
-                    <h3 className="text-xl font-bold capitalize">{selectedPhoto.position} View</h3>
-                    <p className="text-sm text-gray-300">
-                      Week {selectedPhoto.week} • {new Date(selectedPhoto.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowPhotoGalleryModal(false);
-                      setSelectedPhoto(null);
-                      setGalleryPhotos([]);
-                      setCurrentPhotoIndex(0);
-                    }}
-                    className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
+          <div className="fixed inset-0 bg-black z-50 flex flex-col">
+            {/* Header */}
+            <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/90 to-transparent p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-white">
+                  <h3 className="text-lg sm:text-xl font-bold capitalize flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${
+                      selectedPhoto.position === 'front' ? 'bg-green-500' :
+                      selectedPhoto.position === 'side' ? 'bg-blue-500' : 'bg-purple-500'
+                    }`}></div>
+                    {selectedPhoto.position} View
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-300">
+                    Week {selectedPhoto.week} • {new Date(selectedPhoto.date).toLocaleDateString()}
+                  </p>
                 </div>
-              </div>
-
-              {/* Main Photo */}
-              <div className="relative w-full h-full flex items-center justify-center p-16">
-                <img
-                  src={selectedPhoto.imageUrl}
-                  alt={`Week ${selectedPhoto.week} ${selectedPhoto.position} view`}
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-                  loading="eager"
-                />
-                
-                {/* Navigation Arrows */}
-                {galleryPhotos.length > 1 && (
-                  <>
-                    <button
-                      onClick={handlePreviousPhoto}
-                      disabled={currentPhotoIndex === 0}
-                      className={`absolute left-4 top-1/2 transform -translate-y-1/2 p-3 rounded-full text-white transition-colors ${
-                        currentPhotoIndex === 0 
-                          ? 'bg-gray-600 cursor-not-allowed opacity-50' 
-                          : 'bg-black/50 hover:bg-black/70'
-                      }`}
-                    >
-                      <ArrowLeft className="w-6 h-6" />
-                    </button>
-                    <button
-                      onClick={handleNextPhoto}
-                      disabled={currentPhotoIndex === galleryPhotos.length - 1}
-                      className={`absolute right-4 top-1/2 transform -translate-y-1/2 p-3 rounded-full text-white transition-colors ${
-                        currentPhotoIndex === galleryPhotos.length - 1 
-                          ? 'bg-gray-600 cursor-not-allowed opacity-50' 
-                          : 'bg-black/50 hover:bg-black/70'
-                      }`}
-                    >
-                      <ArrowLeft className="w-6 h-6 rotate-180" />
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {/* Thumbnail Navigation */}
-              {galleryPhotos.length > 1 && (
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                  <div className="flex justify-center gap-2">
-                    {galleryPhotos.map((photo, index) => (
-                      <button
-                        key={photo.id}
-                        onClick={() => {
-                          setCurrentPhotoIndex(index);
-                          setSelectedPhoto(photo);
-                        }}
-                        className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                          index === currentPhotoIndex 
-                            ? 'border-rose-500 ring-2 ring-rose-500' 
-                            : 'border-gray-600 hover:border-gray-400'
-                        }`}
-                      >
-                        <img
-                          src={photo.imageUrl}
-                          alt={`${photo.position} thumbnail`}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-1 py-0.5 text-center">
-                          {photo.position}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Photo Info */}
-              <div className="absolute bottom-4 right-4 bg-black/70 text-white text-sm px-3 py-2 rounded-lg">
-                {currentPhotoIndex + 1} of {galleryPhotos.length}
+                <button
+                  onClick={() => {
+                    setShowPhotoGalleryModal(false);
+                    setSelectedPhoto(null);
+                    setGalleryPhotos([]);
+                    setCurrentPhotoIndex(0);
+                  }}
+                  className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
+                >
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
               </div>
             </div>
+
+            {/* Main Photo - Full Screen */}
+            <div className="flex-1 flex items-center justify-center p-2 sm:p-4 pt-16 sm:pt-20">
+              <img
+                src={selectedPhoto.imageUrl}
+                alt={`Week ${selectedPhoto.week} ${selectedPhoto.position} view`}
+                className="max-w-full max-h-full object-contain"
+                style={{
+                  maxWidth: '100vw',
+                  maxHeight: '100vh',
+                  width: 'auto',
+                  height: 'auto'
+                }}
+                loading="eager"
+              />
+              
+              {/* Navigation Arrows */}
+              {galleryPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={handlePreviousPhoto}
+                    disabled={currentPhotoIndex === 0}
+                    className={`absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 p-2 sm:p-3 rounded-full text-white transition-colors ${
+                      currentPhotoIndex === 0 
+                        ? 'bg-gray-600 cursor-not-allowed opacity-50' 
+                        : 'bg-black/50 hover:bg-black/70'
+                    }`}
+                  >
+                    <ArrowLeft className="w-4 h-4 sm:w-6 sm:h-6" />
+                  </button>
+                  <button
+                    onClick={handleNextPhoto}
+                    disabled={currentPhotoIndex === galleryPhotos.length - 1}
+                    className={`absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 p-2 sm:p-3 rounded-full text-white transition-colors ${
+                      currentPhotoIndex === galleryPhotos.length - 1 
+                        ? 'bg-gray-600 cursor-not-allowed opacity-50' 
+                        : 'bg-black/50 hover:bg-black/70'
+                    }`}
+                  >
+                    <ArrowLeft className="w-4 h-4 sm:w-6 sm:h-6 rotate-180" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Thumbnail Navigation */}
+            {galleryPhotos.length > 1 && (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-2 sm:p-4">
+                <div className="flex justify-center gap-1 sm:gap-2">
+                  {galleryPhotos.map((photo, index) => (
+                    <button
+                      key={photo.id}
+                      onClick={() => {
+                        setCurrentPhotoIndex(index);
+                        setSelectedPhoto(photo);
+                      }}
+                      className={`relative w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                        index === currentPhotoIndex 
+                          ? 'border-rose-500 ring-2 ring-rose-500' 
+                          : 'border-gray-600 hover:border-gray-400'
+                      }`}
+                    >
+                      <img
+                        src={photo.imageUrl}
+                        alt={`${photo.position} thumbnail`}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-1 py-0.5 text-center">
+                        {photo.position}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="text-center text-white text-xs sm:text-sm mt-2">
+                  {currentPhotoIndex + 1} of {galleryPhotos.length}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

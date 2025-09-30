@@ -214,7 +214,7 @@ export default function ScheduleClient({
           return {
             ...session,
             date: transformedDate,
-            customerName: session.customer?.name || 'Unknown Customer'
+            customerName: (session.customer?.name || 'Unknown Customer').replace(/ completed?/gi, '').trim()
           };
         });
         
@@ -294,6 +294,62 @@ export default function ScheduleClient({
       default:
         return trainingType || 'Workout Plan';
     }
+  };
+
+  // Function to get specific workout name based on customer and session number in week
+  const getWorkoutNameForSession = (session: TrainingSession) => {
+    const sessionDate = new Date(session.date);
+    
+    // Find the customer
+    const customer = customers.find(c => c.id === session.customerId);
+    
+    if (!customer) {
+      return session.trainingType || null;
+    }
+    
+    // Calculate which session number this is within the week
+    const dayOfWeek = sessionDate.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Get Monday of this week
+    const monday = new Date(sessionDate);
+    monday.setDate(sessionDate.getDate() + diff);
+    const weekStart = monday.toISOString().split('T')[0];
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const weekEnd = sunday.toISOString().split('T')[0];
+    
+    // Get customer's sessions for this week, sorted by date
+    const weekSessions = sessions
+      .filter(s => s.customerId === session.customerId && s.date >= weekStart && s.date <= weekEnd)
+      .sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.startTime.localeCompare(b.startTime);
+      });
+    
+    // Find the position of this session in the week
+    const sessionDateStr = sessionDate.toISOString().split('T')[0];
+    const sessionIndex = weekSessions.findIndex(s => s.date === sessionDateStr && s.startTime === session.startTime);
+    const trainingDayNumber = sessionIndex + 1; // 1st session = Day 1, 2nd = Day 2, etc.
+    
+    if (customer.scheduleAssignments && customer.scheduleAssignments.length > 0) {
+      // Find the assignment for this training day number
+      const assignment = customer.scheduleAssignments.find(a => a.trainingDay === trainingDayNumber);
+      if (assignment && assignment.workout) {
+        // Extract just the workout type from the name (e.g., "Day 1 - Legs & Glutes Workout" -> "Legs & Glutes")
+        const workoutName = assignment.workout.name;
+        if (workoutName.includes(' - ')) {
+          const parts = workoutName.split(' - ');
+          if (parts.length > 1) {
+            // Remove " Workout" suffix if present
+            return parts[1].replace(' Workout', '').trim();
+          }
+        }
+        return workoutName;
+      }
+    }
+    
+    return session.trainingType || null;
   };
 
   const getSessionTypeColor = (type: string, status: string) => {
@@ -631,17 +687,20 @@ export default function ScheduleClient({
                             <div className="flex items-center justify-between">
                               <div className="flex items-center">
                                 <User className="w-3 h-3 mr-1" />
-                                <span className="truncate">{session.customerName}</span>
+                                <span className="truncate">{session.customerName.replace(/ completed?/gi, '').trim()}</span>
                               </div>
                               <div className={`px-1 py-0.5 rounded text-xs ${getSessionStatusColor(session.status)}`}>
-                                {session.status}
+                                {session.status === 'scheduled' ? '' : session.status}
                               </div>
                             </div>
-                            {session.trainingType && (
-                              <div className="text-xs text-gray-600 mt-1 truncate">
-                                {session.trainingType}
-                              </div>
-                            )}
+                            {(() => {
+                              const workoutName = getWorkoutNameForSession(session);
+                              return workoutName ? (
+                                <div className="text-xs text-gray-600 mt-1 truncate font-medium">
+                                  {workoutName}
+                                </div>
+                              ) : null;
+                            })()}
                             <div className="text-xs text-gray-500 mt-1">
                               {formatTime(session.startTime)} - {formatTime(session.endTime)}
                             </div>

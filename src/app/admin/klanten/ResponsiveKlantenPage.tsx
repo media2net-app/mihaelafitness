@@ -31,11 +31,25 @@ export default function ResponsiveKlantenPage() {
       service: string;
       duration: number;
       frequency: number;
-      finalPrice: number;
+      finalPrice: number; // Price per person
+      totalPrice: number; // Total price for group
       customerIds: string[];
       customerNames: string[];
       createdAt: string;
       groupSize: number;
+    }>;
+    personalSubscriptions?: Array<{
+      id: string;
+      service: string;
+      duration: number;
+      frequency: number;
+      finalPrice: number;
+      discount: number;
+      customerId: string;
+      customerName: string;
+      createdAt: string;
+      includeNutritionPlan: boolean;
+      nutritionPlanCount: number;
     }>;
   }[]>([]);
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
@@ -102,6 +116,14 @@ export default function ResponsiveKlantenPage() {
             const pricingResponse = await fetch(`/api/pricing-calculations?customerId=${user.id}`);
             const pricingData = pricingResponse.ok ? await pricingResponse.json() : [];
             
+            // Get group subscriptions
+            const groupSubscriptionsResponse = await fetch(`/api/group-subscriptions?customerId=${user.id}`);
+            const groupSubscriptions = groupSubscriptionsResponse.ok ? await groupSubscriptionsResponse.json() : [];
+            
+            // Get personal subscriptions
+            const personalSubscriptionsResponse = await fetch(`/api/personal-subscriptions?customerId=${user.id}`);
+            const personalSubscriptions = personalSubscriptionsResponse.ok ? await personalSubscriptionsResponse.json() : [];
+            
             // Get the most recent pricing calculation to determine subscription duration
             let subscriptionDuration = null;
             if (pricingData.length > 0) {
@@ -155,7 +177,9 @@ export default function ResponsiveKlantenPage() {
               scheduledSessions: scheduledSessions,
               completedSessions: completedSessions,
               rating: user.rating || 0,
-              subscriptionDuration: subscriptionDuration // Duration is already in weeks
+              subscriptionDuration: subscriptionDuration, // Duration is already in weeks
+              groupSubscriptions: groupSubscriptions,
+              personalSubscriptions: personalSubscriptions
             };
           } catch (error) {
             console.error(`Error loading sessions for ${user.name}:`, error);
@@ -271,11 +295,21 @@ export default function ResponsiveKlantenPage() {
         });
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create customer');
+        const errorMessage = error.error || 'Failed to create customer';
+        if (errorMessage.includes('email already exists')) {
+          alert('A customer with this email address already exists. Please use a different email.');
+        } else {
+          alert(errorMessage);
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating customer:', error);
-      alert('Failed to create customer');
+      const errorMessage = error.message || 'Failed to create customer';
+      if (errorMessage.includes('email already exists')) {
+        alert('A customer with this email address already exists. Please use a different email.');
+      } else {
+        alert(errorMessage);
+      }
     }
   };
 
@@ -529,6 +563,16 @@ export default function ResponsiveKlantenPage() {
                   <span className="w-20 text-gray-500">Group:</span>
                   <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     {klant.groupSubscriptions.length} group(s)
+                  </span>
+                </div>
+              )}
+              
+              {/* Personal Subscriptions */}
+              {klant.personalSubscriptions && klant.personalSubscriptions.length > 0 && (
+                <div className="flex items-center text-sm text-gray-600">
+                  <span className="w-20 text-gray-500">1:1:</span>
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {klant.personalSubscriptions.length} coaching
                   </span>
                 </div>
               )}

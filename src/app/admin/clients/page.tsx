@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Plus, Eye, Edit, Trash2, Phone, Calendar, Star, Dumbbell, X, Save, Target, Mail } from 'lucide-react';
+import { Users, Search, Plus, Eye, Edit, Trash2, Phone, Calendar, Star, Dumbbell, X, Save, Target, Mail, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { userService, pricingService } from '@/lib/database';
@@ -32,11 +32,25 @@ export default function ClientsPage() {
       service: string;
       duration: number;
       frequency: number;
-      finalPrice: number;
+      finalPrice: number; // Price per person
+      totalPrice: number; // Total price for group
       customerIds: string[];
       customerNames: string[];
       createdAt: string;
       groupSize: number;
+    }>;
+    personalSubscriptions?: Array<{
+      id: string;
+      service: string;
+      duration: number;
+      frequency: number;
+      finalPrice: number;
+      discount: number;
+      customerId: string;
+      customerName: string;
+      createdAt: string;
+      includeNutritionPlan: boolean;
+      nutritionPlanCount: number;
     }>;
   }[]>([]);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -102,6 +116,10 @@ export default function ClientsPage() {
             const groupSubscriptionsResponse = await fetch(`/api/group-subscriptions?customerId=${user.id}`);
             const groupSubscriptions = groupSubscriptionsResponse.ok ? await groupSubscriptionsResponse.json() : [];
             
+            // Get personal subscriptions
+            const personalSubscriptionsResponse = await fetch(`/api/personal-subscriptions?customerId=${user.id}`);
+            const personalSubscriptions = personalSubscriptionsResponse.ok ? await personalSubscriptionsResponse.json() : [];
+            
             // Get the most recent pricing calculation to determine subscription duration
             let subscriptionDuration = null;
             if (pricingData.length > 0) {
@@ -141,7 +159,8 @@ export default function ClientsPage() {
               completedSessions,
               lastWorkout: user.lastWorkout || null,
               subscriptionDuration: subscriptionDuration, // Duration is already in weeks
-              groupSubscriptions: groupSubscriptions
+              groupSubscriptions: groupSubscriptions,
+              personalSubscriptions: personalSubscriptions
             };
           } catch (error) {
             console.error(`Error loading data for ${user.name}:`, error);
@@ -180,9 +199,15 @@ export default function ClientsPage() {
         status: 'active',
         trainingFrequency: 3
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating client:', error);
-      alert('Failed to create client');
+      // Show a more user-friendly error message
+      const errorMessage = error.message || 'Failed to create client';
+      if (errorMessage.includes('email already exists')) {
+        alert('A client with this email address already exists. Please use a different email.');
+      } else {
+        alert(errorMessage);
+      }
     }
   };
 
@@ -367,7 +392,30 @@ export default function ClientsPage() {
                         <div className="font-medium">{group.service}</div>
                         <div>Duration: {group.duration} weeks • {group.frequency}x/week</div>
                         <div>Group size: {group.groupSize} people</div>
-                        <div>Price: {group.finalPrice} RON</div>
+                        <div>Price: {group.finalPrice} RON per person</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Personal Subscription Details */}
+                {client.personalSubscriptions && client.personalSubscriptions.length > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <User className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800">1:1 Coaching</span>
+                    </div>
+                    {client.personalSubscriptions.map((personal, index) => (
+                      <div key={personal.id} className="text-xs text-blue-700 mb-1">
+                        <div className="font-medium">{personal.service}</div>
+                        <div>Duration: {personal.duration} weeks • {personal.frequency}x/week</div>
+                        <div>Price: {personal.finalPrice} RON</div>
+                        {personal.discount > 0 && (
+                          <div className="text-blue-600">Discount: {personal.discount}%</div>
+                        )}
+                        {personal.includeNutritionPlan && (
+                          <div className="text-blue-600">+ Nutrition Plan ({personal.nutritionPlanCount}x)</div>
+                        )}
                       </div>
                     ))}
                   </div>

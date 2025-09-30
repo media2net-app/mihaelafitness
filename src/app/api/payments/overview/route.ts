@@ -26,12 +26,6 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Calculate totals
-    const totalSubscriptions = pricingCalculations.length;
-    const totalRevenue = pricingCalculations.reduce((sum, calc) => sum + calc.finalPrice, 0);
-    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-    const totalOutstanding = totalRevenue - totalPaid;
-
     // Group payments by customer
     const paymentsByCustomer = payments.reduce((acc, payment) => {
       const customerId = payment.customerId;
@@ -47,8 +41,40 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {} as Record<string, any>);
 
-    // Get unique customer IDs from pricing calculations
-    const customerIds = [...new Set(pricingCalculations.map(calc => calc.customerId))];
+    // Process pricing calculations to split group training entries
+    const processedPricing = [];
+    
+    for (const calc of pricingCalculations) {
+      if (calc.service.includes('Group Training') && calc.groupSize && calc.groupSize > 1) {
+        // Split group training into individual entries
+        const customerIds = calc.customerId.split(',').filter(id => id.trim());
+        const customerNames = calc.customerName.split(',').filter(name => name.trim());
+        
+        customerIds.forEach((customerId, index) => {
+          processedPricing.push({
+            ...calc,
+            id: `${calc.id}_${index}`, // Unique ID for each person
+            customerId: customerId.trim(),
+            customerName: customerNames[index]?.trim() || 'Unknown',
+            finalPrice: calc.finalPrice / calc.groupSize, // Price per person
+            service: calc.service,
+            groupSize: 1 // Each entry is now for 1 person
+          });
+        });
+      } else {
+        // Keep personal training as is
+        processedPricing.push(calc);
+      }
+    }
+
+    // Calculate totals using processed pricing
+    const totalSubscriptions = processedPricing.length;
+    const totalRevenue = processedPricing.reduce((sum, calc) => sum + calc.finalPrice, 0);
+    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const totalOutstanding = totalRevenue - totalPaid;
+
+    // Get unique customer IDs from processed pricing
+    const customerIds = [...new Set(processedPricing.map(calc => calc.customerId))];
     
     // Get customer data
     const customers = await prisma.user.findMany({
@@ -70,8 +96,8 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {} as Record<string, any>);
 
-    // Group pricing by customer
-    const pricingByCustomer = pricingCalculations.reduce((acc, calc) => {
+    // Group pricing by customer using processed pricing
+    const pricingByCustomer = processedPricing.reduce((acc, calc) => {
       const customerId = calc.customerId;
       const customer = customerLookup[customerId];
       if (!acc[customerId]) {
@@ -81,6 +107,7 @@ export async function GET(request: NextRequest) {
           totalRevenue: 0
         };
       }
+      
       acc[customerId].pricing.push(calc);
       acc[customerId].totalRevenue += calc.finalPrice;
       return acc;
@@ -138,10 +165,13 @@ export async function GET(request: NextRequest) {
         paymentTypes
       },
       recentPayments: payments.slice(0, 10),
-      recentPricing: pricingCalculations.slice(0, 10).map(calc => ({
-        ...calc,
-        customer: customerLookup[calc.customerId] || null
-      }))
+      recentPricing: processedPricing.slice(0, 10).map(calc => {
+        return {
+          ...calc,
+          customer: customerLookup[calc.customerId] || null,
+          serviceType: calc.service.includes('Group Training') ? 'Group Training' : '1:1 Coaching'
+        };
+      })
     });
   } catch (error) {
     console.error('Error fetching payments overview:', error);

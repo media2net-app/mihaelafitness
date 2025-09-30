@@ -47,7 +47,7 @@ export default function SchedulePage() {
       try {
         setLoading(true);
         // For now, we'll use a default customer ID - in a real app this would come from auth context
-        const customerId = 'cmg29hgp90004dvgyol5vasje'; // Replace with actual customer ID from auth
+        const customerId = 'cmg70hlbn000bbpfhlh43ig2l'; // Chiel 2 - has workout assignments
         
         // Get current week's date range with proper timezone handling
         const today = new Date();
@@ -103,12 +103,18 @@ export default function SchedulePage() {
     
     for (const workout of workouts) {
       const workoutDate = new Date(workout.date);
-      const workoutTime = workout.time;
       
-      // Check if the workout is in the past
+      // Only mark as completed if:
+      // 1. The date is in the past (before today)
+      // 2. OR it's today AND the session has already ended
       const isPastDate = workoutDate < today;
+      
+      let isPastTime = false;
       const isToday = workoutDate.toDateString() === today.toDateString();
-      const isPastTime = isToday && workoutTime < currentTime;
+      if (isToday && workout.endTime) {
+        // Session should only be completed if the END time has passed
+        isPastTime = workout.endTime < currentTime;
+      }
       
       if ((isPastDate || isPastTime) && !workout.completed) {
         try {

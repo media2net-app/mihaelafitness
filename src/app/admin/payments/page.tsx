@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, Users, CreditCard, Calendar, AlertCircle, CheckCircle, Clock, Filter, Download } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, CreditCard, Calendar, AlertCircle, CheckCircle, Clock, Filter, Download, RefreshCw } from 'lucide-react';
 
 interface PaymentOverview {
   summary: {
@@ -57,6 +57,20 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [currency, setCurrency] = useState<'RON' | 'EUR'>('RON');
+
+  // Currency conversion function
+  const convertAmount = (amount: number): number => {
+    if (currency === 'EUR') {
+      return amount / 5; // RON to EUR conversion
+    }
+    return amount; // RON (original)
+  };
+
+  const formatAmount = (amount: number): string => {
+    const convertedAmount = convertAmount(amount);
+    return `${convertedAmount.toLocaleString()} ${currency}`;
+  };
 
   useEffect(() => {
     const fetchOverview = async () => {
@@ -108,8 +122,44 @@ export default function PaymentsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Payments Overview</h1>
-          <p className="mt-2 text-gray-600">Complete financial overview of all subscriptions and payments</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Payments Overview</h1>
+              <p className="mt-2 text-gray-600">Complete financial overview of all subscriptions and payments</p>
+            </div>
+            
+            {/* Currency Switcher */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">Currency:</span>
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setCurrency('RON')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    currency === 'RON'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  RON
+                </button>
+                <button
+                  onClick={() => setCurrency('EUR')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
+                    currency === 'EUR'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  EUR
+                </button>
+              </div>
+              {currency === 'EUR' && (
+                <div className="text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded">
+                  1 EUR = 5 RON
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -133,7 +183,7 @@ export default function PaymentsPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">{summary.totalRevenue.toLocaleString()} RON</p>
+                <p className="text-2xl font-bold text-gray-900">{formatAmount(summary.totalRevenue)}</p>
               </div>
             </div>
           </div>
@@ -145,7 +195,7 @@ export default function PaymentsPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Paid</p>
-                <p className="text-2xl font-bold text-gray-900">{summary.totalPaid.toLocaleString()} RON</p>
+                <p className="text-2xl font-bold text-gray-900">{formatAmount(summary.totalPaid)}</p>
               </div>
             </div>
           </div>
@@ -157,7 +207,7 @@ export default function PaymentsPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Outstanding</p>
-                <p className="text-2xl font-bold text-gray-900">{summary.totalOutstanding.toLocaleString()} RON</p>
+                <p className="text-2xl font-bold text-gray-900">{formatAmount(summary.totalOutstanding)}</p>
               </div>
             </div>
           </div>
@@ -168,7 +218,7 @@ export default function PaymentsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-white">Monthly Revenue</h3>
-              <p className="text-3xl font-bold text-white">{summary.monthlyRevenue.toLocaleString()} RON</p>
+              <p className="text-3xl font-bold text-white">{formatAmount(summary.monthlyRevenue)}</p>
               <p className="text-rose-100">Last 30 days</p>
             </div>
             <div className="p-4 bg-white bg-opacity-20 rounded-lg">
@@ -249,6 +299,7 @@ export default function PaymentsPage() {
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">Customer</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Service</th>
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">Total Revenue</th>
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">Paid</th>
                         <th className="text-left py-3 px-4 font-semibold text-gray-700">Outstanding</th>
@@ -272,14 +323,23 @@ export default function PaymentsPage() {
                               <div className="text-sm text-gray-500">{customer.customer?.email || 'No email'}</div>
                             </div>
                           </td>
+                          <td className="py-4 px-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              customer.serviceTypes?.includes('Group Training') 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {customer.serviceTypes || 'Unknown'}
+                            </span>
+                          </td>
                           <td className="py-4 px-4 font-semibold text-gray-900">
-                            {customer.totalRevenue.toLocaleString()} RON
+                            {formatAmount(customer.totalRevenue)}
                           </td>
                           <td className="py-4 px-4 font-semibold text-green-600">
-                            {customer.totalPaid.toLocaleString()} RON
+                            {formatAmount(customer.totalPaid)}
                           </td>
                           <td className="py-4 px-4 font-semibold text-red-600">
-                            {customer.outstanding.toLocaleString()} RON
+                            {formatAmount(customer.outstanding)}
                           </td>
                           <td className="py-4 px-4 text-gray-600">
                             {customer.paymentCount} payments
@@ -336,7 +396,7 @@ export default function PaymentsPage() {
                             {payment.customer.name}
                           </td>
                           <td className="py-4 px-4 font-bold text-green-600">
-                            {payment.amount.toLocaleString()} RON
+                            {formatAmount(payment.amount)}
                           </td>
                           <td className="py-4 px-4 text-gray-600 capitalize">
                             {payment.paymentMethod}
@@ -385,11 +445,17 @@ export default function PaymentsPage() {
                           <td className="py-4 px-4 font-medium text-gray-900">
                             {pricing.customer?.name || 'Unknown Customer'}
                           </td>
-                          <td className="py-4 px-4 text-gray-600">
-                            {pricing.service}
+                          <td className="py-4 px-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              pricing.serviceType === 'Group Training' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {pricing.serviceType || 'Unknown'}
+                            </span>
                           </td>
                           <td className="py-4 px-4 font-bold text-rose-600">
-                            {pricing.finalPrice.toLocaleString()} RON
+                            {formatAmount(pricing.finalPrice)}
                           </td>
                           <td className="py-4 px-4">
                             <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">

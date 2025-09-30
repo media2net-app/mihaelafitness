@@ -22,17 +22,19 @@ export async function GET(request: NextRequest) {
     const groupSubscriptions = groupCalculations.map(calculation => {
       const customerIds = calculation.customerId.split(',').filter(id => id.trim());
       const customerNames = calculation.customerName.split(',').filter(name => name.trim());
+      const groupSize = customerIds.length;
       
       return {
         id: calculation.id,
         service: calculation.service,
         duration: calculation.duration,
         frequency: calculation.frequency,
-        finalPrice: calculation.finalPrice,
+        finalPrice: calculation.finalPrice / groupSize, // Price per person
+        totalPrice: calculation.finalPrice, // Total price for the group
         customerIds,
         customerNames,
         createdAt: calculation.createdAt,
-        groupSize: customerIds.length
+        groupSize
       };
     });
 
@@ -53,3 +55,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+

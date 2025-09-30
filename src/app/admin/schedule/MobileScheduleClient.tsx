@@ -82,7 +82,13 @@ export default function MobileScheduleClient({
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSessionDetailsModal, setShowSessionDetailsModal] = useState(false);
-  const [currentDayIndex, setCurrentDayIndex] = useState(0); // 0 = Monday, 1 = Tuesday, etc.
+  // Initialize currentDayIndex to today's day (0 = Monday, 1 = Tuesday, etc.)
+  const [currentDayIndex, setCurrentDayIndex] = useState(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    // Convert to our format: 0 = Monday, 1 = Tuesday, etc.
+    return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 6, Monday = 0
+  });
   const [trainingDays, setTrainingDays] = useState<{[key: string]: string}>({}); // customerId -> training day
   
   // New session form state
@@ -247,7 +253,7 @@ export default function MobileScheduleClient({
           return {
             ...session,
             date: transformedDate,
-            customerName: session.customer?.name || session.customerName || 'Unknown Customer'
+            customerName: (session.customer?.name || session.customerName || 'Unknown Customer').replace(/ completed?/gi, '').trim()
           };
         });
         
@@ -291,7 +297,7 @@ export default function MobileScheduleClient({
           return {
             ...session,
             date: transformedDate,
-            customerName: session.customer?.name || 'Unknown Customer'
+            customerName: (session.customer?.name || 'Unknown Customer').replace(/ completed?/gi, '').trim()
           };
         });
         
@@ -407,7 +413,7 @@ export default function MobileScheduleClient({
             successfulSessions.push({
               ...newSession,
               status: newSession.status as 'scheduled' | 'completed' | 'cancelled' | 'no-show',
-              customerName: customers.find(c => c.id === newSession.customerId)?.name || 'Unknown Customer'
+              customerName: (customers.find(c => c.id === newSession.customerId)?.name || 'Unknown Customer').replace(/ completed?/gi, '').trim()
             });
           }
         }
@@ -442,7 +448,7 @@ export default function MobileScheduleClient({
           const newSession = await response.json();
           setSessions(prev => [...prev, {
             ...newSession,
-            customerName: customers.find(c => c.id === newSession.customerId)?.name || 'Unknown Customer'
+            customerName: (customers.find(c => c.id === newSession.customerId)?.name || 'Unknown Customer').replace(/ completed?/gi, '').trim()
           }]);
           // Force refresh to ensure UI updates
           window.location.reload();
@@ -686,72 +692,54 @@ export default function MobileScheduleClient({
   };
 
   // Function to get specific training day based on customer plan and day of week
-  const getTrainingDayForCustomer = (customerName: string, customerId: string, dayOfWeek: number) => {
-    // Skip the trainingDays state check and go directly to customer data
-    
+  const getTrainingDayForCustomer = (customerName: string, customerId: string, sessionDate: Date) => {
     // Get customer data to check for assigned workouts
     const customer = customers.find(c => c.id === customerId);
     
-    // First check schedule assignments
-    if (customer && customer.scheduleAssignments && customer.scheduleAssignments.length > 0) {
-      // Find the assignment for this day of week
-      const assignment = customer.scheduleAssignments.find(a => a.weekday === dayOfWeek);
+    if (!customer) {
+      return null;
+    }
+    
+    // Calculate which session number this is within the week
+    const dayOfWeek = sessionDate.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Get Monday of this week
+    const monday = new Date(sessionDate);
+    monday.setDate(sessionDate.getDate() + diff);
+    const weekStart = monday.toISOString().split('T')[0];
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const weekEnd = sunday.toISOString().split('T')[0];
+    
+    // Get customer's sessions for this week, sorted by date
+    const weekSessions = sessions
+      .filter(s => s.customerId === customerId && s.date >= weekStart && s.date <= weekEnd)
+      .sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.startTime.localeCompare(b.startTime);
+      });
+    
+    // Find the position of this session date in the week
+    const sessionDateStr = sessionDate.toISOString().split('T')[0];
+    const sessionIndex = weekSessions.findIndex(s => s.date === sessionDateStr);
+    const trainingDayNumber = sessionIndex + 1; // 1st session = Day 1, 2nd = Day 2, etc.
+    
+    // Check schedule assignments using trainingDay
+    if (customer.scheduleAssignments && customer.scheduleAssignments.length > 0) {
+      // Find the assignment for this training day number
+      const assignment = customer.scheduleAssignments.find(a => a.trainingDay === trainingDayNumber);
       if (assignment && assignment.workout) {
-        // Get training day from workout name or trainingType
-        if (assignment.workout.trainingType) {
-          return getTrainingDayFromType(assignment.workout.trainingType, dayOfWeek);
+        // Extract just the workout type from the name (e.g., "Day 1 - Legs & Glutes Workout" -> "Legs & Glutes")
+        const workoutName = assignment.workout.name;
+        if (workoutName.includes(' - ')) {
+          const parts = workoutName.split(' - ');
+          if (parts.length > 1) {
+            // Remove " Workout" suffix if present
+            return parts[1].replace(' Workout', '').trim();
+          }
         }
-        return assignment.workout.name;
-      }
-    }
-    
-    // Check customer workouts for training type
-    if (customer && customer.customerWorkouts && customer.customerWorkouts.length > 0) {
-      const latestWorkout = customer.customerWorkouts[0]; // Get the most recent workout
-      if (latestWorkout.workout.trainingType) {
-        return getTrainingDayFromType(latestWorkout.workout.trainingType, dayOfWeek);
-      }
-    }
-    
-    // Check if customer has a training plan assigned (from trainingDays state)
-    const trainingPlan = trainingDays[customerId];
-    if (trainingPlan) {
-      // Try to extract training type from plan name
-      if (trainingPlan.toLowerCase().includes('complete body') || 
-          trainingPlan.toLowerCase().includes('push/pull/legs') ||
-          trainingPlan.toLowerCase().includes('3x per week')) {
-        return getTrainingDayFromType('Complete Body', dayOfWeek);
-      }
-      if (trainingPlan.toLowerCase().includes('upper/lower') ||
-          trainingPlan.toLowerCase().includes('4x per week')) {
-        return getTrainingDayFromType('Upper/Lower Split', dayOfWeek);
-      }
-      if (trainingPlan.toLowerCase().includes('full body') ||
-          trainingPlan.toLowerCase().includes('2x per week')) {
-        return getTrainingDayFromType('Full Body', dayOfWeek);
-      }
-    }
-    
-    // Fallback to hardcoded plans for known customers with Complete Body plan
-    if (customerName.includes('Leca Georgiana') || 
-        customerName.includes('Dragomir Ana Maria') ||
-        customerName.includes('3x per week') ||
-        customerName.includes('Complete Body')) {
-      switch (dayOfWeek) {
-        case 1: return 'Legs & Glutes'; // Monday
-        case 2: return 'Back + Triceps + Abs'; // Tuesday  
-        case 4: return 'Chest + Shoulders + Biceps + Abs'; // Thursday
-        default: return null; // No training on other days
-      }
-    }
-    
-    // Fallback for Own Training (Mihaela)
-    if (customerName.includes('Own Training') || customerName.includes('Mihaela')) {
-      switch (dayOfWeek) {
-        case 1: return 'Legs & Glutes'; // Monday
-        case 2: return 'Back + Triceps + Abs'; // Tuesday  
-        case 4: return 'Chest + Shoulders + Biceps + Abs'; // Thursday
-        default: return null; // No training on other days
+        return workoutName;
       }
     }
     
@@ -1071,17 +1059,14 @@ export default function MobileScheduleClient({
                           <div className="flex items-center justify-between">
                             <div className="flex items-center">
                               <User className="w-3 h-3 mr-2" />
-                              <span className="truncate">{session.customerName}</span>
+                              <span className="truncate">{session.customerName.replace(/ completed?/gi, '').trim()}</span>
                             </div>
                             <div className={`px-2 py-1 rounded text-xs ${getSessionStatusColor(session.status)}`}>
                               {session.status === 'scheduled' ? '' : session.status}
                             </div>
                           </div>
                         {(() => {
-                          // Convert JavaScript getDay() (0=Sunday) to our system (1=Monday)
-                          const jsDayOfWeek = new Date(session.date).getDay();
-                          const dayOfWeek = jsDayOfWeek === 0 ? 7 : jsDayOfWeek; // Sunday becomes 7, Monday stays 1, etc.
-                          const trainingDay = getTrainingDayForCustomer(session.customerName, session.customerId, dayOfWeek);
+                          const trainingDay = getTrainingDayForCustomer(session.customerName, session.customerId, new Date(session.date));
                           
                           // Always show specific training day if available, otherwise show generic type
                           const displayText = trainingDay || session.trainingType || 'Training';
@@ -1165,17 +1150,14 @@ export default function MobileScheduleClient({
                             <div className="flex items-center justify-between">
                               <div className="flex items-center">
                                 <User className="w-3 h-3 mr-1" />
-                                <span className="truncate">{session.customerName}</span>
+                                <span className="truncate">{session.customerName.replace(/ completed?/gi, '').trim()}</span>
                               </div>
                               <div className={`px-1 py-0.5 rounded text-xs ${getSessionStatusColor(session.status)}`}>
                                 {session.status === 'scheduled' ? '' : session.status}
                               </div>
                             </div>
                             {(() => {
-                              // Convert JavaScript getDay() (0=Sunday) to our system (1=Monday)
-                              const jsDayOfWeek = new Date(session.date).getDay();
-                              const dayOfWeek = jsDayOfWeek === 0 ? 7 : jsDayOfWeek; // Sunday becomes 7, Monday stays 1, etc.
-                              const trainingDay = getTrainingDayForCustomer(session.customerName, session.customerId, dayOfWeek);
+                              const trainingDay = getTrainingDayForCustomer(session.customerName, session.customerId, new Date(session.date));
                               
                               // Always show specific training day if available, otherwise show generic type
                               const displayText = trainingDay || session.trainingType || 'Training';

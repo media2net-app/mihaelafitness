@@ -59,29 +59,59 @@ export async function GET(request: NextRequest) {
       orderBy: { weekday: 'asc' }
     });
 
-    // Create a map of weekday to workout
-    const weekdayWorkoutMap = new Map();
-    scheduleAssignments.forEach(assignment => {
-      weekdayWorkoutMap.set(assignment.weekday, assignment.workout);
+    // Sort sessions by date to determine session order within the week
+    const sortedSessions = [...trainingSessions].sort((a, b) => {
+      const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (dateCompare !== 0) return dateCompare;
+      return a.startTime.localeCompare(b.startTime);
     });
-
-    // Transform sessions to include workout information
+    
+    // Group sessions by week to determine session numbers
+    const sessionsByWeek = new Map<string, typeof sortedSessions>();
+    sortedSessions.forEach(session => {
+      const sessionDate = new Date(session.date);
+      // Get Monday of the week for this session
+      const dayOfWeek = sessionDate.getDay();
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust for Sunday
+      const monday = new Date(sessionDate);
+      monday.setDate(sessionDate.getDate() + diff);
+      const weekKey = monday.toISOString().split('T')[0];
+      
+      if (!sessionsByWeek.has(weekKey)) {
+        sessionsByWeek.set(weekKey, []);
+      }
+      sessionsByWeek.get(weekKey)!.push(session);
+    });
+    
+    // Transform sessions to include workout information based on session number
     const transformedSessions = trainingSessions.map(session => {
       const sessionDate = new Date(session.date);
-      const weekday = sessionDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
       
-      // Get the workout for this weekday
-      const assignedWorkout = weekdayWorkoutMap.get(weekday);
+      // Find which week this session belongs to
+      const dayOfWeek = sessionDate.getDay();
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(sessionDate);
+      monday.setDate(sessionDate.getDate() + diff);
+      const weekKey = monday.toISOString().split('T')[0];
+      
+      // Get sessions for this week and find the position of this session
+      const weekSessions = sessionsByWeek.get(weekKey) || [];
+      const sessionIndex = weekSessions.findIndex(s => s.id === session.id);
+      const sessionNumber = sessionIndex + 1; // 1-based index (1st, 2nd, 3rd session)
+      
+      // Get the workout based on session number (not weekday)
+      // Session 1 = Day 1, Session 2 = Day 2, Session 3 = Day 3
+      const assignedWorkout = scheduleAssignments.find(a => a.trainingDay === sessionNumber)?.workout;
       
       return {
         id: session.id,
         title: assignedWorkout?.name || 'Training Session',
-        type: assignedWorkout?.category || 'General',
+        type: assignedWorkout?.name || 'Training',
         date: session.date.toISOString().split('T')[0],
         time: session.startTime,
         endTime: session.endTime,
         duration: calculateDuration(session.startTime, session.endTime),
-        description: session.notes || `${assignedWorkout?.trainingType || 'Training'} session`,
+        description: session.notes || `${assignedWorkout?.name || 'Training'} session`,
         completed: session.status === 'completed',
         status: session.status,
         customerName: session.customer?.name || null,
@@ -105,3 +135,4 @@ function calculateDuration(startTime: string, endTime: string): number {
   const diffMs = end.getTime() - start.getTime();
   return Math.round(diffMs / (1000 * 60)); // Convert to minutes
 }
+
