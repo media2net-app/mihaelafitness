@@ -32,6 +32,25 @@ export const translations = {
         back: 'Back',
         success: 'Thank you! We will contact you soon to schedule your free intake.'
       },
+      notifyForm: {
+        button: 'Keep me informed about the launch',
+        title: 'Stay informed about our launch',
+        subtitle: 'Fill in your details below and we will keep you updated as soon as the platform goes live',
+        name: 'Name',
+        email: 'Email',
+        interests: 'I am interested in:',
+        interestOptions: {
+          nutritionPlans: 'Nutrition Plans',
+          trainingSchedules: 'Training Schedules',
+          onlineCommunity: 'Online Community',
+          recipes: 'Recipes',
+          mindset: 'Mindset/Discipline/Motivation',
+          habits: 'Habits'
+        },
+        submit: 'Keep me informed',
+        back: 'Back',
+        success: 'Thank you! We will keep you informed about our launch.'
+      },
       coaching: {
         '1:1': {
           title: 'Personal Training 1:1',
@@ -467,6 +486,25 @@ export const translations = {
         submit: 'Solicită Consultația Gratuită',
         back: 'Înapoi',
         success: 'Mulțumim! Vă vom contacta în curând pentru a programa consultația gratuită.'
+      },
+      notifyForm: {
+        button: 'Hou mij op de hoogte van de lancering',
+        title: 'Blijf op de hoogte van onze lancering',
+        subtitle: 'Vul onderstaande gegevens in en wij houden je op de hoogte zodra het platform live gaat',
+        name: 'Naam',
+        email: 'E-mail',
+        interests: 'Ik heb interesse in:',
+        interestOptions: {
+          nutritionPlans: 'Voedingsplannen',
+          trainingSchedules: 'Trainingsschemas',
+          onlineCommunity: 'Online community',
+          recipes: 'Recepten',
+          mindset: 'Mindset/Discipline/Motivatie',
+          habits: 'Habits'
+        },
+        submit: 'Hou mij op de hoogte',
+        back: 'Terug',
+        success: 'Bedankt! We houden je op de hoogte van onze lancering.'
       },
       coaching: {
         '1:1': {

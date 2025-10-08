@@ -22,6 +22,12 @@ export default function HomePage() {
   const [availableDays, setAvailableDays] = useState<Array<{date: string, dayName: string, available: boolean}>>([]);
   const [loadingDays, setLoadingDays] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [showNotifyForm, setShowNotifyForm] = useState(false);
+  const [notifyFormData, setNotifyFormData] = useState({
+    name: '',
+    email: '',
+    interests: [] as string[]
+  });
 
   // Lightweight toast notifications (no chat, no options)
   const [currentToastIndex, setCurrentToastIndex] = useState(0);
@@ -47,7 +53,7 @@ export default function HomePage() {
 
   // Show toast messages once (no loop)
   useEffect(() => {
-    if (showForm) {
+    if (showForm || showNotifyForm) {
       setShowToast(false);
       return;
     }
@@ -75,7 +81,7 @@ export default function HomePage() {
       if (hideTimeout) clearTimeout(hideTimeout);
       if (nextMessageTimeout) clearTimeout(nextMessageTimeout);
     };
-  }, [showForm, currentToastIndex, toastMessages.length]);
+  }, [showForm, showNotifyForm, currentToastIndex, toastMessages.length]);
 
   const showIntakeForm = () => {
     console.log('🎯 DEBUG: showIntakeForm called - opening intake form');
@@ -231,6 +237,68 @@ export default function HomePage() {
     }
   };
 
+  const showNotifyMeForm = () => {
+    setIsAnimating(true);
+    setTimeout(() => {
+      setShowNotifyForm(true);
+      setIsAnimating(false);
+    }, 400);
+  };
+
+  const hideNotifyForm = () => {
+    setIsAnimating(true);
+    setTimeout(() => {
+      setShowNotifyForm(false);
+      setIsAnimating(false);
+    }, 400);
+  };
+
+  const handleNotifyInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNotifyFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleInterestToggle = (interest: string) => {
+    setNotifyFormData(prev => ({
+      ...prev,
+      interests: prev.interests.includes(interest)
+        ? prev.interests.filter(i => i !== interest)
+        : [...prev.interests, interest]
+    }));
+  };
+
+  const handleNotifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('/api/launch-notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notifyFormData),
+      });
+
+      if (response.ok) {
+        alert(t.homepage.notifyForm.success);
+        setShowNotifyForm(false);
+        setNotifyFormData({
+          name: '',
+          email: '',
+          interests: []
+        });
+      } else {
+        throw new Error('Failed to submit notify form');
+      }
+    } catch (error) {
+      console.error('Error submitting notify form:', error);
+      alert('Er is een fout opgetreden. Probeer het later opnieuw.');
+    }
+  };
+
   return (
     <div className="homepage-container">
       <div className="homepage-wrapper">
@@ -249,7 +317,7 @@ export default function HomePage() {
         
         <main className="homepage-main-content">
           <div className="homepage-hero-section">
-            {!showForm ? (
+            {!showForm && !showNotifyForm ? (
               <div className={`homepage-text-content ${isAnimating ? 'fade-out-down' : ''}`}>
                 {selectedOption ? (
                   <>
@@ -263,7 +331,17 @@ export default function HomePage() {
                       </ul>
                     </div>
                     {!coachingContent[selectedOption as keyof typeof coachingContent].available && (
-                      <p className="homepage-coming-soon">({t.homepage.comingSoon})</p>
+                      <>
+                        <p className="homepage-coming-soon">({t.homepage.comingSoon})</p>
+                        <div className="homepage-cta-buttons">
+                          <button 
+                            onClick={showNotifyMeForm}
+                            className="homepage-btn homepage-btn-primary"
+                          >
+                            {t.homepage.notifyForm.button}
+                          </button>
+                        </div>
+                      </>
                     )}
                     {coachingContent[selectedOption as keyof typeof coachingContent].available && (
                       <div className="homepage-cta-buttons">
@@ -491,7 +569,83 @@ export default function HomePage() {
                   </button>
                 </form>
               </div>
-            )}
+            ) : showNotifyForm ? (
+              <div className="homepage-intake-form" style={{ paddingBottom: '120px' }}>
+                <div className="homepage-form-header">
+                  <button 
+                    onClick={hideNotifyForm}
+                    className="homepage-btn homepage-btn-back"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    {t.homepage.notifyForm.back}
+                  </button>
+                  <h2 className="homepage-form-title">{t.homepage.notifyForm.title}</h2>
+                  <p className="homepage-form-subtitle">{t.homepage.notifyForm.subtitle}</p>
+                </div>
+                
+                <form onSubmit={handleNotifySubmit} className="homepage-form">
+                  <div className="homepage-form-group">
+                    <label htmlFor="notify-name" className="homepage-form-label">
+                      <User className="w-4 h-4" />
+                      {t.homepage.notifyForm.name}
+                    </label>
+                    <input
+                      type="text"
+                      id="notify-name"
+                      name="name"
+                      value={notifyFormData.name}
+                      onChange={handleNotifyInputChange}
+                      required
+                      className="homepage-form-input"
+                    />
+                  </div>
+
+                  <div className="homepage-form-group">
+                    <label htmlFor="notify-email" className="homepage-form-label">
+                      <Mail className="w-4 h-4" />
+                      {t.homepage.notifyForm.email}
+                    </label>
+                    <input
+                      type="email"
+                      id="notify-email"
+                      name="email"
+                      value={notifyFormData.email}
+                      onChange={handleNotifyInputChange}
+                      required
+                      className="homepage-form-input"
+                    />
+                  </div>
+
+                  <div className="homepage-form-group">
+                    <label className="homepage-form-label">
+                      {t.homepage.notifyForm.interests}
+                    </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+                      {Object.entries(t.homepage.notifyForm.interestOptions).map(([key, label]) => (
+                        <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={notifyFormData.interests.includes(key)}
+                            onChange={() => handleInterestToggle(key)}
+                            style={{ 
+                              width: '18px', 
+                              height: '18px', 
+                              cursor: 'pointer',
+                              accentColor: '#e63946'
+                            }}
+                          />
+                          <span style={{ fontSize: '16px' }}>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button type="submit" className="homepage-btn homepage-btn-primary homepage-form-submit">
+                    {t.homepage.notifyForm.submit}
+                  </button>
+                </form>
+              </div>
+            ) : null}
           </div>
         </main>
         
@@ -510,7 +664,7 @@ export default function HomePage() {
         </div>
 
         {/* Toast Notifications (simple, non-interactive) */}
-        {!showForm && (
+        {!showForm && !showNotifyForm && (
           <div className={`homepage-toast ${showToast ? 'homepage-toast-show' : 'homepage-toast-hide'}`}>
             <div className="homepage-toast-content">
               <div className="homepage-toast-avatar">

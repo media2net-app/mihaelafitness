@@ -415,3 +415,14 @@ model RecipeIngredient {
 
   @@map("recipe_ingredients")
 }
+
+model LaunchNotification {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  interests String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("launch_notifications")
+}
