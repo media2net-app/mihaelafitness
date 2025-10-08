@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const MEALS = ['breakfast','snack','lunch','dinner'] as const;
+const MEALS = ['breakfast','morning-snack','lunch','afternoon-snack','dinner','evening-snack'] as const;
 
 export async function POST(
   request: NextRequest,

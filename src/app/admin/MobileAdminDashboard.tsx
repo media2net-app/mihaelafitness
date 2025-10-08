@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Dumbbell, Apple, Calculator, BarChart3, Settings, Plus, Eye, Edit, Trash2, Calendar, TrendingUp, Clock, Ruler, X, DollarSign, CheckSquare, BookOpen, ChefHat, FileText, MapPin, Scale } from 'lucide-react';
+import { Users, Dumbbell, Apple, Calculator, BarChart3, Settings, Plus, Eye, Edit, Trash2, Calendar, TrendingUp, Clock, Ruler, X, DollarSign, CheckSquare, BookOpen, ChefHat, FileText, MapPin, Scale, FileImage } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { statsService } from '@/lib/database';
 import { useRouter } from 'next/navigation';
@@ -291,6 +291,13 @@ export default function MobileAdminDashboard() {
       icon: FileText,
       href: '/admin/invoices',
       color: 'bg-red-500'
+    },
+    {
+      title: 'PDF Templates',
+      description: 'Design custom PDF templates for meal plans and invoices',
+      icon: FileImage,
+      href: '/admin/pdf-templates',
+      color: 'bg-slate-500'
     }
   ];
 

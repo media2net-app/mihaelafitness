@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { calculateDailyTotalsV2 } from '@/utils/dailyTotalsV2';
+
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FiArrowLeft, FiHeart, FiCoffee, FiActivity, FiClock, FiUsers, FiCalendar, FiCopy, FiShare2, FiDownload } from 'react-icons/fi';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -43,9 +45,8 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   const [activeDay, setActiveDay] = useState<string>('monday');
   const [planId, setPlanId] = useState<string>('');
   const [dailyTotals, setDailyTotals] = useState<any>(null);
-  const [loadingTotals, setLoadingTotals] = useState(false);
   const [mealMacros, setMealMacros] = useState<{[key: string]: any}>({});
-  const [loadingMealMacros, setLoadingMealMacros] = useState<{[key: string]: boolean}>({});
+  const [forceTableUpdate, setForceTableUpdate] = useState(0);
   
   // Shopping list state
   const [activeTab, setActiveTab] = useState<'menu' | 'shopping' | 'ingredients'>('menu');
@@ -274,12 +275,175 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       }
     };
   }, [pdfPreviewUrl]);
+  // New function to get ingredient data using the same API as the web page
+  const getIngredientDataFromAPI = async (mealDescription: string) => {
+    try {
+      if (!mealDescription || mealDescription.trim() === '') {
+        return [];
+      }
+
+      // Check if meal is JSON string (new format) - use directly
+      if (mealDescription.startsWith('[') && mealDescription.endsWith(']')) {
+        try {
+          const jsonIngredients = JSON.parse(mealDescription);
+          if (Array.isArray(jsonIngredients)) {
+            return jsonIngredients.map((ingredient: any) => {
+              const quantity = ingredient.quantity || 0;
+              const per = ingredient.per || '100g';
+              
+              // Parse the per field to get the base amount
+              let baseAmount = 100;
+              let multiplier = 1;
+              
+              if (per === '100g') {
+                baseAmount = 100;
+                multiplier = quantity / baseAmount;
+              } else if (per === '100ml') {
+                baseAmount = 100;
+                multiplier = quantity / baseAmount;
+              } else if (per === '1') {
+                multiplier = 1;
+              } else {
+                const perMatch = per.match(/(\d+(?:\.\d+)?)/);
+                if (perMatch) {
+                  baseAmount = parseFloat(perMatch[1]);
+                  multiplier = quantity / baseAmount;
+                } else {
+                  baseAmount = 100;
+                  multiplier = quantity / baseAmount;
+                }
+              }
+              
+              const calculatedMacros = {
+                calories: Math.round((ingredient.calories || 0) * multiplier),
+                protein: Math.round((ingredient.protein || 0) * multiplier),
+                carbs: Math.round((ingredient.carbs || 0) * multiplier),
+                fat: Math.round((ingredient.fat || 0) * multiplier),
+                fiber: Math.round((ingredient.fiber || 0) * multiplier)
+              };
+              
+              // Create portion string
+              let portion = '';
+              if (ingredient.unit === 'g' || ingredient.unit === 'ml') {
+                portion = `${quantity}${ingredient.unit}`;
+              } else if (ingredient.unit === 'tsp' || ingredient.unit === 'tbsp') {
+                portion = `${quantity} ${ingredient.unit}`;
+              } else if (ingredient.unit === 'slice') {
+                portion = `${quantity} slice${quantity !== 1 ? 's' : ''}`;
+              } else {
+                portion = `${quantity} ${ingredient.unit}`;
+              }
+              
+              return {
+                name: ingredient.name,
+                portion: portion,
+                calories: calculatedMacros.calories,
+                protein: calculatedMacros.protein,
+                carbs: calculatedMacros.carbs,
+                fat: calculatedMacros.fat,
+                fiber: calculatedMacros.fiber
+              };
+            });
+          }
+        } catch (error) {
+          console.log('Failed to parse JSON meal:', mealDescription);
+        }
+      }
+
+      // Fallback to string parsing and API call
+      const ingredients = parseMealDescription(mealDescription);
+      console.log('[PDF] Parsed ingredients for API:', ingredients);
+      
+      const response = await fetch('/api/calculate-macros', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ingredients }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to calculate macros');
+      }
+
+      const data = await response.json();
+      const results = data.results;
+
+      // Process results with the same logic as IngredientBreakdown
+      const ingredientResults = results.map((result: any) => {
+        // Extract clean ingredient name (remove quantities and IDs)
+        let cleanName = result.ingredient;
+        
+        // Remove DB id pipes if present (e.g., "cmg123|Milk" -> "Milk")
+        if (cleanName.includes('|')) {
+          const parts = cleanName.split('|');
+          cleanName = parts[parts.length - 1].trim();
+        }
+        
+        // Remove common quantity patterns
+        cleanName = cleanName
+          .replace(/^\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|slice|slices)\s*/i, '')
+          .replace(/^\d+(?:\.\d+)?\s*(?:piece|pieces)\s*/i, '')
+          .replace(/^\d+(?:\.\d+)?\s*/i, '')
+          .replace(/^(\d+\/\d+|\d+)\s*/i, '')
+          .replace(/^\([^)]*\)\s*/g, '')
+          .replace(/^[^a-zA-Z]*/, '')
+          .replace(/\)$/, '')
+          .trim();
+
+        // Create portion string using parsed amount and unit from API
+        let portion = '';
+        
+        if (result.unit === 'g' && result.amount) {
+          portion = `${Math.round(result.amount)} g`;
+        } else if (result.unit === 'ml' && result.amount) {
+          portion = `${Math.round(result.amount)} ml`;
+        } else if (result.unit === 'tsp' && result.amount) {
+          portion = `${result.amount} tsp`;
+        } else if (result.unit === 'tbsp' && result.amount) {
+          portion = `${result.amount} tbsp`;
+        } else if (result.unit === 'piece' && result.pieces) {
+          if (result.pieces === 0.5) {
+            portion = '1/2 piece';
+          } else if (result.pieces === 0.25) {
+            portion = '1/4 piece';
+          } else if (result.pieces === 0.33) {
+            portion = '1/3 piece';
+          } else if (result.pieces === 1) {
+            portion = '1 piece';
+          } else {
+            portion = `${result.pieces} pieces`;
+          }
+        } else if (result.amount) {
+          portion = `${Math.round(result.amount)} ${result.unit || 'g'}`;
+        } else {
+          portion = '1 piece';
+        }
+
+        return {
+          name: cleanName,
+          portion: portion,
+          calories: Math.round(result.macros.calories),
+          protein: Math.round(result.macros.protein),
+          carbs: Math.round(result.macros.carbs),
+          fat: Math.round(result.macros.fat),
+          fiber: Math.round(result.macros.fiber || 0)
+        };
+      });
+
+      return ingredientResults;
+    } catch (error) {
+      console.error('Error getting ingredient data from API:', error);
+      return [];
+    }
+  };
+
   const drawMealIngredientsTable = (pdf: jsPDF, startY: number, mealName: string, rows: Array<{ ingredient: string; portion: string; calories: number; protein: number; carbs: number; fat: number; fiber?: number }>) => {
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     let y = startY;
-    const tableX = 20;
-    const tableW = pageWidth - 40;
+    const tableX = 15; // Increased left margin
+    const tableW = pageWidth - 30; // Better margins
     // Pre-compute card height
     let totalRowsHeight = 10; // header
     const computedHeights = rows.map(r => {
@@ -293,27 +457,27 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     pdf.setFillColor(255,255,255);
     pdf.roundedRect(tableX, y - 4, tableW, Math.min(totalRowsHeight + 10, pageHeight - y - 20), 4, 4, 'F');
     // Meal title
-    try { pdf.setFont('Ubuntu', 'bold'); } catch { pdf.setFont('helvetica', 'bold'); }
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
     pdf.setTextColor(THEME.textDark.r, THEME.textDark.g, THEME.textDark.b);
     pdf.text(mealName, tableX + 5, y);
     y += 5;
     // Header
     pdf.setFillColor(THEME.grayLight.r, THEME.grayLight.g, THEME.grayLight.b);
-    pdf.rect(tableX, y, tableW, 8, 'F');
-    pdf.setFont('Ubuntu', 'bold');
+    pdf.rect(tableX, y, tableW, 10, 'F'); // Increased header height
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.setTextColor(55);
-    pdf.text('Ingredient', tableX + 3, y + 6);
-    pdf.text('Portion', tableX + 65, y + 6);
-    pdf.text('Cal', tableX + tableW - 64, y + 6);
-    pdf.text('P',   tableX + tableW - 50, y + 6);
-    pdf.text('C',   tableX + tableW - 38, y + 6);
-    pdf.text('Fi',  tableX + tableW - 24, y + 6);
-    pdf.text('F',   tableX + tableW - 12, y + 6);
-    y += 10;
+    pdf.text('Ingredient', tableX + 5, y + 7); // More padding
+    pdf.text('Portion', tableX + 70, y + 7); // Better spacing
+    pdf.text('Cal', tableX + tableW - 70, y + 7); // More space from edge
+    pdf.text('P',   tableX + tableW - 55, y + 7); // Better spacing
+    pdf.text('C',   tableX + tableW - 40, y + 7); // Better spacing
+    pdf.text('Fi',  tableX + tableW - 25, y + 7); // Better spacing
+    pdf.text('F',   tableX + tableW - 10, y + 7); // Better spacing
+    y += 12; // More space after header
 
-    try { pdf.setFont('Ubuntu', 'normal'); } catch { pdf.setFont('helvetica', 'normal'); }
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(9);
     pdf.setTextColor(33);
     for (const r of rows) {
@@ -325,17 +489,17 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         addFooter(pdf, pdf.getNumberOfPages());
         y = 28; // below header
       }
-      // text cells
-      nameLines.forEach((ln: string, i: number) => pdf.text(ln, tableX + 3, y + 5 + i * 5));
-      portionLines.forEach((ln: string, i: number) => pdf.text(ln, tableX + 65, y + 5 + i * 5));
-      pdf.text(String(r.calories || 0), tableX + tableW - 58, y + 5);
-      pdf.text(`${r.protein || 0}g`,    tableX + tableW - 42, y + 5);
-      pdf.text(`${r.carbs || 0}g`,      tableX + tableW - 28, y + 5);
-      pdf.text(`${r.fat || 0}g`,        tableX + tableW - 14, y + 5);
-      y += rowH;
+      // text cells with better padding
+      nameLines.forEach((ln: string, i: number) => pdf.text(ln, tableX + 5, y + 6 + i * 5)); // More padding
+      portionLines.forEach((ln: string, i: number) => pdf.text(ln, tableX + 70, y + 6 + i * 5)); // Better alignment
+      pdf.text(String(r.calories || 0), tableX + tableW - 65, y + 6); // Better spacing
+      pdf.text(`${r.protein || 0}g`,    tableX + tableW - 50, y + 6); // Better spacing
+      pdf.text(`${r.carbs || 0}g`,      tableX + tableW - 35, y + 6); // Better spacing
+      pdf.text(`${r.fat || 0}g`,        tableX + tableW - 20, y + 6); // Better spacing
+      y += rowH + 2; // More space between rows
       pdf.setDrawColor(240);
-      pdf.line(tableX, y, tableX + tableW, y);
-      y += 2;
+      pdf.line(tableX + 2, y, tableX + tableW - 2, y); // Shorter line with padding
+      y += 3; // More space after line
     }
     return y;
   };
@@ -491,8 +655,18 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     if (cleaned.includes(':')) {
       const afterColon = cleaned.split(':')[1]?.trim();
       if (afterColon) {
-        // Split on commas and clean up
-        const ingredients = afterColon.split(',').map(ing => ing.trim()).filter(ing => ing.length > 0);
+        // Split on commas and clean up, removing IDs
+        const ingredients = afterColon.split(',').map(ing => {
+          let cleaned = ing.trim();
+          
+          // Remove DB id pipes if present (e.g., "cmg123|Milk" -> "Milk")
+          if (cleaned.includes('|')) {
+            const pipeParts = cleaned.split('|');
+            cleaned = pipeParts[pipeParts.length - 1].trim();
+          }
+          
+          return cleaned;
+        }).filter(ing => ing.length > 0);
         console.log('Parsed ingredients from colon:', ingredients);
         return ingredients;
       }
@@ -500,7 +674,17 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     
     // Handle patterns like "60g oats, 2 eggs, 1 banana" (without colon)
     if (cleaned.includes(',')) {
-      const ingredients = cleaned.split(',').map(ing => ing.trim()).filter(ing => ing.length > 0);
+      const ingredients = cleaned.split(',').map(ing => {
+        let cleaned = ing.trim();
+        
+        // Remove DB id pipes if present (e.g., "cmg123|Milk" -> "Milk")
+        if (cleaned.includes('|')) {
+          const pipeParts = cleaned.split('|');
+          cleaned = pipeParts[pipeParts.length - 1].trim();
+        }
+        
+        return cleaned;
+      }).filter(ing => ing.length > 0);
       console.log('Parsed ingredients from comma:', ingredients);
       return ingredients;
     }
@@ -508,9 +692,19 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     // For other patterns, split on + but be more careful about context
     const parts = cleaned.split(/\s*\+\s*/);
     
-    // Clean up each part
+    // Clean up each part and remove IDs
     const ingredients = parts
-      .map(part => part.trim())
+      .map(part => {
+        let cleaned = part.trim();
+        
+        // Remove DB id pipes if present (e.g., "cmg123|Milk" -> "Milk")
+        if (cleaned.includes('|')) {
+          const pipeParts = cleaned.split('|');
+          cleaned = pipeParts[pipeParts.length - 1].trim();
+        }
+        
+        return cleaned;
+      })
       .filter(part => part.length > 0);
       
     console.log('Parsed ingredients from plus:', ingredients);
@@ -592,7 +786,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           const pd = planDataRef.current;
           const ad = activeDayRef.current;
           const updatedDayData = pd?.weekMenu?.[ad];
-          const newDailyTotals = await calculateDailyTotals(updatedDayData);
+          const newDailyTotals = await calculateDailyTotalsV2(updatedDayData);
           if (!shallowEqual(lastDailyTotalsRef.current, newDailyTotals)) {
             setDailyTotals(newDailyTotals);
             lastDailyTotalsRef.current = newDailyTotals;
@@ -609,80 +803,79 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   useEffect(() => { planDataRef.current = planData; }, [planData]);
   useEffect(() => { activeDayRef.current = activeDay; }, [activeDay]);
 
+  // Fallback: Recalculate daily totals when planData changes (in case onPlanUpdated doesn't fire)
+  // DISABLED: This was causing race conditions with the onPlanUpdated callback
+  // useEffect(() => {
+  //   if (!planData || !planData.weekMenu || !planData.weekMenu[activeDay]) {
+  //     return;
+  //   }
+
+  //   const recalculateTotals = async () => {
+  //     try {
+  //       console.log('🔄 Fallback: Recalculating daily totals due to planData change');
+  //       setLoadingTotals(true);
+  //       const dayData = planData.weekMenu[activeDay];
+  //       const totals = await calculateDailyTotals(dayData, true);
+  //       setDailyTotals(totals);
+  //       console.log('🔄 Fallback: Daily totals recalculated:', totals);
+  //     } catch (error) {
+  //       console.error('❌ Fallback: Error recalculating daily totals:', error);
+  //     } finally {
+  //       setLoadingTotals(false);
+  //     }
+  //   };
+
+  //   // Debounce to avoid too many recalculations
+  //   const timeoutId = setTimeout(recalculateTotals, 1000);
+  //   return () => clearTimeout(timeoutId);
+  // }, [planData, activeDay]);
+
   // (removed duplicate handleAddIngredient; using the unified version later in the file)
 
-  // Calculate daily totals when activeDay or planData changes
+  // Calculate meal macros AND daily totals when activeDay changes (combined to prevent race condition)
   useEffect(() => {
-    const calculateTotals = async () => {
-      if (planData && planData.weekMenu && planData.weekMenu[activeDay]) {
-        setLoadingTotals(true);
-        try {
-          console.log('🔄 Recalculating daily totals for:', activeDay);
-          console.log('📊 Current plan data:', planData.weekMenu[activeDay]);
-          const totals = await calculateDailyTotals(planData.weekMenu[activeDay]);
-          console.log('✅ Calculated totals:', totals);
-          setDailyTotals(totals);
-        } catch (error) {
-          console.error('Error calculating daily totals:', error);
-          setDailyTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-        } finally {
-          setLoadingTotals(false);
-        }
+    const calculateAllMacros = async () => {
+      // Use the same logic as PDF: prefer weekMenu, fallback to days
+      let dayData = null;
+      if (planData?.weekMenu?.[activeDay]) {
+        dayData = planData.weekMenu[activeDay];
+        console.log('🔄 [V2] Using weekMenu data for day:', activeDay);
+      } else if (planData?.days?.[activeDay]) {
+        dayData = planData.days[activeDay];
+        console.log('🔄 [V2] Using days data for day:', activeDay);
+      }
+      
+      if (!dayData) {
+        console.log('🔄 [V2] No day data found for:', activeDay);
+        return;
+      }
+
+      // Reset macros to avoid showing stale values
+      setMealMacros({});
+      
+      try {
+        console.log('🔄 [V3] Calculating macros and totals for day:', activeDay);
+        
+        // First calculate meal macros using V2
+        const { mealMacros: calculatedMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
+        setMealMacros(calculatedMealMacros);
+        
+        // Wait a bit for DOM to update, then calculate daily totals from actual DOM values
+        setTimeout(() => {
+          const totals = calculateDailyTotalsFromDOM();
+          setDailyTotals({...totals});
+          
+          console.log('✅ [V3] All meal macros calculated:', calculatedMealMacros);
+          console.log('✅ [V3] Daily totals calculated from DOM:', totals);
+        }, 100);
+        
+      } catch (error) {
+        console.error('Error calculating macros:', error);
+        setDailyTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 });
       }
     };
 
-    calculateTotals();
-  }, [activeDay, planData]);
-
-  // Calculate meal macros when activeDay changes
-  useEffect(() => {
-    // reset macros to avoid showing stale values during transition
-    setMealMacros({});
-    const calculateMealMacros = async () => {
-      if (planData && planData.weekMenu && planData.weekMenu[activeDay]) {
-        const dayData = planData.weekMenu[activeDay];
-        const newMealMacros: {[key: string]: any} = {};
-        const newLoadingState: {[key: string]: boolean} = {};
-        
-        for (const mealType of mealOrder) {
-          const mealStr = getMealString(dayData, mealType);
-          if (mealStr) {
-            newLoadingState[mealType] = true;
-            setLoadingMealMacros(prev => ({ ...prev, [mealType]: true }));
-            
-            try {
-              const meal = mealStr;
-              console.log(`🔍 Processing ${mealType}:`, meal);
-              
-              // Check if meal has calories in parentheses
-              const extractedCalories = extractCalories(meal);
-              if (extractedCalories > 0) {
-                console.log(`   Using extracted calories: ${extractedCalories}`);
-                newMealMacros[mealType] = {
-                  calories: extractedCalories,
-                  protein: Math.round(extractedCalories * 0.25 / 4),
-                  carbs: Math.round(extractedCalories * 0.45 / 4),
-                  fat: Math.round(extractedCalories * 0.30 / 9)
-                };
-              } else {
-                const ingredientMacros = await calculateMealMacrosFromIngredients(meal, mealType);
-                newMealMacros[mealType] = ingredientMacros;
-              }
-            } catch (error) {
-              console.error(`Error calculating macros for ${mealType}:`, error);
-              newMealMacros[mealType] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-            } finally {
-              newLoadingState[mealType] = false;
-              setLoadingMealMacros(prev => ({ ...prev, [mealType]: false }));
-            }
-          }
-        }
-        
-        setMealMacros(newMealMacros);
-      }
-    };
-
-    calculateMealMacros();
+    calculateAllMacros();
   }, [activeDay, planData]);
 
   const handleBack = () => {
@@ -1095,8 +1288,8 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       if (planRes.ok) {
         const updated = await planRes.json();
         setPlanData(updated);
-        const totals = await calculateDailyTotals((updated.weekMenu || {})[day] || {});
-        setDailyTotals(totals);
+        const totals = await calculateDailyTotalsV2((updated.weekMenu || {})[day] || {});
+        setDailyTotals({...totals});
       }
       addGenLog('Done and UI refreshed');
     } catch (e) {
@@ -1134,27 +1327,16 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       // Force re-render by updating the plan data
       const updatedPlan = data.plan;
       
-      // Recalculate meal macros for all meals first
-      const newMealMacros: {[key: string]: any} = {};
+      // Use V2 function for consistent calculation
       const dayData = updatedPlan.weekMenu[activeDay];
-      
-      for (const mealType of mealOrder) {
-        if (dayData[mealType]) {
-          const meal = dayData[mealType];
-          const macros = await calculateMealMacrosFromIngredients(meal, mealType);
-          newMealMacros[mealType] = macros;
-        }
-      }
+      const { mealMacros: newMealMacros, dailyTotals: totals } = await calculateMealMacrosAndTotalsV2(dayData);
       
       setMealMacros(newMealMacros);
-      
-      // Then recalculate daily totals with the updated plan
-      const totals = await calculateDailyTotals(updatedPlan.weekMenu[activeDay]);
-      setDailyTotals(totals);
+      setDailyTotals({...totals});
       
       console.log('✅ Ingredient added successfully:', data.addedIngredient);
-      console.log('📊 Updated daily totals:', totals);
-      console.log('🍽️ Updated meal macros:', newMealMacros);
+      console.log('📊 [V2] Updated daily totals:', totals);
+      console.log('🍽️ [V2] Updated meal macros:', newMealMacros);
       
     } catch (error) {
       console.error('Error adding ingredient:', error);
@@ -1190,36 +1372,16 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       // Force re-render by updating the plan data
       const updatedPlan = data.plan;
       
-      // Recalculate meal macros for all meals first
-      const newMealMacros: {[key: string]: any} = {};
+      // Use V2 function for consistent calculation
       const dayData = updatedPlan.weekMenu[activeDay];
-      
-      for (const mealType of ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack']) {
-        if (dayData[mealType]) {
-          try {
-            const mealResponse = await fetch('/api/calculate-macros', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                ingredients: dayData[mealType],
-                dayKey: activeDay,
-                mealType: mealType
-              }),
-            });
-            
-            if (mealResponse.ok) {
-              const mealData = await mealResponse.json();
-              newMealMacros[mealType] = mealData;
-            }
-          } catch (error) {
-            console.error(`Error calculating macros for ${mealType}:`, error);
-          }
-        }
-      }
+      const { mealMacros: newMealMacros, dailyTotals: totals } = await calculateMealMacrosAndTotalsV2(dayData);
       
       setMealMacros(newMealMacros);
+      setDailyTotals({...totals});
       
       console.log('✅ Recipe added successfully:', recipe.name);
+      console.log('📊 [V2] Updated daily totals:', totals);
+      console.log('🍽️ [V2] Updated meal macros:', newMealMacros);
     } catch (error) {
       console.error('Error adding recipe:', error);
       alert('Failed to add recipe. Please try again.');
@@ -1254,35 +1416,16 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     grayLight: { r: 243, g: 244, b: 246 },
   };
 
-  // Try to load Ubuntu fonts (from public/fonts/Ubuntu). Fallback to helvetica if missing
-  const ensureUbuntuFonts = async (pdf: jsPDF) => {
+  // Use system fonts (Arial/Helvetica) for better readability and consistency
+  const ensureSystemFonts = async (pdf: jsPDF) => {
     try {
-      const tryLoad = async (paths: string[], vfsName: string, weight: 'normal' | 'bold') => {
-        for (const p of paths) {
-          try {
-            console.log('[PDF][Fonts] Trying to load', p);
-            const res = await fetch(p);
-            if (res.ok) {
-              const buf = await res.arrayBuffer();
-              const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-              pdf.addFileToVFS(vfsName, base64);
-              pdf.addFont(vfsName, 'Ubuntu', weight);
-              console.log(`[PDF][Fonts] Loaded ${vfsName} as Ubuntu ${weight}`);
-              return true;
-            }
-            console.warn('[PDF][Fonts] Fetch not ok for', p, res.status);
-          } catch {}
-        }
-        return false;
-      };
-      const regularLoaded = await tryLoad(['/fonts/Ubuntu/Ubuntu-Regular.ttf', '/fonts/ubuntu/Ubuntu-Regular.ttf'], 'Ubuntu-Regular.ttf', 'normal');
-      const boldLoaded = await tryLoad(['/fonts/Ubuntu/Ubuntu-Bold.ttf', '/fonts/ubuntu/Ubuntu-Bold.ttf'], 'Ubuntu-Bold.ttf', 'bold');
-      const list = (pdf as any).getFontList?.() || {};
-      console.log('[PDF][Fonts] getFontList =', list);
-      if (regularLoaded) {
-        try { pdf.setFont('Ubuntu', 'normal'); } catch {}
-      }
-    } catch {}
+      console.log('[PDF][Fonts] Using system fonts (Arial/Helvetica) for better readability');
+      // Arial is available by default in jsPDF, no need to load custom fonts
+      return true;
+    } catch (error) {
+      console.warn('[PDF][Fonts] Font setup failed:', error);
+      return false;
+    }
   };
 
   const addFooter = (pdf: jsPDF, page: number) => {
@@ -1290,7 +1433,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     const h = pdf.internal.pageSize.getHeight();
     pdf.setDrawColor(230);
     pdf.line(15, h - 15, w - 15, h - 15);
-    try { pdf.setFont('Ubuntu', 'normal'); } catch { pdf.setFont('helvetica', 'normal'); }
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
     pdf.setTextColor(120);
     pdf.text(`Page ${page}`, w - 30, h - 10);
@@ -1369,11 +1512,11 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     // Right column: title and subtitle
     const textX = marginX + leftColW + gutter;
     pdf.setTextColor(255, 255, 255);
-    try { pdf.setFont('Ubuntu', 'bold'); } catch { pdf.setFont('helvetica', 'bold'); }
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);
     pdf.text(title, textX, 14);
     if (subtitle) {
-      try { pdf.setFont('Ubuntu', 'normal'); } catch { pdf.setFont('helvetica', 'normal'); }
+      pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
       pdf.text(subtitle, textX, 20);
     }
@@ -1397,12 +1540,12 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     pdf.setTextColor(255, 255, 255);
     
     // Label with Ubuntu font
-    try { pdf.setFont('Ubuntu', 'normal'); } catch { pdf.setFont('helvetica', 'normal'); }
+    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7);
     pdf.text(label, x + 6, y + 10);
     
     // Value with Ubuntu bold
-    try { pdf.setFont('Ubuntu', 'bold'); } catch { pdf.setFont('helvetica', 'bold'); }
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
     pdf.text(value, x + 6, y + 22);
   };
@@ -1425,14 +1568,14 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     pdf.roundedRect(left, y - 4, right - left, Math.min(estimated, pageHeight - y - 20), 4, 4, 'F');
     // Day title
     pdf.setTextColor(THEME.textDark.r, THEME.textDark.g, THEME.textDark.b);
-    try { pdf.setFont('Ubuntu', 'bold'); } catch { pdf.setFont('helvetica', 'bold'); }
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(13);
     pdf.text(dayName, 20, y);
     y += 6;
     // Table header
     pdf.setFillColor(THEME.grayLight.r, THEME.grayLight.g, THEME.grayLight.b);
     pdf.rect(20, y, pageWidth - 40, 8, 'F');
-    pdf.setFont('Ubuntu', 'bold');
+    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.setTextColor(55);
     pdf.text('Meal', 23, y + 6);
@@ -1495,14 +1638,14 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       const pageHeight = pdf.internal.pageSize.getHeight();
       // Gradient background (homepage style)
       await paintGradientBackground(pdf);
-      await ensureUbuntuFonts(pdf);
+      await ensureSystemFonts(pdf);
       let yPosition = 36; // below header
 
       // Header with branding
       await drawHeader(pdf, planData.name || 'Nutrition Plan', planData.description || 'Weekly meal plan');
 
       // Weekly summary section title
-      try { pdf.setFont('Ubuntu', 'bold'); } catch { pdf.setFont('helvetica', 'bold'); }
+      pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(12);
       pdf.setTextColor(THEME.textDark.r, THEME.textDark.g, THEME.textDark.b);
       pdf.text('Weekly Nutrition Summary', 15, yPosition);
@@ -1512,20 +1655,11 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       let dayTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
       const activeKey = planData.weekMenu?.[activeDay] ? activeDay : (planData.days?.[activeDay] ? activeDay : 'monday');
       if (planData.weekMenu?.[activeKey]) {
-        try { dayTotals = await calculateDailyTotals(planData.weekMenu[activeKey]); } catch {}
+        try { dayTotals = await calculateDailyTotalsV2(planData.weekMenu[activeKey]); } catch {}
       } else if (planData.days?.[activeKey]) {
+        // Use the same calculation logic as the web page V2
         const dayData = planData.days[activeKey];
-        const mealOrder = ['breakfast','morning-snack','lunch','afternoon-snack','dinner','evening-snack'];
-        let cal = 0, pro = 0, car = 0, fat = 0;
-        for (const mealType of mealOrder) {
-          const desc = dayData[mealType]?.description || '';
-          if (!desc) continue;
-          try {
-            const m = await calculateMealMacrosFromIngredients(desc, mealType);
-            cal += m.calories || 0; pro += m.protein || 0; car += m.carbs || 0; fat += m.fat || 0;
-          } catch {}
-        }
-        dayTotals = { calories: Math.round(cal), protein: Math.round(pro), carbs: Math.round(car), fat: Math.round(fat) };
+        dayTotals = await calculateDailyTotalsV2(dayData);
       }
       // Summary badges: show ONLY day totals (remove targets row)
       const yRow = yPosition;
@@ -1572,18 +1706,12 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           yPosition += 6;
           // For each meal, draw ingredient table with macros
           for (const mealRow of rows) {
-            // Robust ingredient parsing
-            let ingredients = parseMealDescription(mealRow.description || '');
-            if ((!ingredients || ingredients.length === 0) && mealRow.description) {
-              ingredients = parseMealDescLocal(mealRow.description);
-            }
-            if ((!ingredients || ingredients.length === 0) && (mealRow as any).ingredients) {
-              const arr = Array.isArray((mealRow as any).ingredients) ? (mealRow as any).ingredients : [];
-              ingredients = arr.map((i: any) => (typeof i === 'string' ? i : i?.name)).filter(Boolean);
-            }
-            console.log('[PDF] Parsed ingredients for', mealRow.name, ingredients);
+            // Use the new API function to get accurate ingredient data
+            const ingredientData = await getIngredientDataFromAPI(mealRow.description || '');
+            
+            console.log('[PDF] Got ingredient data for', mealRow.name, ingredientData);
             // If nothing parsed, still render a placeholder table
-            if (!ingredients || ingredients.length === 0) {
+            if (!ingredientData || ingredientData.length === 0) {
               const placeholderRows = [{ ingredient: 'No ingredients', portion: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }];
               if (yPosition > pageHeight - 70) {
                 pdf.addPage();
@@ -1605,52 +1733,16 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
             }
 
             // Fetch macros
-            let results: any[] = [];
-            try {
-              const res = await fetch('/api/calculate-macros', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ingredients })
-              });
-              console.log('[PDF] /api/calculate-macros status:', res.status);
-              const data = await res.json();
-              results = Array.isArray(data?.results) ? data.results : [];
-              console.log('[PDF] macros results length:', results.length);
-            } catch (e) {
-              console.warn('[PDF] macros API failed, fallback to raw strings:', e);
-            }
-
-            // Fallback rows when API returns empty
-            if (!results || results.length === 0) {
-              results = ingredients.map((s: string) => ({ original: s, matchedName: s, portion: '', macros: { calories: 0, protein: 0, carbs: 0, fat: 0 } }));
-            }
-
-            const rowsIng = results.map((r: any) => {
-              // Compose portion
-              const unit = r.unit?.toLowerCase?.() || '';
-              const amount = Math.round(r.amount || 0);
-              let portion = r.portion || r.per || '';
-              if (!portion) {
-                if (unit === 'piece' || unit === 'pieces') portion = `${amount}`;
-                else if (unit) portion = `${amount}${unit}`;
-                else portion = amount ? `${amount}` : '';
-              }
-              // Ingredient name
-              let name = String(r.matchedName || r.name || r.original || r.ingredient || '');
-              name = name.replace(/^\d+(?:\.\d+)?\s*(?:g|ml|piece|pieces)?\s*/i, '').trim();
-              if (name.includes('|')) {
-                const parts = name.split('|');
-                name = parts[parts.length - 1].trim();
-              }
-              return {
-                ingredient: name,
-                portion,
-                calories: r.macros?.calories ?? 0,
-                protein: r.macros?.protein ?? 0,
-                carbs: r.macros?.carbs ?? 0,
-                fat: r.macros?.fat ?? 0,
-                fiber: r.macros?.fiber ?? 0,
-              };
-            });
+            // Convert to the format expected by drawMealIngredientsTable
+            const rowsIng = ingredientData.map((ing: any) => ({
+              ingredient: ing.name,
+              portion: ing.portion,
+              calories: ing.calories,
+              protein: ing.protein,
+              carbs: ing.carbs,
+              fat: ing.fat,
+              fiber: ing.fiber
+            }));
 
             // Pre-break if close to bottom before drawing the table
             if (yPosition > pageHeight - 70) {
@@ -1694,8 +1786,16 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           let calories = 0;
           if (description) {
             try {
-              const macros = await calculateMealMacrosFromIngredients(description, mealType);
-              calories = macros.calories || 0;
+              const ingredientData = await getIngredientDataFromAPI(description);
+              if (ingredientData && ingredientData.length > 0) {
+                const mealTotals = ingredientData.reduce((acc: any, ing: any) => ({
+                  calories: acc.calories + (ing.calories || 0),
+                  protein: acc.protein + (ing.protein || 0),
+                  carbs: acc.carbs + (ing.carbs || 0),
+                  fat: acc.fat + (ing.fat || 0)
+                }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+                calories = mealTotals.calories;
+              }
             } catch { calories = 0; }
           }
           rows.push({ 
@@ -1709,33 +1809,28 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         yPosition = drawDayTable(pdf, yPosition, titleDay, rows);
         yPosition += 6;
         for (const mealRow of rows) {
-          let ingredients = parseMealDescription(mealRow.description || '');
-          if ((!ingredients || ingredients.length === 0) && mealRow.description) ingredients = parseMealDescLocal(mealRow.description);
-          if (!ingredients || ingredients.length === 0) {
+          // Use the new API function to get accurate ingredient data
+          const ingredientData = await getIngredientDataFromAPI(mealRow.description || '');
+          
+          if (!ingredientData || ingredientData.length === 0) {
             const placeholderRows = [{ ingredient: 'No ingredients', portion: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }];
             if (yPosition > pageHeight - 70) { pdf.addPage(); await paintGradientBackground(pdf); await drawHeader(pdf, planData.name || 'Nutrition Plan'); yPosition = 36; }
             yPosition = drawMealIngredientsTable(pdf, yPosition, `${mealRow.name} ingredients`, placeholderRows);
             yPosition += 6;
             continue;
           }
-          let results: any[] = [];
-          try {
-            const res = await fetch('/api/calculate-macros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredients }) });
-            const data = await res.json();
-            results = Array.isArray(data?.results) ? data.results : [];
-          } catch {}
-          if (!results || results.length === 0) {
-            results = ingredients.map((s: string) => ({ original: s, matchedName: s, portion: '', macros: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 } }));
-          }
-          const rowsIng = results.map((r: any) => {
-            const unit = r.unit?.toLowerCase?.() || '';
-            const amount = Math.round(r.amount || 0);
-            let portion = r.portion || r.per || '';
-            if (!portion) portion = unit ? `${amount}${unit}` : (amount ? String(amount) : '');
-            let name = String(r.matchedName || r.name || r.original || r.ingredient || '');
-            name = name.replace(/^\d+(?:\.\d+)?\s*(?:g|ml|piece|pieces)?\s*/i, '').trim();
-            return { ingredient: name, portion, calories: r.macros?.calories ?? 0, protein: r.macros?.protein ?? 0, carbs: r.macros?.carbs ?? 0, fat: r.macros?.fat ?? 0, fiber: r.macros?.fiber ?? 0 };
-          });
+          
+          // Convert to the format expected by drawMealIngredientsTable
+          const rowsIng = ingredientData.map((ing: any) => ({
+            ingredient: ing.name,
+            portion: ing.portion,
+            calories: ing.calories,
+            protein: ing.protein,
+            carbs: ing.carbs,
+            fat: ing.fat,
+            fiber: ing.fiber
+          }));
+          
           if (yPosition > pageHeight - 70) { pdf.addPage(); await paintGradientBackground(pdf); await drawHeader(pdf, planData.name || 'Nutrition Plan'); yPosition = 36; }
           yPosition = drawMealIngredientsTable(pdf, yPosition, `${mealRow.name} ingredients`, rowsIng);
           yPosition += 6;
@@ -1751,7 +1846,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         yPosition = 36;
         
         // Shopping List title with Ubuntu font
-        try { pdf.setFont('Ubuntu', 'bold'); } catch { pdf.setFont('helvetica', 'bold'); }
+        pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
         pdf.setTextColor(THEME.textDark.r, THEME.textDark.g, THEME.textDark.b);
         pdf.text('Boodschappenlijst', 15, yPosition);
@@ -1767,7 +1862,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         pdf.roundedRect(15, yPosition, tableWidth, headerHeight, 2, 2, 'F');
         
         // Header text
-        try { pdf.setFont('Ubuntu', 'bold'); } catch { pdf.setFont('helvetica', 'bold'); }
+        pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(10);
         pdf.setTextColor(55, 65, 81); // Gray-700
         pdf.text('Ingrediënt', 18, yPosition + 7);
@@ -1777,7 +1872,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         yPosition += headerHeight;
         
         // Table rows
-        try { pdf.setFont('Ubuntu', 'normal'); } catch { pdf.setFont('helvetica', 'normal'); }
+        pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(9);
         pdf.setTextColor(17, 24, 39); // Gray-900
         
@@ -1794,7 +1889,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
             // Redraw table header
             pdf.setFillColor(248, 249, 250);
             pdf.roundedRect(15, yPosition, tableWidth, headerHeight, 2, 2, 'F');
-            try { pdf.setFont('Ubuntu', 'bold'); } catch { pdf.setFont('helvetica', 'bold'); }
+            pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(10);
             pdf.setTextColor(55, 65, 81);
             pdf.text('Ingrediënt', 18, yPosition + 7);
@@ -1802,7 +1897,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
             pdf.text('Eenheid', 160, yPosition + 7);
             yPosition += headerHeight;
             
-            try { pdf.setFont('Ubuntu', 'normal'); } catch { pdf.setFont('helvetica', 'normal'); }
+            pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(9);
             pdf.setTextColor(17, 24, 39);
           }
@@ -2109,48 +2204,200 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     return Math.max(estimatedCalories, 100); // Minimum 100 calories
   };
 
-  // Function to calculate daily totals (strict sum of actual macros)
-  const calculateDailyTotals = async (dayData: any): Promise<{ calories: number; protein: number; carbs: number; fat: number }> => {
+  // V3: Callback for when meal macros change
+  const onMacrosUpdatedCallback = useCallback(() => {
+    // Recalculate daily totals from DOM when any meal macros change
+    const totals = calculateDailyTotalsFromDOM();
+    setDailyTotals({...totals});
+    // Force table update to show new values
+    setForceTableUpdate(prev => prev + 1);
+    console.log('🔄 [V3] Daily totals and table updated from macros change:', totals);
+  }, []);
+
+  // V3: Get individual meal macros from DOM
+  const getMealMacrosFromDOM = (mealType: string): { calories: number; protein: number; carbs: number; fat: number } => {
+    try {
+      // Get calories
+      const caloriesElement = document.querySelector(`.totalcalories-${mealType}`);
+      const calories = caloriesElement ? parseInt(caloriesElement.textContent || '0') : 0;
+
+      // Get protein
+      const proteinElement = document.querySelector(`.totalprotein-${mealType}`);
+      const proteinText = proteinElement?.textContent || '0g';
+      const protein = parseFloat(proteinText.replace('g', '')) || 0;
+
+      // Get fat
+      const fatElement = document.querySelector(`.totalfat-${mealType}`);
+      const fatText = fatElement?.textContent || '0g';
+      const fat = parseFloat(fatText.replace('g', '')) || 0;
+
+      // Get carbs
+      const carbsElement = document.querySelector(`.totalcarbs-${mealType}`);
+      const carbsText = carbsElement?.textContent || '0g';
+      const carbs = parseFloat(carbsText.replace('g', '')) || 0;
+
+      return {
+        calories: Math.round(calories),
+        protein: Math.round(protein * 10) / 10,
+        carbs: Math.round(carbs * 10) / 10,
+        fat: Math.round(fat * 10) / 10,
+      };
+    } catch (error) {
+      console.error(`❌ [V3] Error reading ${mealType} macros from DOM:`, error);
+      return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    }
+  };
+
+  // V3: Calculate daily totals by reading actual values from DOM (from IngredientBreakdown components)
+  const calculateDailyTotalsFromDOM = (): { calories: number; protein: number; carbs: number; fat: number } => {
+    console.log('🔍 [V3] Calculating daily totals from DOM values');
+    
+    const mealOrder = ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'];
     let totalCalories = 0;
     let totalProtein = 0;
     let totalCarbs = 0;
     let totalFat = 0;
 
-    if (!dayData || typeof dayData !== 'object') {
-      return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    for (const mealType of mealOrder) {
+      try {
+        // Get calories
+        const caloriesElement = document.querySelector(`.totalcalories-${mealType}`);
+        if (caloriesElement) {
+          const calories = parseInt(caloriesElement.textContent || '0');
+          totalCalories += calories;
+          console.log(`🔍 [V3] ${mealType} calories from DOM:`, calories);
+        }
+
+        // Get protein
+        const proteinElement = document.querySelector(`.totalprotein-${mealType}`);
+        if (proteinElement) {
+          const proteinText = proteinElement.textContent || '0g';
+          const protein = parseFloat(proteinText.replace('g', '')) || 0;
+          totalProtein += protein;
+          console.log(`🔍 [V3] ${mealType} protein from DOM:`, protein);
+        }
+
+        // Get fat
+        const fatElement = document.querySelector(`.totalfat-${mealType}`);
+        if (fatElement) {
+          const fatText = fatElement.textContent || '0g';
+          const fat = parseFloat(fatText.replace('g', '')) || 0;
+          totalFat += fat;
+          console.log(`🔍 [V3] ${mealType} fat from DOM:`, fat);
+        }
+
+        // Get carbs
+        const carbsElement = document.querySelector(`.totalcarbs-${mealType}`);
+        if (carbsElement) {
+          const carbsText = carbsElement.textContent || '0g';
+          const carbs = parseFloat(carbsText.replace('g', '')) || 0;
+          totalCarbs += carbs;
+          console.log(`🔍 [V3] ${mealType} carbs from DOM:`, carbs);
+        }
+      } catch (error) {
+        console.error(`❌ [V3] Error reading ${mealType} from DOM:`, error);
+      }
     }
 
+    const totals = {
+      calories: Math.round(totalCalories),
+      protein: Math.round(totalProtein * 10) / 10,
+      carbs: Math.round(totalCarbs * 10) / 10,
+      fat: Math.round(totalFat * 10) / 10,
+    };
+    
+    console.log('🎯 [V3] FINAL DAILY TOTALS FROM DOM:', totals);
+    return totals;
+  };
+
+  // V2: Calculate both meal macros and daily totals using the same logic
+  const calculateMealMacrosAndTotalsV2 = async (dayData: any) => {
+    console.log('🚀 [V2] Calculating meal macros and daily totals for:', dayData);
+    
+    const mealOrder = ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'];
+    const newMealMacros: {[key: string]: any} = {};
+    let totalCalories = 0;
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+
     for (const mealType of mealOrder) {
-      // Use cached macros first
-      const cached = mealMacros[mealType];
-      if (cached) {
-        totalCalories += cached.calories || 0;
-        totalProtein += cached.protein || 0;
-        totalCarbs += cached.carbs || 0;
-        totalFat += cached.fat || 0;
+      const meal = getMealString(dayData, mealType);
+      console.log(`🚀 [V2] Processing ${mealType}: "${meal}"`);
+      
+      if (!meal || meal.trim() === '') {
+        newMealMacros[mealType] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+        console.log(`🚀 [V2] ${mealType} is empty, setting to zeros`);
         continue;
       }
 
-      const meal = getMealString(dayData, mealType);
-      if (!meal || meal.trim() === '') continue;
-
       try {
-        const macros = await calculateMealMacrosFromIngredients(meal, mealType);
-        totalCalories += macros.calories || 0;
-        totalProtein += macros.protein || 0;
-        totalCarbs += macros.carbs || 0;
-        totalFat += macros.fat || 0;
+        // Parse ingredients from meal description
+        const ingredients = parseMealDescription(meal);
+        
+        if (ingredients.length === 0) {
+          newMealMacros[mealType] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+          console.log(`🚀 [V2] ${mealType} has no parseable ingredients`);
+          continue;
+        }
+
+        // Get ingredient data from API - same as V2 daily totals
+        const ingredientData = await getIngredientDataFromAPI(meal);
+        console.log(`🚀 [V2] ${mealType} ingredient data:`, ingredientData);
+        
+        if (ingredientData && ingredientData.length > 0) {
+          // Calculate meal totals
+          const mealTotals = ingredientData.reduce((acc: any, ing: any) => ({
+            calories: acc.calories + (ing.calories || 0),
+            protein: acc.protein + (ing.protein || 0),
+            carbs: acc.carbs + (ing.carbs || 0),
+            fat: acc.fat + (ing.fat || 0)
+          }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+          
+          newMealMacros[mealType] = {
+            calories: Math.round(mealTotals.calories),
+            protein: Math.round(mealTotals.protein * 10) / 10,
+            carbs: Math.round(mealTotals.carbs * 10) / 10,
+            fat: Math.round(mealTotals.fat * 10) / 10,
+          };
+          
+          // Add to daily totals
+          totalCalories += newMealMacros[mealType].calories;
+          totalProtein += newMealMacros[mealType].protein;
+          totalCarbs += newMealMacros[mealType].carbs;
+          totalFat += newMealMacros[mealType].fat;
+          
+          console.log(`🚀 [V2] ${mealType} totals:`, newMealMacros[mealType]);
+        } else {
+          newMealMacros[mealType] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+          console.log(`🚀 [V2] ${mealType} has no ingredient data from API`);
+        }
       } catch (error) {
-        console.error(`Error calculating macros for ${mealType}:`, error);
+        console.error(`❌ [V2] Error calculating ${mealType}:`, error);
+        newMealMacros[mealType] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
       }
     }
 
-    return {
+    const dailyTotals = {
       calories: Math.round(totalCalories),
-      protein: Math.round(totalProtein),
-      carbs: Math.round(totalCarbs),
-      fat: Math.round(totalFat),
+      protein: Math.round(totalProtein * 10) / 10,
+      carbs: Math.round(totalCarbs * 10) / 10,
+      fat: Math.round(totalFat * 10) / 10,
     };
+    
+    console.log('🎯 [V2] FINAL MEAL MACROS:', newMealMacros);
+    console.log('🎯 [V2] FINAL DAILY TOTALS:', dailyTotals);
+    
+    return { mealMacros: newMealMacros, dailyTotals };
+  };
+
+  // Keep old function for backward compatibility but mark as deprecated
+  const calculateDailyTotals = async (
+    dayData: any, 
+    ignoreCache: boolean = false
+  ): Promise<{ calories: number; protein: number; carbs: number; fat: number }> => {
+    console.log('⚠️ [DEPRECATED] Using old calculateDailyTotals, switching to V2...');
+    return calculateDailyTotalsV2(dayData);
   };
 
   const getMealIcon = (mealType: string) => {
@@ -2622,12 +2869,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                 <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 text-center">
                   {dayNames[activeDay as keyof typeof dayNames]} - Daily Overview
                 </h3>
-                {loadingTotals ? (
-                  <div className="flex items-center justify-center py-4 sm:py-6 lg:py-8">
-                    <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 border-b-2 border-rose-500"></div>
-                    <span className="ml-2 text-xs sm:text-sm lg:text-base text-gray-600">Calculating totals...</span>
-                  </div>
-                ) : dailyTotals ? (
+                {dailyTotals ? (
                   <div ref={overviewRef} className="space-y-4">
                     {/* Progress Indicators */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
@@ -2789,10 +3031,18 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {mealOrder.map((mealType) => {
-                      const dayMenu = (planData?.weekMenu?.[activeDay] as any) || {};
+                      // Use the same data source as the main calculation
+                      let dayMenu = null;
+                      if (planData?.weekMenu?.[activeDay]) {
+                        dayMenu = planData.weekMenu[activeDay];
+                      } else if (planData?.days?.[activeDay]) {
+                        dayMenu = planData.days[activeDay];
+                      }
                       const meal = (dayMenu && typeof dayMenu[mealType] === 'string') ? dayMenu[mealType] : '';
-                      const macros = mealMacros[mealType] || { calories: 0, protein: 0, carbs: 0, fat: 0 };
-                      const isLoading = loadingMealMacros[mealType] || false;
+                      // Use V3 DOM-based calculation for meal macros display
+                      // Force re-render when forceTableUpdate changes
+                      const macros = forceTableUpdate >= 0 ? getMealMacrosFromDOM(mealType) : { calories: 0, protein: 0, carbs: 0, fat: 0 };
+                      const isLoading = false; // No longer needed with V3
                       
                       return (
                         <tr key={mealType} className="hover:bg-gray-50">
@@ -2832,17 +3082,30 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                                 
                                 // Fallback to old text parsing
                                 let parts = parseMealDescription(meal);
-                                // Sanitize like in IngredientBreakdown
-                                parts = parts.map((ing: string) => ing.replace(/^[^0-9a-zA-Z(]+/, '').trim());
+                                // Sanitize: remove IDs and clean up ingredient names
                                 parts = parts.map((ing: string) => {
-                                  const m = ing.match(/^\s*(\d+(?:\.\d+)?)\s*g\s+(\d+)\s+(.+)$/i);
-                                  if (m) {
-                                    const qty = m[1];
-                                    const name = m[3];
-                                    return `${qty}g ${name}`;
+                                  // Remove DB id pipes if present (e.g., "cmg123|Milk" -> "Milk")
+                                  if (ing.includes('|')) {
+                                    const pipeParts = ing.split('|');
+                                    ing = pipeParts[pipeParts.length - 1].trim();
                                   }
+                                  
+                                  // Remove common quantity patterns and clean up
+                                  ing = ing
+                                    .replace(/^\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|slice|slices)\s*/i, '')
+                                    .replace(/^\d+(?:\.\d+)?\s*(?:piece|pieces)\s*/i, '')
+                                    .replace(/^\d+(?:\.\d+)?\s*/i, '')
+                                    .replace(/^(\d+\/\d+|\d+)\s*/i, '')
+                                    .replace(/^\([^)]*\)\s*/g, '')
+                                    .replace(/^[^a-zA-Z]*/, '')
+                                    .replace(/\)$/, '') // Remove trailing )
+                                    .trim();
+                                    
                                   return ing;
                                 });
+                                
+                                // Filter out empty parts and format nicely
+                                parts = parts.filter(part => part && part.length > 0);
                                 const text = parts.join(', ');
                                 return text && text.length > 0 ? text : <span className="text-gray-400 italic">No ingredients yet</span>;
                               })()}
@@ -2900,12 +3163,18 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
               </div>
 
               {/* Ingredient Breakdown */}
-              {(planData?.weekMenu?.[activeDay]) && (
+              {((planData?.weekMenu?.[activeDay]) || (planData?.days?.[activeDay])) && (
                 <div className="mt-4 sm:mt-6 lg:mt-8">
 
                   {mealOrder.map((mealType) => {
-                    const dayMenu = (planData?.weekMenu?.[activeDay] as any) || {};
-                    const meal = getMealString(dayMenu, mealType);
+                    // Use the same data source as the main calculation
+                    let dayMenu = null;
+                    if (planData?.weekMenu?.[activeDay]) {
+                      dayMenu = planData.weekMenu[activeDay];
+                    } else if (planData?.days?.[activeDay]) {
+                      dayMenu = planData.days[activeDay];
+                    }
+                    const meal = getMealString(dayMenu || {}, mealType);
                     const cookingInstructions = getCookingInstructionsFromStructure(planData?.weekMenu, activeDay, mealType) || getCookingInstructions(dayMenu, mealType);
                     
                     return (
@@ -2917,22 +3186,85 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                           dayKey={activeDay}
                           mealTypeKey={mealType}
                           editable={true}
-                          onPlanUpdated={async (updatedPlan: any) => {
-                            try {
-                              setPlanData(updatedPlan);
-                              const newMealMacros: {[key: string]: any} = {};
-                              const dayData = updatedPlan.weekMenu?.[activeDay] || {};
-                              for (const mt of ['breakfast','morning-snack','lunch','afternoon-snack','dinner','evening-snack']) {
-                                if (dayData[mt]) {
-                                  newMealMacros[mt] = await calculateMealMacrosFromIngredients(dayData[mt], mt);
+                          onMacrosUpdated={onMacrosUpdatedCallback}
+                          onPlanUpdated={(updatedPlan: any) => {
+                            console.log('🔄 [PARENT] onPlanUpdated called with updated plan:', updatedPlan ? 'API update' : 'local changes');
+                            console.log('🔄 [PARENT] Updated plan data:', updatedPlan?.weekMenu?.[activeDay]);
+                            console.log('🔄 [PARENT] Current dailyTotals BEFORE update:', dailyTotals);
+                            
+                            const handleUpdate = async () => {
+                              try {
+                                console.log('🔄 [PARENT] Starting handleUpdate...');
+                                
+                                if (updatedPlan) {
+                                  // API update - use the updated plan data
+                                  setPlanData(updatedPlan);
+                                  
+                                  // Use same logic as main useEffect: prefer weekMenu, fallback to days
+                                  let dayData = null;
+                                  if (updatedPlan?.weekMenu?.[activeDay]) {
+                                    dayData = updatedPlan.weekMenu[activeDay];
+                                    console.log('🔄 [PARENT] Using weekMenu data for day:', activeDay);
+                                  } else if (updatedPlan?.days?.[activeDay]) {
+                                    dayData = updatedPlan.days[activeDay];
+                                    console.log('🔄 [PARENT] Using days data for day:', activeDay);
+                                  }
+                                  
+                                  if (dayData) {
+                                    // Use V2 function for meal macros
+                                    const { mealMacros: newMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
+                                    setMealMacros(newMealMacros);
+                                    
+                                    // Wait for DOM update, then calculate daily totals from DOM
+                                    setTimeout(() => {
+                                      const totals = calculateDailyTotalsFromDOM();
+                                      setDailyTotals({...totals});
+                                      
+                                      console.log('🔄 [PARENT] New meal macros calculated with V2:', newMealMacros);
+                                      console.log('🔄 [PARENT] Daily totals calculated with V3 DOM:', totals);
+                                    }, 100);
+                                  }
+                                  
+                                  console.log('✅ [PARENT] Both meal macros and daily totals updated with V2');
+                                } else {
+                                  // Local changes only - recalculate from current plan data
+                                  console.log('🔄 [PARENT] Recalculating totals for local changes');
+                                  
+                                  // Use same logic as main useEffect: prefer weekMenu, fallback to days
+                                  let dayData = null;
+                                  if (planData?.weekMenu?.[activeDay]) {
+                                    dayData = planData.weekMenu[activeDay];
+                                    console.log('🔄 [PARENT] Using weekMenu data for local changes:', activeDay);
+                                  } else if (planData?.days?.[activeDay]) {
+                                    dayData = planData.days[activeDay];
+                                    console.log('🔄 [PARENT] Using days data for local changes:', activeDay);
+                                  }
+                                  
+                                  if (dayData) {
+                                    // Use V2 function for meal macros
+                                    const { mealMacros: newMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
+                                    setMealMacros(newMealMacros);
+                                    
+                                    // Wait for DOM update, then calculate daily totals from DOM
+                                    setTimeout(() => {
+                                      const totals = calculateDailyTotalsFromDOM();
+                                      setDailyTotals({...totals});
+                                      
+                                      console.log('🔄 [PARENT] Meal macros calculated with V2:', newMealMacros);
+                                      console.log('🔄 [PARENT] Daily totals calculated with V3 DOM:', totals);
+                                    }, 100);
+                                  }
+                                  
+                                  console.log('✅ [PARENT] Both updated for local changes with V2');
                                 }
+                              } catch (e) {
+                                console.error('❌ [PARENT] Failed to refresh macros after update', e);
                               }
-                              setMealMacros(newMealMacros);
-                              const totals = await calculateDailyTotals(dayData);
-                              setDailyTotals(totals);
-                            } catch (e) {
-                              console.error('Failed to refresh macros after update', e);
-                            }
+                            };
+                            
+                            console.log('🔄 [PARENT] About to call handleUpdate()');
+                            handleUpdate();
+                            console.log('🔄 [PARENT] handleUpdate() called (async execution started)');
                           }}
                         />
                         
@@ -3380,6 +3712,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         ),
         document.body
       )}
+
 
       {/* Text Converter Modal */}
       <TextConverterModal
