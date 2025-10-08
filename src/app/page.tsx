@@ -274,16 +274,29 @@ export default function HomePage() {
     e.preventDefault();
     
     try {
-      const response = await fetch('/api/launch-notifications', {
+      console.log('Submitting online coaching registration:', notifyFormData);
+      
+      const response = await fetch('/api/online-coaching-registration-test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(notifyFormData),
+        body: JSON.stringify({
+          name: notifyFormData.name,
+          email: notifyFormData.email,
+          interests: notifyFormData.interests,
+          program: 'Online Coaching',
+          notes: 'Interested in: ' + notifyFormData.interests.join(', ')
+        }),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
       if (response.ok) {
-        alert(t.homepage.notifyForm.success);
+        const result = await response.json();
+        console.log('Registration successful:', result);
+        alert('Mulțumim! Te vom contacta în curând pentru programul de coaching online.');
         setShowNotifyForm(false);
         setNotifyFormData({
           name: '',
@@ -291,10 +304,12 @@ export default function HomePage() {
           interests: []
         });
       } else {
-        throw new Error('Failed to submit notify form');
+        const errorData = await response.json();
+        console.error('Registration failed:', errorData);
+        throw new Error(errorData.error || 'Failed to submit online coaching registration');
       }
     } catch (error) {
-      console.error('Error submitting notify form:', error);
+      console.error('Error submitting online coaching registration:', error);
       alert('Er is een fout opgetreden. Probeer het later opnieuw.');
     }
   };
@@ -417,7 +432,7 @@ export default function HomePage() {
                   </>
                 )}
               </div>
-            ) : (
+            ) : showForm ? (
               <div className="homepage-intake-form" style={{ paddingBottom: '120px' }}>
                 <div className="homepage-form-header">
                   <button 
@@ -569,7 +584,7 @@ export default function HomePage() {
                   </button>
                 </form>
               </div>
-            ) : showNotifyForm ? (
+            ) : (
               <div className="homepage-intake-form" style={{ paddingBottom: '120px' }}>
                 <div className="homepage-form-header">
                   <button 
@@ -645,7 +660,7 @@ export default function HomePage() {
                   </button>
                 </form>
               </div>
-            ) : null}
+            )}
           </div>
         </main>
         

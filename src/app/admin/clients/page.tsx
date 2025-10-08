@@ -165,6 +165,28 @@ export default function ClientsPage() {
     setClientToDelete(null);
   };
 
+  const handleAcceptIntake = async (clientId: string) => {
+    try {
+      // Update the client status from 'Intake' to 'Active'
+      const updatedClient = await userService.updateUser(clientId, {
+        status: 'Active',
+        plan: 'Basic' // Set a default plan
+      });
+      
+      // Update the clients list
+      setClients(clients.map(client => 
+        client.id === clientId 
+          ? { ...client, status: 'Active', plan: 'Basic' }
+          : client
+      ));
+      
+      console.log('Client accepted:', updatedClient);
+    } catch (error) {
+      console.error('Error accepting client:', error);
+      alert('Failed to accept client. Please try again.');
+    }
+  };
+
 
 
   const getStatusColor = (status: string) => {
@@ -323,6 +345,11 @@ export default function ClientsPage() {
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(client.status)}`}>
                   {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                 </span>
+                {client.status === 'Intake' && (
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-300">
+                    ⏳ Pending Approval
+                  </span>
+                )}
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPlanColor(client.plan || 'Basic')}`}>
                   {client.plan || 'Basic'}
                 </span>
@@ -414,12 +441,29 @@ export default function ClientsPage() {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  onClick={() => router.push(`/admin/clients/${client.id}`)}
-                  className="flex-1 bg-rose-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-600 transition-colors text-sm"
-                >
-                  View Details
-                </button>
+                {client.status === 'Intake' ? (
+                  <>
+                    <button
+                      onClick={() => handleAcceptIntake(client.id)}
+                      className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors text-sm"
+                    >
+                      Accept Client
+                    </button>
+                    <button
+                      onClick={() => router.push(`/admin/clients/${client.id}`)}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
+                    >
+                      View
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => router.push(`/admin/clients/${client.id}`)}
+                    className="flex-1 bg-rose-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-600 transition-colors text-sm"
+                  >
+                    View Details
+                  </button>
+                )}
               </div>
             </div>
           ))}

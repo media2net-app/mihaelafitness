@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LogOut, Globe, Home, User, Calendar, Target, Trophy, BookOpen, Users, Settings, Shield, Calculator, Dumbbell, Ruler, CheckSquare, DollarSign, UserPlus, Database, ChefHat, FileText } from 'lucide-react';
+import { LogOut, Globe, Home, User, Calendar, Target, Trophy, BookOpen, Users, Settings, Shield, Calculator, Dumbbell, Ruler, CheckSquare, DollarSign, UserPlus, Database, ChefHat, FileText, FileEdit } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,6 +36,7 @@ export default function Sidebar() {
     { path: '/admin', icon: Shield, label: t.admin.dashboard.title },
     { path: '/admin/clients', icon: Users, label: t.admin.dashboard.clients },
     { path: '/admin/intakes', icon: UserPlus, label: 'Intakes' },
+    { path: '/admin/online-coaching', icon: Users, label: 'Online Coaching' },
     { path: '/admin/schedule', icon: Calendar, label: t.admin.dashboard.schedule },
     { path: '/admin/to-do', icon: CheckSquare, label: 'To-Do List' },
     { path: '/admin/trainingschemas', icon: Target, label: t.admin.dashboard.trainingSchedules },
@@ -46,6 +47,7 @@ export default function Sidebar() {
     { path: '/admin/voedingsplannen-api', icon: Database, label: 'API Planuri Nutriționale' },
     { path: '/admin/nutrition-calculator', icon: Calculator, label: t.admin.dashboard.nutritionCalculator },
     { path: '/admin/measurements', icon: Ruler, label: t.admin.dashboard.measurements },
+    { path: '/admin/pdf-template-builder', icon: FileEdit, label: 'PDF Template Builder' },
     { path: '/admin/tarieven', icon: Settings, label: t.admin.dashboard.pricingCalculator },
     { path: '/admin/payments', icon: DollarSign, label: 'Payments' },
     { path: '/admin/invoices', icon: FileText, label: 'Facturi' }
