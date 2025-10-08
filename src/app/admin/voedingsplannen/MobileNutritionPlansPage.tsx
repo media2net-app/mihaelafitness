@@ -49,14 +49,23 @@ export default function MobileNutritionPlansPage() {
       try {
         setLoading(true);
         
-        // Load nutrition plans
-        const plans = await nutritionService.getAllNutritionPlans();
+        // Load nutrition plans without weekMenu for better performance
+        const plans = await nutritionService.getAllNutritionPlans(false);
         setVoedingsplannen(plans);
         
         // Load customers
         const customersResponse = await fetch('/api/users');
         const customersData = await customersResponse.json();
-        setCustomers(customersData);
+        // Handle the new API response structure with users array and pagination
+        if (customersData.users && Array.isArray(customersData.users)) {
+          setCustomers(customersData.users);
+        } else if (Array.isArray(customersData)) {
+          // Fallback for old API structure
+          setCustomers(customersData);
+        } else {
+          console.warn('Expected /api/users to return an object with users array. Got:', customersData);
+          setCustomers([]);
+        }
       } catch (error) {
         console.error('Error loading data:', error);
         setVoedingsplannen([]);
@@ -383,7 +392,11 @@ export default function MobileNutritionPlansPage() {
               {/* Plan Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">{plan.name}</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                    {plan.name}
+                    <span className="text-gray-500 font-normal"> — {String(plan.goal || '').replace('-', ' ')}</span>
+                    <span className="text-gray-700 font-medium"> — {plan.carbs ?? 'N/A'}g carbs</span>
+                  </h3>
                   <p className="text-gray-600 text-sm mb-3 line-clamp-2">{plan.description}</p>
                   
                   {/* Customer Assignments */}

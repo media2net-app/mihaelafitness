@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, Globe, QrCode, ChevronDown, X } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Globe } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,13 +11,11 @@ export default function LoginPage() {
   const { language, setLanguage, t } = useLanguage();
   const { login, isAuthenticated } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('demo@mihaelafitness.com');
-  const [password, setPassword] = useState('K9mX2pQ7');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showQrDropdown, setShowQrDropdown] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [selectedQrUser, setSelectedQrUser] = useState('');
+  // QR scan removed
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,12 +26,7 @@ export default function LoginPage() {
       const success = await login(email, password);
       
       if (success) {
-        // Check if user is demo user and redirect to admin dashboard
-        if (email === 'demo@mihaelafitness.com') {
-          router.push('/admin');
-        } else {
-          router.push('/dashboard');
-        }
+        router.push('/admin');
       } else {
         setError('Invalid credentials. Please try again.');
       }
@@ -167,45 +160,7 @@ export default function LoginPage() {
               )}
             </button>
 
-            {/* QR Scan Dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowQrDropdown(!showQrDropdown)}
-                className="w-full flex items-center justify-center gap-1 sm:gap-2 bg-gray-100 text-gray-700 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium hover:bg-gray-200 transition-all duration-300 text-sm sm:text-base"
-              >
-                <QrCode className="w-4 h-4 sm:w-5 sm:h-5" />
-                QR Scan
-                <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 ${showQrDropdown ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {showQrDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 z-10">
-                  <div className="p-2">
-                    <button
-                      onClick={() => {
-                        setSelectedQrUser('Mihaela');
-                        setShowQrModal(true);
-                        setShowQrDropdown(false);
-                      }}
-                      className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Mihaela
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedQrUser('Chiel');
-                        setShowQrModal(true);
-                        setShowQrDropdown(false);
-                      }}
-                      className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Chiel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* QR Scan removed */}
 
             {/* Sign Up Link */}
             <div className="text-center pt-2 sm:pt-4">
@@ -231,61 +186,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* QR Modal */}
-        {showQrModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800">QR Code - {selectedQrUser}</h2>
-                <button
-                  onClick={() => setShowQrModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="text-center">
-                {selectedQrUser === 'Chiel' ? (
-                  <div className="bg-gray-100 rounded-lg p-8">
-                    <div className="bg-white rounded-lg p-4 shadow-inner">
-                      <img
-                        src="/qr-chiel.png"
-                        alt="Chiel QR Code"
-                        className="w-full h-auto max-w-xs mx-auto"
-                        style={{ maxHeight: '300px' }}
-                      />
-                      <p className="font-medium text-gray-500 mt-4">Chiel QR Code</p>
-                      <p className="text-sm text-gray-400 mt-2">Scan to login as Chiel</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-gray-100 rounded-lg p-8">
-                    <div className="bg-white rounded-lg p-4 shadow-inner">
-                      <img
-                        src="/qr-mihaela.png"
-                        alt="Mihaela QR Code"
-                        className="w-full h-auto max-w-xs mx-auto"
-                        style={{ maxHeight: '300px' }}
-                      />
-                      <p className="font-medium text-gray-500 mt-4">Mihaela QR Code</p>
-                      <p className="text-sm text-gray-400 mt-2">Scan to login as Mihaela</p>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="mt-6">
-                  <button
-                    onClick={() => setShowQrModal(false)}
-                    className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* QR Modal removed */}
       </div>
     </div>
   );

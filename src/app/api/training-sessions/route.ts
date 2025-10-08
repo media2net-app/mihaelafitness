@@ -72,6 +72,14 @@ export async function POST(request: NextRequest) {
       const createdSessions = [];
       
       for (const sessionData of data.sessions) {
+        // Block Fridays
+        const sessionDateObj = new Date(sessionData.date);
+        if (sessionDateObj.getDay() === 5) {
+          return NextResponse.json(
+            { error: 'Fridays are closed. Please choose another day.' },
+            { status: 400 }
+          );
+        }
         // Check for conflicting sessions
         const conflictingSession = await prisma.trainingSession.findFirst({
           where: {
@@ -124,6 +132,14 @@ export async function POST(request: NextRequest) {
     }
     
     // Handle single session
+    // Block Fridays
+    const singleDateObj = new Date(data.date);
+    if (singleDateObj.getDay() === 5) {
+      return NextResponse.json(
+        { error: 'Fridays are closed. Please choose another day.' },
+        { status: 400 }
+      );
+    }
     // Check for conflicting sessions
     const conflictingSession = await prisma.trainingSession.findFirst({
       where: {

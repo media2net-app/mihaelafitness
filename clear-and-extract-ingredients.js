@@ -1,12 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/mihaela_fitness"
-    }
-  }
-});
+const prisma = new PrismaClient();
 
 // Function to parse meal description and extract ingredients
 function parseMealDescription(mealDescription) {
@@ -139,18 +133,16 @@ async function clearAndExtractIngredients() {
         await prisma.ingredient.create({
           data: {
             name: normalizedName,
-            originalName: data.originalName,
+            per: "100",
             calories: 0, // Will be filled later
             protein: 0,
             carbs: 0,
             fat: 0,
             fiber: 0,
             sugar: 0,
-            sodium: 0,
-            unit: data.unit,
-            aliases: [data.originalName],
-            foundInPlans: data.foundIn.length,
-            lastUsed: new Date()
+            category: "mixed",
+            aliases: JSON.stringify([data.originalName]),
+            isActive: true
           }
         });
         addedCount++;

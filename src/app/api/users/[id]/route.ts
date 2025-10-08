@@ -7,7 +7,8 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
-    const user = await prisma.user.findUnique({
+    // First try to find by ID
+    let user = await prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -26,6 +27,29 @@ export async function GET(
         updatedAt: true
       }
     })
+
+    // If not found by ID, try to find by name (for backward compatibility)
+    if (!user) {
+      user = await prisma.user.findFirst({
+        where: { name: id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          goal: true,
+          joinDate: true,
+          status: true,
+          plan: true,
+          trainingFrequency: true,
+          lastWorkout: true,
+          totalSessions: true,
+          rating: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      })
+    }
 
     if (!user) {
       return NextResponse.json(

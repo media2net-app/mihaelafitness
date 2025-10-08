@@ -11,8 +11,8 @@ interface LayoutWrapperProps {
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   
-  // Don't show sidebar/header on login page
-  if (pathname === '/login') {
+  // Don't show sidebar/header on login page and homepage
+  if (pathname === '/login' || pathname === '/') {
     return <>{children}</>;
   }
 

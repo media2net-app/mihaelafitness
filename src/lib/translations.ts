@@ -11,6 +11,64 @@ export const translations = {
       signUp: 'Sign up here',
       language: 'Language'
     },
+    homepage: {
+      title: 'Mihaela Fitness',
+      subtitle: 'Personal training 1:1 and group training (2-4)',
+      description: 'I help women with a personalized plan for a healthy lifestyle. Balance is the key to success. During an introductory meeting, we will discuss your nutritional and exercise preferences, so you can achieve and maintain your goals effectively.',
+      signature: 'With love, Mihaela',
+      startNow: 'Plan a free intake with me',
+      contact: 'Contact: info@mihaelafitness.com',
+      phone: 'Phone: +31 6 12345678',
+      intakeForm: {
+        title: 'Schedule Your Free Intake',
+        subtitle: 'Fill in your details and we will contact you to schedule your free consultation',
+        name: 'Full Name',
+        email: 'Email Address',
+        phone: 'Phone Number',
+        preferredDate: 'Preferred Date',
+        preferredTime: 'Preferred Time',
+        message: 'Additional Message (optional)',
+        submit: 'Request Free Intake',
+        back: 'Back',
+        success: 'Thank you! We will contact you soon to schedule your free intake.'
+      },
+      coaching: {
+        '1:1': {
+          title: 'Personal Training 1:1',
+          description: 'Get personalized attention with one-on-one training sessions tailored specifically to your goals, fitness level, and preferences. Perfect for beginners who need guidance or advanced athletes looking to break through plateaus.',
+          features: [
+            'Customized workout plans',
+            'Personal attention and form correction',
+            'Flexible scheduling',
+            'Progress tracking and adjustments'
+          ],
+          available: true
+        },
+        group: {
+          title: 'Group Training',
+          description: 'Join our dynamic group training sessions at Galaxy gym in Gaesti. Train with like-minded individuals in a motivating environment while still receiving professional guidance.',
+          features: [
+            'Motivating group atmosphere',
+            'Cost-effective training',
+            'Social fitness experience',
+            'Professional guidance in group setting'
+          ],
+          available: true
+        },
+        online: {
+          title: 'Online Coaching',
+          description: 'Train from anywhere with our comprehensive online coaching program. Perfect for those who prefer home workouts or don\'t live near our gym location.',
+          features: [
+            'Workout plans delivered to your device',
+            'Video demonstrations and instructions',
+            'Progress tracking and check-ins',
+            'Flexible training schedule'
+          ],
+          available: false
+        }
+      },
+      comingSoon: 'Coming Soon'
+    },
     dashboard: {
       title: 'Welcome to your Dashboard!',
       subtitle: 'This is where your fitness journey begins. Track your progress, schedule workouts, and achieve your goals.',
@@ -388,6 +446,64 @@ export const translations = {
       noAccount: 'Nu ai cont?',
       signUp: 'Înregistrează-te aici',
       language: 'Limbă'
+    },
+    homepage: {
+      title: 'Mihaela Fitness',
+      subtitle: 'Antrenament personal 1:1 și antrenament în grup (2-4)',
+      description: 'Ajut femeile cu un plan personalizat pentru un stil de viață sănătos. Echilibrul este cheia succesului. În timpul unei întâlniri introductive, vom discuta despre preferințele tale nutriționale și de exerciții fizice, astfel încât să îți poți atinge și menține obiectivele în mod eficient.',
+      signature: 'Cu drag, Mihaela',
+      startNow: 'Planifică o consultație gratuită cu mine',
+      contact: 'Contact: info@mihaelafitness.com',
+      phone: 'Telefoon: +31 6 12345678',
+      intakeForm: {
+        title: 'Programează Consultația Ta Gratuită',
+        subtitle: 'Completează detaliile tale și te vom contacta pentru a programa consultația gratuită',
+        name: 'Numele Complet',
+        email: 'Adresa de Email',
+        phone: 'Numărul de Telefon',
+        preferredDate: 'Data Preferată',
+        preferredTime: 'Ora Preferată',
+        message: 'Mesaj Adițional (opțional)',
+        submit: 'Solicită Consultația Gratuită',
+        back: 'Înapoi',
+        success: 'Mulțumim! Vă vom contacta în curând pentru a programa consultația gratuită.'
+      },
+      coaching: {
+        '1:1': {
+          title: 'Antrenament Personal 1:1',
+          description: 'Primește atenție personalizată cu sesiuni de antrenament unu-la-unu adaptate special la obiectivele, nivelul de fitness și preferințele tale. Perfect pentru începători care au nevoie de îndrumare sau pentru sportivii avansați care doresc să depășească platourile.',
+          features: [
+            'Planuri de antrenament personalizate',
+            'Atenție personală și corectarea formei',
+            'Program flexibil',
+            'Urmărirea progresului și ajustări'
+          ],
+          available: true
+        },
+        group: {
+          title: 'Antrenament în Grup',
+          description: 'Alătură-te sesiunilor noastre dinamice de antrenament în grup la sala Galaxy în Găești. Antrenează-te alături de persoane cu aceleași obiective într-un mediu motivant, beneficiind în continuare de îndrumare profesională.',
+          features: [
+            'Atmosferă de grup motivantă',
+            'Antrenament eficient din punct de vedere al costurilor',
+            'Experiență socială de fitness',
+            'Îndrumare profesională în grup'
+          ],
+          available: true
+        },
+        online: {
+          title: 'Coaching Online',
+          description: 'Antrenează-te de oriunde cu programul nostru cuprinzător de coaching online. Perfect pentru cei care preferă antrenamentele acasă sau nu locuiesc aproape de sala noastră.',
+          features: [
+            'Planuri de antrenament livrate pe dispozitivul tău',
+            'Demonstrații video și instrucțiuni',
+            'Urmărirea progresului și verificări',
+            'Program de antrenament flexibil'
+          ],
+          available: false
+        }
+      },
+      comingSoon: 'În Curând'
     },
     dashboard: {
       title: 'Bun venit la Dashboard-ul tău!',

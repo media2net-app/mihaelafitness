@@ -10,7 +10,7 @@ export default function MeasurementsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const { t } = useLanguage();
-  const customerId = Array.isArray(params?.id) ? params.id[0] : (params?.id || '1');
+  const customerId = Array.isArray(params?.id) ? params.id[0] : (params?.id || '');
   
   const [customer, setCustomer] = useState<{
     id: string;
@@ -52,6 +52,14 @@ export default function MeasurementsPage() {
         
         // Use clientId from URL if available, otherwise use customerId from params
         const resolvedCustomerId = clientId || customerId;
+        
+        if (!resolvedCustomerId) {
+          console.error('No customer ID found in URL params or search params');
+          alert('Error: No customer ID found. Please go back and try again.');
+          router.push('/admin/clients');
+          return;
+        }
+        
         setActualCustomerId(resolvedCustomerId);
         
         // Fetch customer data
@@ -59,6 +67,7 @@ export default function MeasurementsPage() {
         if (customerResponse.ok) {
           const customerData = await customerResponse.json();
           setCustomer(customerData);
+          console.log('Customer data loaded:', customerData);
           
           // Pre-fill form data if URL parameters are provided
           if (week || date) {
@@ -68,6 +77,11 @@ export default function MeasurementsPage() {
               date: date || prev.date
             }));
           }
+        } else {
+          console.error('Failed to load customer:', customerResponse.status);
+          alert(`Error: Customer not found (ID: ${resolvedCustomerId}). Please check if the customer exists.`);
+          router.push('/admin/clients');
+          return;
         }
 
         // Fetch existing measurements to get next week number
@@ -114,6 +128,14 @@ export default function MeasurementsPage() {
     setSaving(true);
 
     try {
+      console.log('[Measurements] Submitting measurement for customer:', actualCustomerId);
+      console.log('[Measurements] Form data:', formData);
+      
+      if (!actualCustomerId) {
+        alert('Error: No customer ID found. Please go back and try again.');
+        return;
+      }
+
       const response = await fetch('/api/customer-measurements', {
         method: 'POST',
         headers: {
@@ -139,14 +161,19 @@ export default function MeasurementsPage() {
         }),
       });
 
+      console.log('[Measurements] Response status:', response.status);
+
       if (response.ok) {
+        const newMeasurement = await response.json();
+        console.log('[Measurements] Measurement saved successfully:', newMeasurement);
         router.push(`/admin/klanten/${actualCustomerId}`);
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to save measurement');
+        console.error('[Measurements] Error saving measurement:', error);
+        alert(`Error: ${error.error || 'Failed to save measurement'}`);
       }
     } catch (error) {
-      console.error('Error saving measurement:', error);
+      console.error('[Measurements] Error saving measurement:', error);
       alert('Failed to save measurement');
     } finally {
       setSaving(false);

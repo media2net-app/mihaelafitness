@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
     const adminUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { name: { contains: 'Mihaela', mode: 'insensitive' } },
-          { email: { contains: 'mihaela', mode: 'insensitive' } }
+          { name: { contains: 'Mihaela' } },
+          { email: { contains: 'mihaela' } }
         ]
       }
     })
@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
       const adminUser = await prisma.user.findFirst({
         where: {
           OR: [
-            { name: { contains: 'Mihaela', mode: 'insensitive' } },
-            { email: { contains: 'mihaela', mode: 'insensitive' } }
+            { name: { contains: 'Mihaela' } },
+            { email: { contains: 'mihaela' } }
           ]
         }
       })

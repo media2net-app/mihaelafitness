@@ -6,12 +6,18 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params;
-    const planId = resolvedParams.id;
+    const { id: planId } = await params;
+    console.log('[API] GET /api/nutrition-plans/[id] called with id:', planId);
 
     const nutritionPlan = await prisma.nutritionPlan.findUnique({
       where: { id: planId }
     });
+
+    if (nutritionPlan) {
+      console.log('[API] Plan found:', nutritionPlan.id);
+    } else {
+      console.warn('[API] Plan not found in DB for id:', planId);
+    }
 
     if (!nutritionPlan) {
       return NextResponse.json({ error: 'Nutrition plan not found' }, { status: 404 });
@@ -19,18 +25,18 @@ export async function GET(
 
     return NextResponse.json(nutritionPlan);
   } catch (error) {
-    console.error('Error fetching nutrition plan:', error);
+    console.error('[API] Error fetching nutrition plan:', error);
     return NextResponse.json({ error: 'Failed to fetch nutrition plan' }, { status: 500 });
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const resolvedParams = await params;
-    const planId = resolvedParams.id;
+    const planId = params.id;
+    console.log('[API] DELETE /api/nutrition-plans/[id] called with id:', planId);
 
     // Check if nutrition plan exists
     const existingPlan = await prisma.nutritionPlan.findUnique({
@@ -38,6 +44,7 @@ export async function DELETE(
     });
 
     if (!existingPlan) {
+      console.warn('[API] DELETE attempted but plan not found for id:', planId);
       return NextResponse.json({ error: 'Nutrition plan not found' }, { status: 404 });
     }
 
@@ -52,7 +59,7 @@ export async function DELETE(
       id: planId 
     });
   } catch (error) {
-    console.error('Error deleting nutrition plan:', error);
+    console.error('[API] Error deleting nutrition plan:', error);
     return NextResponse.json({ 
       error: 'Failed to delete nutrition plan',
       details: error instanceof Error ? error.message : 'Unknown error'

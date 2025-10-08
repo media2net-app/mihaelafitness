@@ -112,3 +112,4 @@ prisma/dev.db-journal
 
 # Local development
 *.local
+.env*.local

@@ -346,7 +346,6 @@ async function main() {
 
   await prisma.exercise.createMany({
     data: exercises,
-    skipDuplicates: true,
   });
 
   console.log('✅ Exercise library created');

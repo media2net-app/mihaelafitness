@@ -9,7 +9,7 @@ interface CoachingSchedulePageProps {
 export default async function CoachingSchedulePage({ searchParams }: CoachingSchedulePageProps) {
   const resolvedSearchParams = await searchParams;
   const currentWeekParam = resolvedSearchParams.week as string;
-  const initialDate = currentWeekParam ? new Date(currentWeekParam) : new Date('2025-09-29'); // Set to week with existing sessions
+  const initialDate = currentWeekParam ? new Date(currentWeekParam) : new Date(); // Use current date as default
   const weekDates = getWeekDates(initialDate);
 
   return (

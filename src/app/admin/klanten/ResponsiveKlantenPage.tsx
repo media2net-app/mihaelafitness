@@ -11,6 +11,10 @@ export default function ResponsiveKlantenPage() {
   const { t } = useLanguage();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [klanten, setKlanten] = useState<{
     id: string;
     name: string;
@@ -89,132 +93,40 @@ export default function ResponsiveKlantenPage() {
     trainingFrequency: 3
   });
 
-  const filteredKlanten = klanten.filter(klant => {
-    const matchesSearch = klant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         klant.email.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  // Search is now handled server-side, so we use klanten directly
+  const filteredKlanten = klanten;
 
   useEffect(() => {
     const loadKlanten = async () => {
       try {
-        const response = await fetch('/api/users');
+        setLoading(true);
+        
+        // Use optimized API endpoint with pagination
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: '20',
+          ...(searchTerm && { search: searchTerm })
+        });
+        
+        const response = await fetch(`/api/clients/overview?${params.toString()}`);
         const data = await response.json();
         
-        // Load training sessions for each customer to get accurate session counts
-        const klantenWithStats = await Promise.all(data.map(async (user: any) => {
-          try {
-            // Get actual training sessions from database
-            const sessionsResponse = await fetch(`/api/training-sessions?customerId=${user.id}`);
-            const sessions = sessionsResponse.ok ? await sessionsResponse.json() : [];
-            const actualSessions = sessions.length;
-            
-            // Count completed sessions
-            const completedSessions = sessions.filter((session: any) => session.status === 'completed').length;
-            
-            // Get pricing data to determine subscription duration
-            const pricingResponse = await fetch(`/api/pricing-calculations?customerId=${user.id}`);
-            const pricingData = pricingResponse.ok ? await pricingResponse.json() : [];
-            
-            // Get group subscriptions
-            const groupSubscriptionsResponse = await fetch(`/api/group-subscriptions?customerId=${user.id}`);
-            const groupSubscriptions = groupSubscriptionsResponse.ok ? await groupSubscriptionsResponse.json() : [];
-            
-            // Get personal subscriptions
-            const personalSubscriptionsResponse = await fetch(`/api/personal-subscriptions?customerId=${user.id}`);
-            const personalSubscriptions = personalSubscriptionsResponse.ok ? await personalSubscriptionsResponse.json() : [];
-            
-            // Get the most recent pricing calculation to determine subscription duration
-            let subscriptionDuration = null;
-            if (pricingData.length > 0) {
-              // Get the most recent pricing calculation
-              const latestPricing = pricingData.sort((a: any, b: any) => 
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              )[0];
-              
-              // Duration is already in weeks, no conversion needed
-              subscriptionDuration = latestPricing.duration;
-            }
-            
-            console.log(`Customer ${user.name}: ${actualSessions} actual sessions found, subscription: ${subscriptionDuration ? subscriptionDuration + ' weeks' : 'No subscription'}`);
-            
-            // Special handling for Leca - she has a 12-week plan with 3 sessions per week
-            let totalSessions = 0;
-            let scheduledSessions = actualSessions;
-            
-            if (user.name === 'Leca Georgiana') {
-              // Leca has a 12-week plan: 3 sessions per week × 12 weeks = 36 sessions
-              totalSessions = 36;
-            } else {
-              // For other customers, calculate based on join date and training frequency
-              const joinDate = new Date(user.createdAt);
-              const currentDate = new Date();
-              const daysSinceJoin = Math.max(0, Math.floor((currentDate.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24)));
-              const weeksSinceJoin = daysSinceJoin / 7;
-              
-              // Calculate expected sessions: weeks * sessions per week
-              const expectedSessions = Math.floor(weeksSinceJoin * (user.trainingFrequency || 3));
-              
-              // Use actual sessions if available, otherwise use expected
-              totalSessions = actualSessions > 0 ? actualSessions : expectedSessions;
-            }
-            
-            if (user.name === 'Leca Georgiana') {
-              console.log(`Customer ${user.name}: Special 12-week plan - 36 total sessions (3 per week × 12 weeks), actual ${actualSessions} sessions`);
-            } else {
-              console.log(`Customer ${user.name}: ${daysSinceJoin} days since join, ${weeksSinceJoin.toFixed(1)} weeks, expected ${expectedSessions} sessions, actual ${actualSessions} sessions`);
-            }
-            
-            return {
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              phone: user.phone,
-              joinDate: user.createdAt,
-              status: user.status || 'active',
-              trainingFrequency: user.trainingFrequency || 3,
-              totalSessions: totalSessions,
-              scheduledSessions: scheduledSessions,
-              completedSessions: completedSessions,
-              rating: user.rating || 0,
-              subscriptionDuration: subscriptionDuration, // Duration is already in weeks
-              groupSubscriptions: groupSubscriptions,
-              personalSubscriptions: personalSubscriptions
-            };
-          } catch (error) {
-            console.error(`Error loading sessions for ${user.name}:`, error);
-            // Fallback to basic calculation
-            const joinDate = new Date(user.createdAt);
-            const currentDate = new Date();
-            const daysSinceJoin = Math.max(0, Math.floor((currentDate.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24)));
-            const weeksSinceJoin = daysSinceJoin / 7;
-            const calculatedSessions = Math.floor(weeksSinceJoin * (user.trainingFrequency || 3));
-            
-            return {
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              phone: user.phone,
-              joinDate: user.createdAt,
-              status: user.status || 'active',
-              trainingFrequency: user.trainingFrequency || 3,
-              totalSessions: calculatedSessions,
-              scheduledSessions: 0,
-              completedSessions: 0,
-              rating: user.rating || 0,
-              subscriptionDuration: null
-            };
-          }
-        }));
-        
-        setKlanten(klantenWithStats);
+        if (response.ok) {
+          setKlanten(data.clients);
+          setTotalPages(data.pagination.totalPages);
+          setTotalCount(data.pagination.totalCount);
+        } else {
+          console.error('Failed to load clients:', data.error);
+        }
       } catch (error) {
-        console.error('Error loading customers:', error);
+        console.error('Error loading klanten:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
     loadKlanten();
-  }, []);
+  }, [currentPage, searchTerm]);
 
   const handleViewCustomer = (klant: any) => {
     setSelectedCustomer(klant);
@@ -346,6 +258,62 @@ export default function ResponsiveKlantenPage() {
             />
           </div>
         </div>
+
+        {/* Admin Account Section */}
+        {!loading && (
+          <div className="mt-4 mb-6">
+            <div 
+              onClick={() => router.push('/admin/klanten/mihaela')}
+              className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl p-4 mb-4 cursor-pointer hover:from-pink-100 hover:to-rose-100 hover:border-pink-300 transition-all duration-200"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-800">Mihaela (Admin)</h3>
+                  <p className="text-sm text-gray-600">mihaela@mihaelafitness.com</p>
+                  <span className="inline-block mt-1 px-2 py-1 bg-pink-100 text-pink-800 text-xs font-medium rounded-full">
+                    Admin Account
+                  </span>
+                </div>
+                <div className="text-pink-500">
+                  <Eye className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Total Customers Count */}
+        {!loading && (
+          <div className="mt-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-rose-500" />
+                <span className="text-sm font-medium text-gray-700">
+                  {searchTerm ? (
+                    <>
+                      {filteredKlanten.length} van {klanten.length} klanten
+                    </>
+                  ) : (
+                    <>
+                      Totaal {klanten.length} klanten
+                    </>
+                  )}
+                </span>
+              </div>
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="text-sm text-rose-500 hover:text-rose-600 transition-colors"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Desktop Table */}
@@ -924,6 +892,51 @@ export default function ResponsiveKlantenPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-between">
+          <div className="text-sm text-gray-700">
+            Showing {((currentPage - 1) * 20) + 1} to {Math.min(currentPage * 20, totalCount)} of {totalCount} customers
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            
+            <div className="flex items-center space-x-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-2 text-sm font-medium rounded-md ${
+                      currentPage === pageNum
+                        ? 'bg-orange-500 text-white'
+                        : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
           </div>
         </div>
       )}

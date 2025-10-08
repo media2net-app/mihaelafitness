@@ -1,19 +1,13 @@
-import { PrismaClient } from '@prisma/client/edge'
-import { withAccelerate } from '@prisma/extension-accelerate'
+import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
 const prismaClient = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-    },
-  },
+  log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
 })
 
-export const prisma = globalForPrisma.prisma ?? prismaClient.$extends(withAccelerate())
+export const prisma = globalForPrisma.prisma ?? prismaClient
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma

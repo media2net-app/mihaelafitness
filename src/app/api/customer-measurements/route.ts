@@ -72,6 +72,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if customer exists
+    const customer = await prisma.user.findUnique({
+      where: { id: data.customerId },
+      select: { id: true, name: true }
+    })
+
+    if (!customer) {
+      return NextResponse.json(
+        { error: 'Customer not found' },
+        { status: 404 }
+      )
+    }
+
+    console.log('Customer found:', customer.name)
+
     // Convert string values to numbers where needed
     const measurementData = {
       customerId: data.customerId,
@@ -100,10 +115,26 @@ export async function POST(request: NextRequest) {
 
     console.log('Measurement created successfully:', measurement)
     return NextResponse.json(measurement, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating measurement:', error)
+    
+    // Handle specific Prisma errors
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Customer not found - invalid customer ID' },
+        { status: 404 }
+      )
+    }
+    
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'A measurement for this customer and week already exists' },
+        { status: 409 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: `Failed to create measurement: ${error.message}` },
+      { error: `Failed to create measurement: ${error.message || 'Unknown error'}` },
       { status: 500 }
     )
   }

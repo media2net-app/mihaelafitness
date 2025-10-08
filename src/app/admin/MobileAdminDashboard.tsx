@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Dumbbell, Apple, Calculator, BarChart3, Settings, Plus, Eye, Edit, Trash2, Calendar, TrendingUp, Clock, Ruler, X, DollarSign, CheckSquare, BookOpen } from 'lucide-react';
+import { Users, Dumbbell, Apple, Calculator, BarChart3, Settings, Plus, Eye, Edit, Trash2, Calendar, TrendingUp, Clock, Ruler, X, DollarSign, CheckSquare, BookOpen, ChefHat, FileText, MapPin, Scale } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { statsService } from '@/lib/database';
 import { useRouter } from 'next/navigation';
@@ -69,9 +69,19 @@ export default function MobileAdminDashboard() {
     try {
       const response = await fetch('/api/users');
       const data = await response.json();
-      setClients(data);
+      // Handle the new API response structure with users array and pagination
+      if (data.users && Array.isArray(data.users)) {
+        setClients(data.users);
+      } else if (Array.isArray(data)) {
+        // Fallback for old API structure
+        setClients(data);
+      } else {
+        console.warn('Expected /api/users to return an object with users array. Got:', data);
+        setClients([]);
+      }
     } catch (error) {
       console.error('Error loading clients:', error);
+      setClients([]);
     }
   };
 
@@ -110,7 +120,8 @@ export default function MobileAdminDashboard() {
       date: today
     });
     
-    router.push(`/admin/klanten/measurements?${params.toString()}`);
+    // Navigate to the correct measurements page for this specific client
+    router.push(`/admin/klanten/${client.id}/measurements?${params.toString()}`);
   };
 
   const adminStats = [
@@ -226,11 +237,32 @@ export default function MobileAdminDashboard() {
       color: 'bg-orange-500'
     },
     {
+      title: 'Mealplan Mapping',
+      description: 'Map maaltijden aan voedingsplannen',
+      icon: MapPin,
+      href: '/admin/mealplan-mapping',
+      color: 'bg-pink-500'
+    },
+    {
       title: t.admin.dashboard.ingredients,
       description: 'Manage ingredient database',
       icon: BookOpen,
       href: '/admin/ingredienten',
       color: 'bg-amber-500'
+    },
+    {
+      title: 'Ingredienten V2',
+      description: 'Ingrediënten genormaliseerd naar 100g basis',
+      icon: Scale,
+      href: '/admin/ingredienten-v2',
+      color: 'bg-cyan-500'
+    },
+    {
+      title: 'Recepten',
+      description: 'Manage recipes and meal preparations',
+      icon: ChefHat,
+      href: '/admin/recepten',
+      color: 'bg-indigo-500'
     },
     {
       title: 'Nutrition Calculator',
@@ -252,6 +284,13 @@ export default function MobileAdminDashboard() {
       icon: DollarSign,
       href: '/admin/payments',
       color: 'bg-green-600'
+    },
+    {
+      title: 'Facturen',
+      description: 'Beheer en genereer facturen voor klanten',
+      icon: FileText,
+      href: '/admin/invoices',
+      color: 'bg-red-500'
     }
   ];
 

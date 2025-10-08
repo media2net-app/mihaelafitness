@@ -146,7 +146,45 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const photoId = searchParams.get('photoId');
+    const customerId = searchParams.get('customerId');
+    const weekParam = searchParams.get('week');
 
+    // Case 1: delete entire week for a customer and renumber following weeks
+    if (customerId && weekParam) {
+      const targetWeek = parseInt(weekParam);
+      if (Number.isNaN(targetWeek) || targetWeek < 1) {
+        return NextResponse.json({ error: 'Invalid week parameter' }, { status: 400 });
+      }
+
+      // Check existence of any photos for this week
+      const existing = await prisma.customerPhoto.findFirst({
+        where: { customerId, week: targetWeek },
+        select: { id: true }
+      });
+      if (!existing) {
+        return NextResponse.json({ error: 'No photos found for the specified week' }, { status: 404 });
+      }
+
+      // Transaction: delete week, then shift weeks > target down by 1
+      const result = await prisma.$transaction(async (tx) => {
+        // Delete all photos for the target week
+        const del = await tx.customerPhoto.deleteMany({
+          where: { customerId, week: targetWeek }
+        });
+
+        // Decrement week number for all subsequent weeks
+        const shift = await tx.customerPhoto.updateMany({
+          where: { customerId, week: { gt: targetWeek } },
+          data: { week: { decrement: 1 } as any }
+        });
+
+        return { deletedCount: del.count, shiftedCount: shift.count };
+      });
+
+      return NextResponse.json({ success: true, ...result });
+    }
+
+    // Case 2: delete a single photo by ID (legacy behavior)
     if (!photoId) {
       return NextResponse.json({ error: 'Photo ID is required' }, { status: 400 });
     }
@@ -160,10 +198,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
     }
 
-    // Delete from database
-    await prisma.customerPhoto.delete({
-      where: { id: photoId }
-    });
+    // Delete single photo
+    await prisma.customerPhoto.delete({ where: { id: photoId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

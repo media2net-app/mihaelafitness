@@ -1,16 +1,24 @@
 // Real database service with API calls
 // This now connects to the actual database through API routes
+import { cachedFetch } from './cache';
 
 // User operations
 export const userService = {
-  async getAllUsers() {
+  async getAllUsers(page = 1, limit = 20, search = '', status = '', includeDetails = false) {
     try {
-      const response = await fetch('/api/users');
-      console.log('Fetching from URL: /api/users');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch users: ${response.status} ${response.statusText}`);
-      }
-      const data = await response.json();
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...(search && { search }),
+        ...(status && { status }),
+        ...(includeDetails && { includeDetails: 'true' })
+      });
+      
+      const url = `/api/users?${params.toString()}`;
+      console.log('Fetching from URL:', url);
+      
+      // Use cached fetch with 1 minute TTL for users
+      const data = await cachedFetch(url, {}, 60000);
       console.log('userService.getAllUsers() returned:', data);
       return data;
     } catch (error) {
@@ -171,13 +179,14 @@ export const workoutService = {
 
 // Nutrition Plan operations
 export const nutritionService = {
-  async getAllNutritionPlans() {
+  async getAllNutritionPlans(includeWeekMenu = false) {
     try {
-      const response = await fetch('/api/nutrition-plans');
-      if (!response.ok) {
-        throw new Error('Failed to fetch nutrition plans');
-      }
-      return await response.json();
+      const url = includeWeekMenu 
+        ? '/api/nutrition-plans?includeWeekMenu=true'
+        : '/api/nutrition-plans';
+        
+      // Use cached fetch with 2 minute TTL for nutrition plans
+      return await cachedFetch(url, {}, 120000);
     } catch (error) {
       console.error('Error fetching nutrition plans:', error);
       throw error; // Re-throw error instead of returning mock data

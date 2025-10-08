@@ -10,6 +10,7 @@ export default function TarievenPage() {
   const [selectedService, setSelectedService] = useState('personal-training-1-1');
   const [includeNutritionPlan, setIncludeNutritionPlan] = useState(false);
   const [nutritionPlanCount, setNutritionPlanCount] = useState<number | ''>('');
+  const [groupNutritionPlans, setGroupNutritionPlans] = useState<Record<string, number>>({});
   const [duration, setDuration] = useState<number | ''>('');
   const [frequency, setFrequency] = useState<number | ''>('');
   const [discount, setDiscount] = useState<number | ''>('');
@@ -49,7 +50,16 @@ export default function TarievenPage() {
         const response = await fetch('/api/users');
         if (response.ok) {
           const data = await response.json();
-          setCustomers(data);
+          // Handle the new API response structure with users array and pagination
+          if (data.users && Array.isArray(data.users)) {
+            setCustomers(data.users);
+          } else if (Array.isArray(data)) {
+            // Fallback for old API structure
+            setCustomers(data);
+          } else {
+            console.warn('Expected /api/users to return an object with users array. Got:', data);
+            setCustomers([]);
+          }
         }
       } catch (error) {
         console.error('Error fetching customers:', error);
@@ -87,6 +97,8 @@ export default function TarievenPage() {
     if (typeof duration !== 'number' || typeof frequency !== 'number') {
       return {
         basePrice: 0,
+        trainingPrice: 0,
+        nutritionPlanPrice: 0,
         totalPrice: 0,
         discountAmount: 0,
         priceAfterDiscount: 0,
@@ -96,36 +108,57 @@ export default function TarievenPage() {
       };
     }
 
-    let totalPrice = 0;
+    let trainingPrice = 0;
     const groupSize = selectedService === 'group-training' ? Math.max(selectedCustomers.length, 2) : 1;
 
     if (selectedService === 'group-training') {
       // Group training pricing - fixed 40 RON per person per session
       const pricePerSession = 40; // Fixed price per person
       const totalSessions = duration * frequency;
-      totalPrice = pricePerSession * totalSessions; // This is per person, not total for group
+      trainingPrice = pricePerSession * totalSessions; // This is per person, not total for group
     } else {
       // Personal training pricing - check for specific pricing combinations
       if (duration === 4 && frequency === 3) {
-        totalPrice = 500; // 4 weeks / 3 times a week = 500 RON
+        trainingPrice = 500; // 4 weeks / 3 times a week = 500 RON
       } else if (duration === 12 && frequency === 3) {
-        totalPrice = 1500; // 12 weeks / 3 times a week = 1500 RON
+        trainingPrice = 1500; // 12 weeks / 3 times a week = 1500 RON
       } else if (duration === 4 && frequency === 5) {
-        totalPrice = 800; // 4 weeks / 5 times a week = 800 RON
+        trainingPrice = 800; // 4 weeks / 5 times a week = 800 RON
       } else if (duration === 12 && frequency === 5) {
-        totalPrice = 2400; // 12 weeks / 5 times a week = 2400 RON
+        trainingPrice = 2400; // 12 weeks / 5 times a week = 2400 RON
       } else {
         // Use existing frequency-based pricing for other combinations
         const pricePerSession = getPricePerSession(frequency, 'personal-training-1-1');
         const totalSessions = duration * frequency;
-        totalPrice = pricePerSession * totalSessions;
+        trainingPrice = pricePerSession * totalSessions;
       }
     }
     
-    // Add nutrition plan if selected
-    if (includeNutritionPlan && typeof nutritionPlanCount === 'number' && nutritionPlanCount > 0) {
-      totalPrice += nutritionPlanPrice * nutritionPlanCount;
+    // Calculate nutrition plan costs separately
+    let nutritionPlanPrice = 0;
+    let groupNutritionDetails: Record<string, number> = {};
+    
+    if (selectedService === 'group-training') {
+      // For group training, calculate nutrition plans per person
+      selectedCustomers.forEach(customerId => {
+        const personNutritionCount = groupNutritionPlans[customerId];
+        // Handle both empty string and 0 values
+        const count = personNutritionCount === '' || personNutritionCount === undefined ? 0 : personNutritionCount;
+        if (count > 0) {
+          const personNutritionPrice = 200 * count;
+          nutritionPlanPrice += personNutritionPrice;
+          groupNutritionDetails[customerId] = personNutritionPrice;
+        }
+      });
+    } else {
+      // For personal training, use the single nutrition plan count
+      if (includeNutritionPlan && typeof nutritionPlanCount === 'number' && nutritionPlanCount > 0) {
+        nutritionPlanPrice = 200 * nutritionPlanCount; // 200 RON per nutrition plan
+      }
     }
+    
+    // Calculate total price (training + nutrition plan)
+    const totalPrice = trainingPrice + nutritionPlanPrice;
     
     // For group training, calculate total price for all people
     let finalTotalPrice = totalPrice;
@@ -138,13 +171,16 @@ export default function TarievenPage() {
     const finalPrice = Math.round(priceAfterDiscount);
     
     return {
-      basePrice: totalPrice / (duration * frequency), // Calculate average price per session (per person for group)
+      basePrice: trainingPrice / (duration * frequency), // Calculate average price per session (per person for group) - only training, no nutrition
+      trainingPrice: trainingPrice, // Training price per person
+      nutritionPlanPrice: nutritionPlanPrice, // Nutrition plan price per person
       totalPrice: finalTotalPrice, // Total price for all people in group
       discountAmount,
       priceAfterDiscount,
       finalPrice,
       isNutritionPlan: includeNutritionPlan,
-      groupSize: groupSize
+      groupSize: groupSize,
+      groupNutritionDetails: groupNutritionDetails // Per-person nutrition plan costs for group training
     };
   };
 
@@ -171,6 +207,12 @@ export default function TarievenPage() {
         // Create separate entries for each person in the group
         const promises = selectedCustomers.map(async (customerId) => {
           const customer = customers.find(c => c.id === customerId);
+          const personNutritionCount = groupNutritionPlans[customerId];
+          const count = personNutritionCount === '' || personNutritionCount === undefined ? 0 : personNutritionCount;
+          const personNutritionPrice = count * 200;
+          const personTrainingPrice = priceCalculation.trainingPrice;
+          const personTotalPrice = personTrainingPrice + personNutritionPrice;
+          
           const response = await fetch('/api/pricing-calculations', {
             method: 'POST',
             headers: {
@@ -180,12 +222,12 @@ export default function TarievenPage() {
               customerId: customerId,
               customerName: customer?.name || '',
               service: selectedServiceData?.name || '',
-              includeNutritionPlan,
-              nutritionPlanCount: typeof nutritionPlanCount === 'number' ? nutritionPlanCount : 0,
+              includeNutritionPlan: count > 0,
+              nutritionPlanCount: count,
               duration,
               frequency,
               discount: typeof discount === 'number' ? discount : 0,
-              finalPrice: priceCalculation.finalPrice / selectedCustomers.length, // Price per person
+              finalPrice: personTotalPrice, // Price per person including their nutrition plans
               groupSize: priceCalculation.groupSize
             }),
           });
@@ -300,6 +342,9 @@ export default function TarievenPage() {
                     // Reset customer selections when changing service
                     setSelectedCustomer('');
                     setSelectedCustomers([]);
+                    setGroupNutritionPlans({});
+                    setIncludeNutritionPlan(false);
+                    setNutritionPlanCount('');
                   }}
                   className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
                   required
@@ -355,6 +400,10 @@ export default function TarievenPage() {
                               }
                             } else {
                               setSelectedCustomers(selectedCustomers.filter(id => id !== customer.id));
+                              // Remove nutrition plan count when customer is deselected
+                              const newGroupNutritionPlans = { ...groupNutritionPlans };
+                              delete newGroupNutritionPlans[customer.id];
+                              setGroupNutritionPlans(newGroupNutritionPlans);
                             }
                           }}
                           className="mr-3 h-4 w-4 text-rose-600 focus:ring-rose-500 border-gray-300 rounded"
@@ -378,49 +427,93 @@ export default function TarievenPage() {
                 </div>
               )}
 
-              {/* Nutrition Plan Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Include Nutrition Plan</label>
-                <select
-                  value={includeNutritionPlan ? 'yes' : 'no'}
-                  onChange={(e) => {
-                    setIncludeNutritionPlan(e.target.value === 'yes');
-                    if (e.target.value === 'no') {
-                      setNutritionPlanCount('');
-                    }
-                  }}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
-                >
-                  <option value="no">No</option>
-                  <option value="yes">Yes: 200 RON per plan</option>
-                </select>
-                <p className="text-sm text-gray-600 mt-2">Personalized nutrition plan with meal recommendations and dietary guidelines</p>
-              </div>
-
-              {/* Nutrition Plan Count - Only show when nutrition plan is selected */}
-              {includeNutritionPlan && (
+              {/* Group Training - Individual Nutrition Plans */}
+              {selectedService === 'group-training' && selectedCustomers.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Nutrition Plans
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={nutritionPlanCount}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '') {
-                        setNutritionPlanCount('');
-                      } else {
-                        setNutritionPlanCount(parseInt(value) || '');
-                      }
-                    }}
-                    placeholder="Enter number of nutrition plans"
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
-                  />
-                  <p className="text-sm text-gray-600 mt-2">Each nutrition plan costs 200 RON (e.g., 3 plans = 600 RON)</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nutrition Plans per Person</label>
+                  <div className="space-y-3">
+                    {selectedCustomers.map(customerId => {
+                      const customer = customers.find(c => c.id === customerId);
+                      return (
+                        <div key={customerId} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200">
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">{customer?.name}</div>
+                            <div className="text-xs text-gray-500">{customer?.email}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm text-gray-600">Plans:</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              value={groupNutritionPlans[customerId] || ''}
+                              onChange={(e) => {
+                                const value = e.target.value === '' ? '' : parseInt(e.target.value) || 0;
+                                setGroupNutritionPlans({
+                                  ...groupNutritionPlans,
+                                  [customerId]: value
+                                });
+                              }}
+                              className="w-16 px-2 py-1 text-sm bg-white border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-rose-500"
+                              placeholder="0"
+                            />
+                            <span className="text-xs text-gray-500">× 200 RON</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2">Each nutrition plan costs 200 RON per person</p>
                 </div>
+              )}
+
+              {/* Nutrition Plan Selection - Only for Personal Training */}
+              {selectedService === 'personal-training-1-1' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Include Nutrition Plan</label>
+                    <select
+                      value={includeNutritionPlan ? 'yes' : 'no'}
+                      onChange={(e) => {
+                        setIncludeNutritionPlan(e.target.value === 'yes');
+                        if (e.target.value === 'no') {
+                          setNutritionPlanCount('');
+                        }
+                      }}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                    >
+                      <option value="no">No</option>
+                      <option value="yes">Yes: 200 RON per plan</option>
+                    </select>
+                    <p className="text-sm text-gray-600 mt-2">Personalized nutrition plan with meal recommendations and dietary guidelines</p>
+                  </div>
+
+                  {/* Nutrition Plan Count - Only show when nutrition plan is selected */}
+                  {includeNutritionPlan && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Number of Nutrition Plans
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={nutritionPlanCount}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '') {
+                            setNutritionPlanCount('');
+                          } else {
+                            setNutritionPlanCount(parseInt(value) || '');
+                          }
+                        }}
+                        placeholder="Enter number of nutrition plans"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                      />
+                      <p className="text-sm text-gray-600 mt-2">Each nutrition plan costs 200 RON (e.g., 3 plans = 600 RON)</p>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Duration */}
@@ -554,23 +647,43 @@ export default function TarievenPage() {
                 {selectedService === 'group-training' && (
                   <div className="flex justify-between items-center py-2 border-b border-gray-200">
                     <span className="text-gray-600">Total for group ({selectedCustomers.length} people):</span>
-                    <span className="font-semibold">{(priceCalculation.basePrice * duration * frequency * selectedCustomers.length).toFixed(0)} RON</span>
+                    <span className="font-semibold">{(priceCalculation.trainingPrice * selectedCustomers.length).toFixed(0)} RON</span>
                   </div>
                 )}
 
                 {/* Training Sessions Subtotal */}
                 <div className="flex justify-between items-center py-2 border-b border-gray-200">
                   <span className="text-gray-600">
-                    {selectedService === 'group-training' ? 'Per person:' : 'Training sessions:'}
+                    {selectedService === 'group-training' ? 'Training sessions (per person):' : 'Training sessions:'}
                   </span>
-                  <span className="font-semibold">{(priceCalculation.basePrice * duration * frequency).toFixed(0)} RON</span>
+                  <span className="font-semibold">{priceCalculation.trainingPrice.toFixed(0)} RON</span>
                 </div>
 
-                {/* Nutrition Plan */}
-                {includeNutritionPlan && typeof nutritionPlanCount === 'number' && nutritionPlanCount > 0 && (
+                {/* Nutrition Plan - Show as separate line item */}
+                {selectedService === 'personal-training-1-1' && includeNutritionPlan && typeof nutritionPlanCount === 'number' && nutritionPlanCount > 0 && (
                   <div className="flex justify-between items-center py-2 border-b border-gray-200">
                     <span className="text-gray-600">Nutrition Plans ({nutritionPlanCount} × 200 RON):</span>
-                    <span className="font-semibold text-blue-600">{(nutritionPlanCount * 200).toFixed(0)} RON</span>
+                    <span className="font-semibold text-blue-600">{priceCalculation.nutritionPlanPrice.toFixed(0)} RON</span>
+                  </div>
+                )}
+
+                {/* Group Training - Individual Nutrition Plans */}
+                {selectedService === 'group-training' && Object.keys(priceCalculation.groupNutritionDetails || {}).length > 0 && (
+                  <div className="py-2 border-b border-gray-200">
+                    <div className="text-gray-600 mb-2">Individual Nutrition Plans:</div>
+                    {Object.entries(priceCalculation.groupNutritionDetails || {}).map(([customerId, cost]) => {
+                      const customer = customers.find(c => c.id === customerId);
+                      const planCount = groupNutritionPlans[customerId];
+                      const count = planCount === '' || planCount === undefined ? 0 : planCount;
+                      return (
+                        <div key={customerId} className="flex justify-between items-center py-1 text-sm">
+                          <span className="text-gray-500">
+                            {customer?.name}: {count} × 200 RON
+                          </span>
+                          <span className="font-semibold text-blue-600">{cost.toFixed(0)} RON</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -602,9 +715,9 @@ export default function TarievenPage() {
 
                 {/* Price per session */}
                 <div className="text-center py-4 bg-gray-50 rounded-xl">
-                  <p className="text-sm text-gray-600">Price per session:</p>
+                  <p className="text-sm text-gray-600">Price per session (training only):</p>
                   <p className="text-lg font-semibold text-gray-800">
-                    {(priceCalculation.finalPrice / (duration * frequency)).toFixed(0)} RON
+                    {(priceCalculation.trainingPrice / (duration * frequency)).toFixed(0)} RON
                   </p>
                 </div>
 

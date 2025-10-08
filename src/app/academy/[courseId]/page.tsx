@@ -39,10 +39,73 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
     const resolveParams = async () => {
       const resolvedParams = await params;
       setCourseId(resolvedParams.courseId);
-      setCourse(prev => ({ ...prev, id: resolvedParams.courseId }));
+      
+      // Mock course data based on courseId
+      const mockCourse: Course = {
+        id: resolvedParams.courseId,
+        title: getCourseTitle(resolvedParams.courseId),
+        description: getCourseDescription(resolvedParams.courseId),
+        instructor: 'Mihaela Fitness',
+        rating: 4.8,
+        students: 1247,
+        duration: 90,
+        progress: 0,
+        completed: false,
+        lessons: getCourseLessons(resolvedParams.courseId)
+      };
+      
+      setCourse(mockCourse);
     };
     resolveParams();
   }, [params]);
+
+  const getCourseTitle = (id: string) => {
+    const titles: Record<string, string> = {
+      '1': 'Mindset Mastery',
+      '2': 'Discipline & Habits',
+      '3': 'Nutrition Fundamentals',
+      '4': 'Training Principles'
+    };
+    return titles[id] || 'Course';
+  };
+
+  const getCourseDescription = (id: string) => {
+    const descriptions: Record<string, string> = {
+      '1': 'Master your mindset and unlock your full potential with proven psychological techniques.',
+      '2': 'Build unbreakable discipline and create lasting habits that transform your life.',
+      '3': 'Learn the fundamentals of nutrition and fuel your body for optimal performance.',
+      '4': 'Understand training principles and maximize your workout effectiveness.'
+    };
+    return descriptions[id] || 'A comprehensive course to help you achieve your goals.';
+  };
+
+  const getCourseLessons = (id: string): Lesson[] => {
+    const lessonSets: Record<string, Lesson[]> = {
+      '1': [
+        { id: '1', title: 'Introduction to Mindset', description: 'Understanding the power of mindset', duration: 15, type: 'video', completed: false, locked: false },
+        { id: '2', title: 'Overcoming Limiting Beliefs', description: 'Identify and break through mental barriers', duration: 20, type: 'video', completed: false, locked: true },
+        { id: '3', title: 'Goal Setting Workshop', description: 'Set and achieve meaningful goals', duration: 25, type: 'exercise', completed: false, locked: true },
+        { id: '4', title: 'Visualization Techniques', description: 'Master the art of mental rehearsal', duration: 18, type: 'video', completed: false, locked: true },
+        { id: '5', title: 'Mindset Quiz', description: 'Test your understanding', duration: 10, type: 'quiz', completed: false, locked: true }
+      ],
+      '2': [
+        { id: '1', title: 'The Science of Habits', description: 'Understanding how habits work', duration: 20, type: 'video', completed: false, locked: false },
+        { id: '2', title: 'Building Discipline', description: 'Strengthen your willpower muscle', duration: 25, type: 'video', completed: false, locked: true },
+        { id: '3', title: 'Habit Stacking', description: 'Create powerful habit chains', duration: 30, type: 'exercise', completed: false, locked: true }
+      ],
+      '3': [
+        { id: '1', title: 'Macronutrients Basics', description: 'Understanding carbs, proteins, and fats', duration: 30, type: 'video', completed: false, locked: false },
+        { id: '2', title: 'Meal Planning', description: 'Create sustainable meal plans', duration: 35, type: 'exercise', completed: false, locked: true },
+        { id: '3', title: 'Nutrition Myths', description: 'Debunking common nutrition myths', duration: 25, type: 'reading', completed: false, locked: true }
+      ],
+      '4': [
+        { id: '1', title: 'Training Principles', description: 'Fundamental training concepts', duration: 25, type: 'video', completed: false, locked: false },
+        { id: '2', title: 'Exercise Form', description: 'Perfect your technique', duration: 30, type: 'video', completed: false, locked: true },
+        { id: '3', title: 'Progressive Overload', description: 'How to keep making progress', duration: 20, type: 'reading', completed: false, locked: true }
+      ]
+    };
+    return lessonSets[id] || [];
+  };
 
   const handleLessonClick = (lesson: Lesson) => {
     if (lesson.locked) return;

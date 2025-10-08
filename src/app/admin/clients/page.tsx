@@ -84,7 +84,7 @@ export default function ClientsPage() {
     trainingFrequency: 3
   });
 
-  const filteredClients = clients.filter(client => {
+  const filteredClients = (Array.isArray(clients) ? clients : []).filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          client.email.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
@@ -94,88 +94,18 @@ export default function ClientsPage() {
     const loadClients = async () => {
       setLoading(true);
       try {
-        const response = await fetch('/api/users');
+        // Use optimized API endpoint that gets all data in one request
+        const response = await fetch('/api/clients/overview');
         const data = await response.json();
-        
-        // Load training sessions and pricing data for each customer
-        const clientsWithStats = await Promise.all(data.map(async (user: any) => {
-          try {
-            // Get actual training sessions from database
-            const sessionsResponse = await fetch(`/api/training-sessions?customerId=${user.id}`);
-            const sessions = sessionsResponse.ok ? await sessionsResponse.json() : [];
-            const actualSessions = sessions.length;
-            
-            // Count completed sessions
-            const completedSessions = sessions.filter((session: any) => session.status === 'completed').length;
-            
-            // Get pricing data to determine subscription duration
-            const pricingResponse = await fetch(`/api/pricing-calculations?customerId=${user.id}`);
-            const pricingData = pricingResponse.ok ? await pricingResponse.json() : [];
-            
-            // Get group subscriptions
-            const groupSubscriptionsResponse = await fetch(`/api/group-subscriptions?customerId=${user.id}`);
-            const groupSubscriptions = groupSubscriptionsResponse.ok ? await groupSubscriptionsResponse.json() : [];
-            
-            // Get personal subscriptions
-            const personalSubscriptionsResponse = await fetch(`/api/personal-subscriptions?customerId=${user.id}`);
-            const personalSubscriptions = personalSubscriptionsResponse.ok ? await personalSubscriptionsResponse.json() : [];
-            
-            // Get the most recent pricing calculation to determine subscription duration
-            let subscriptionDuration = null;
-            if (pricingData.length > 0) {
-              // Get the most recent pricing calculation
-              const latestPricing = pricingData.sort((a: any, b: any) => 
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              )[0];
-              
-              // Duration is already in weeks, no conversion needed
-              subscriptionDuration = latestPricing.duration;
-            }
-            
-            console.log(`Client ${user.name}: ${actualSessions} actual sessions found, subscription: ${subscriptionDuration ? subscriptionDuration + ' weeks' : 'No subscription'}`);
-            
-            // Special handling for Leca - she has a 12-week plan with 3 sessions per week
-            let totalSessions = 0;
-            let scheduledSessions = actualSessions;
-            
-            if (user.name === 'Leca Georgiana') {
-              // Leca has a 12-week plan: 3 sessions per week × 12 weeks = 36 sessions
-              totalSessions = 36;
-            } else {
-              // For other customers, calculate based on join date and training frequency
-              const joinDate = new Date(user.createdAt);
-              const currentDate = new Date();
-              const daysSinceJoin = Math.max(0, Math.floor((currentDate.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24)));
-              const weeksSinceJoin = daysSinceJoin / 7;
-              
-              // Calculate expected sessions: weeks * sessions per week
-              totalSessions = Math.floor(weeksSinceJoin * (user.trainingFrequency || 3));
-            }
-            
-            return {
-              ...user,
-              totalSessions,
-              scheduledSessions: actualSessions,
-              completedSessions,
-              lastWorkout: user.lastWorkout || null,
-              subscriptionDuration: subscriptionDuration, // Duration is already in weeks
-              groupSubscriptions: groupSubscriptions,
-              personalSubscriptions: personalSubscriptions
-            };
-          } catch (error) {
-            console.error(`Error loading data for ${user.name}:`, error);
-            return {
-              ...user,
-              totalSessions: 0,
-              scheduledSessions: 0,
-              completedSessions: 0,
-              lastWorkout: null,
-              subscriptionDuration: null
-            };
-          }
-        }));
-        
-        setClients(clientsWithStats);
+
+        if (response.ok) {
+          const list = Array.isArray(data)
+            ? data
+            : (Array.isArray(data?.clients) ? data.clients : []);
+          setClients(list);
+        } else {
+          console.error('Failed to load clients:', data.error);
+        }
       } catch (error) {
         console.error('Error loading clients:', error);
       } finally {
@@ -238,10 +168,11 @@ export default function ClientsPage() {
 
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'active': return 'bg-green-100 text-green-800';
       case 'inactive': return 'bg-red-100 text-red-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'intake': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -288,6 +219,62 @@ export default function ClientsPage() {
           </div>
         </div>
 
+        {/* Admin Account Section */}
+        {!loading && (
+          <div className="mb-6">
+            <div 
+              onClick={() => router.push('/admin/clients/mihaela')}
+              className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl p-4 mb-4 cursor-pointer hover:from-pink-100 hover:to-rose-100 hover:border-pink-300 transition-all duration-200"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-800">Mihaela (Admin)</h3>
+                  <p className="text-sm text-gray-600">mihaela@mihaelafitness.com</p>
+                  <span className="inline-block mt-1 px-2 py-1 bg-pink-100 text-pink-800 text-xs font-medium rounded-full">
+                    Admin Account
+                  </span>
+                </div>
+                <div className="text-pink-500">
+                  <Eye className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Total Clients Count */}
+        {!loading && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-rose-500" />
+                <span className="text-sm font-medium text-gray-700">
+                  {searchTerm ? (
+                    <>
+                      {filteredClients.length} van {clients.length} clients
+                    </>
+                  ) : (
+                    <>
+                      Totaal {clients.length} clients
+                    </>
+                  )}
+                </span>
+              </div>
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="text-sm text-rose-500 hover:text-rose-600 transition-colors"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Loading State */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -303,7 +290,11 @@ export default function ClientsPage() {
               {filteredClients.map((client) => (
             <div
               key={client.id}
-              className="bg-white rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300"
+              className={`rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 ${
+                client.status === 'Intake' 
+                  ? 'bg-yellow-50 border-yellow-200' 
+                  : 'bg-white'
+              }`}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">

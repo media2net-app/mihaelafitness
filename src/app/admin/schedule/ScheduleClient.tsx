@@ -14,7 +14,8 @@ import {
   Users,
   Euro,
   Target,
-  X
+  X,
+  UserPlus
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -27,7 +28,7 @@ interface TrainingSession {
   date: string; // YYYY-MM-DD
   startTime: string; // HH:MM
   endTime: string; // HH:MM
-  type: '1:1' | 'group' | 'own-training' | 'workout-plan';
+  type: '1:1' | 'group' | 'own-training' | 'workout-plan' | 'Intake Consultation';
   status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
   notes?: string;
   trainingType?: string; // Full Body, Upper/Lower Split, Push/Pull/Legs, etc.
@@ -93,10 +94,28 @@ export default function ScheduleClient({
   const [sessionNotes, setSessionNotes] = useState('');
   const [scheduleRecurring, setScheduleRecurring] = useState(false);
   
-  // Mihaela's own training states
-  const [showOwnTrainingModal, setShowOwnTrainingModal] = useState(false);
-  const [ownTrainingDate, setOwnTrainingDate] = useState('');
-  const [ownTrainingStartTime, setOwnTrainingStartTime] = useState('');
+  // Session type selection
+  const [sessionType, setSessionType] = useState<'client' | 'intake' | 'own-training'>('client');
+  
+  // Debug state
+  const [showDebugModal, setShowDebugModal] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  
+  // Debug function
+  const addDebugLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = `[${timestamp}] ${message}`;
+    setDebugLogs(prev => [...prev, logMessage]);
+    console.log('🔍 DEBUG:', message);
+  };
+  
+  // Intake form state
+  const [intakeFormData, setIntakeFormData] = useState({
+    name: '',
+    email: '',
+    phone: ''
+  });
+  
 
   // Generate time slots from 08:30 to 20:30
   const timeSlots = Array.from({ length: 25 }, (_, i) => {
@@ -135,6 +154,9 @@ export default function ScheduleClient({
 
   // Check if time slot is available (not booked and not break time)
   const isTimeSlotAvailable = (date: string, timeSlot: string, duration: number = 1) => {
+    // Block Fridays
+    const d = new Date(date);
+    if (d.getDay() === 5) return false;
     if (isBreakTime(timeSlot)) return false;
     
     const [startHours, startMinutes] = timeSlot.split(':').map(Number);
@@ -168,57 +190,40 @@ export default function ScheduleClient({
   useEffect(() => {
     const loadScheduleData = async () => {
       try {
-        // Load customers with their workout assignments
-        const customersResponse = await fetch('/api/users');
-        const customersData = await customersResponse.json();
-        
-        // Load workout assignments and discount for each customer
-        const customersWithWorkouts = await Promise.all(
-          customersData.map(async (customer: any) => {
-            let discount = 0;
-            try {
-              const pricingResponse = await fetch(`/api/pricing-calculations?customerId=${customer.id}`);
-              if (pricingResponse.ok) {
-                const calculations = await pricingResponse.json();
-                if (calculations.length > 0) {
-                  discount = calculations[0].discount || 0;
-                }
-              }
-            } catch (error) {
-              console.error(`Error loading discount for customer ${customer.id}:`, error);
-            }
-            return { ...customer, discount };
-          })
-        );
-        
-        setCustomers(customersWithWorkouts);
-        
-        // Load training sessions for current week
+        // Use optimized API endpoint that gets all data in one request
         const startDate = currentWeekDates[0].toISOString().split('T')[0];
         const endDate = currentWeekDates[5].toISOString().split('T')[0];
         
-        const sessionsResponse = await fetch(`/api/training-sessions?startDate=${startDate}&endDate=${endDate}`);
-        const sessionsData = await sessionsResponse.json();
+        const response = await fetch(`/api/schedule/overview?startDate=${startDate}&endDate=${endDate}`);
+        const data = await response.json();
         
-        // Transform sessions to ensure date format is correct and customer name is available
-        const transformedSessions = sessionsData.map((session: any) => {
-          let transformedDate;
-          if (typeof session.date === 'string') {
-            transformedDate = session.date.split('T')[0];
-          } else if (session.date instanceof Date) {
-            transformedDate = session.date.toISOString().split('T')[0];
-          } else {
-            transformedDate = new Date(session.date).toISOString().split('T')[0];
+        if (response.ok) {
+          const customersRaw = data?.customers;
+          if (!Array.isArray(customersRaw)) {
+            console.warn('Expected schedule overview customers to be an array. Got:', customersRaw);
           }
+          setCustomers(Array.isArray(customersRaw) ? customersRaw : []);
           
-          return {
-            ...session,
-            date: transformedDate,
-            customerName: (session.customer?.name || 'Unknown Customer').replace(/ completed?/gi, '').trim()
-          };
-        });
-        
-        setSessions(transformedSessions);
+          // DEBUG: Log all sessions to see what's being loaded
+          addDebugLog(`Loaded ${data.sessions.length} total sessions`);
+          addDebugLog(`Intake sessions: ${data.sessions.filter((s: any) => s.type === 'Intake Consultation').length}`);
+          addDebugLog(`All sessions: ${JSON.stringify(data.sessions, null, 2)}`);
+          
+          // Transform sessions to ensure date format is correct and customer name is available
+          const transformedSessions = data.sessions.map((session: any) => {
+            return {
+              ...session,
+              customerName: (session.customerName || 'Unknown Customer').replace(/ completed?/gi, '').trim()
+            };
+          });
+          
+          setSessions(transformedSessions);
+          addDebugLog(`Transformed ${transformedSessions.length} sessions`);
+        } else {
+          console.error('Failed to load schedule data:', data.error);
+          setCustomers([]);
+          setSessions([]);
+        }
       } catch (error) {
         console.error('Error loading schedule data:', error);
         setCustomers([]);
@@ -239,6 +244,13 @@ export default function ScheduleClient({
   const getSessionsForDayAndTime = useCallback((date: Date, timeSlot: string) => {
     const dateStr = date.toISOString().split('T')[0];
     
+    // DEBUG: Log sessions for specific date
+    if (dateStr === '2025-10-03') {
+      const sessionsForDate = sessions.filter(s => s.date === dateStr);
+      addDebugLog(`Sessions for 2025-10-03: ${sessionsForDate.length}`);
+      addDebugLog(`Sessions for 2025-10-03: ${JSON.stringify(sessionsForDate, null, 2)}`);
+    }
+    
     // Get all training sessions (scheduled, completed, cancelled, no-show)
     const actualSessions = sessions.filter(session => {
       if (session.date !== dateStr) {
@@ -253,6 +265,12 @@ export default function ScheduleClient({
       // Show session if it's active during this time slot (starts before or at timeSlot, ends after timeSlot)
       return sessionStartMinutes <= timeSlotMinutes && sessionEndMinutes > timeSlotMinutes;
     });
+
+    // DEBUG: Log sessions found for specific time slot
+    if (dateStr === '2025-10-03' && timeSlot === '14:00') {
+      addDebugLog(`Sessions for 2025-10-03 at 14:00: ${actualSessions.length}`);
+      addDebugLog(`Sessions for 2025-10-03 at 14:00: ${JSON.stringify(actualSessions, null, 2)}`);
+    }
 
     return actualSessions;
   }, [sessions, timeToMinutes]);
@@ -365,9 +383,10 @@ export default function ScheduleClient({
     // Default colors based on type
     switch (type) {
       case '1:1': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'group': return 'bg-green-100 text-green-800 border-green-200';
+      case 'group': return 'bg-rose-100 text-rose-800 border-rose-200';
       case 'own-training': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'workout-plan': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'Intake Consultation': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -398,43 +417,129 @@ export default function ScheduleClient({
   };
 
   const handleCreateSession = async () => {
-    if (!selectedCustomerId || !selectedDate || !selectedStartTime) {
+    if (!selectedDate || !selectedStartTime) {
       alert('Please fill in all required fields');
+      return;
+    }
+
+    // Validate based on session type
+    if (sessionType === 'client' && !selectedCustomerId) {
+      alert('Please select a customer');
+      return;
+    }
+
+    if (sessionType === 'intake' && (!intakeFormData.name || !intakeFormData.email || !intakeFormData.phone)) {
+      alert('Please fill in all client details');
       return;
     }
 
     try {
       const endTime = `${(parseInt(selectedStartTime.split(':')[0]) + 1).toString().padStart(2, '0')}:${selectedStartTime.split(':')[1]}`;
       
-      const response = await fetch('/api/training-sessions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customerId: selectedCustomerId,
-          date: selectedDate,
-          startTime: selectedStartTime,
-          endTime: endTime,
-          type: '1:1',
-          status: 'scheduled',
-          notes: sessionNotes
-        }),
-      });
+      let response;
+      
+      if (sessionType === 'intake') {
+        // Create intake session with new client
+        response = await fetch('/api/intake', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: intakeFormData.name,
+            email: intakeFormData.email,
+            phone: intakeFormData.phone,
+            preferredDate: selectedDate,
+            preferredTime: selectedStartTime,
+            message: sessionNotes
+          }),
+        });
+      } else if (sessionType === 'own-training') {
+        // Create own training session
+        response = await fetch('/api/training-sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerId: 'mihaela-own-training', // Special ID for own training
+            date: selectedDate,
+            startTime: selectedStartTime,
+            endTime: endTime,
+            type: 'own-training',
+            status: 'scheduled',
+            notes: sessionNotes || 'Own training session'
+          }),
+        });
+      } else {
+        // Create regular client session
+        response = await fetch('/api/training-sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerId: selectedCustomerId,
+            date: selectedDate,
+            startTime: selectedStartTime,
+            endTime: endTime,
+            type: '1:1',
+            status: 'scheduled',
+            notes: sessionNotes
+          }),
+        });
+      }
 
       if (response.ok) {
         const newSession = await response.json();
-        setSessions(prev => [...prev, {
-          ...newSession,
-          date: newSession.date.split('T')[0],
-          customerName: newSession.customer?.name || 'Unknown Customer'
-        }]);
+        
+        if (sessionType === 'intake') {
+          // For intake sessions, we need to fetch the updated sessions list
+          // since a new client was created
+          const sessionsResponse = await fetch('/api/training-sessions');
+          if (sessionsResponse.ok) {
+            const updatedSessions = await sessionsResponse.json();
+            setSessions(updatedSessions);
+          }
+          
+          // Also update customers list
+          const customersResponse = await fetch('/api/users');
+          if (customersResponse.ok) {
+            const data = await customersResponse.json();
+            // Handle the new API response structure with users array and pagination
+            if (data.users && Array.isArray(data.users)) {
+              setCustomers(data.users);
+            } else if (Array.isArray(data)) {
+              // Fallback for old API structure
+              setCustomers(data);
+            } else {
+              console.warn('Expected /api/users to return an object with users array. Got:', data);
+            }
+          }
+        } else if (sessionType === 'own-training') {
+          setSessions(prev => [...prev, {
+            ...newSession,
+            date: newSession.date.split('T')[0],
+            customerName: 'Mihaela (Own Training)'
+          }]);
+        } else {
+          setSessions(prev => [...prev, {
+            ...newSession,
+            date: newSession.date.split('T')[0],
+            customerName: newSession.customer?.name || 'Unknown Customer'
+          }]);
+        }
+        
         setShowNewSessionModal(false);
         setSelectedCustomerId('');
         setSelectedDate('');
         setSelectedStartTime('');
         setSessionNotes('');
-        alert('Session created successfully!');
+        setIntakeFormData({ name: '', email: '', phone: '' });
+        setSessionType('client');
+        alert(sessionType === 'intake' ? 'Intake session created successfully!' : 
+              sessionType === 'own-training' ? 'Own training session created successfully!' : 
+              'Session created successfully!');
       } else {
         const errorData = await response.json();
         alert(errorData.error || 'Error creating session');
@@ -445,51 +550,6 @@ export default function ScheduleClient({
     }
   };
 
-  const handleCreateOwnTraining = async () => {
-    if (!ownTrainingDate || !ownTrainingStartTime) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
-    try {
-      const endTime = `${(parseInt(ownTrainingStartTime.split(':')[0]) + 1).toString().padStart(2, '0')}:${ownTrainingStartTime.split(':')[1]}`;
-      
-      const response = await fetch('/api/training-sessions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customerId: 'mihaela-own-training', // Special ID for Mihaela's own training
-          date: ownTrainingDate,
-          startTime: ownTrainingStartTime,
-          endTime: endTime,
-          type: 'own-training',
-          status: 'scheduled',
-          notes: 'Mihaela\'s own training session'
-        }),
-      });
-
-      if (response.ok) {
-        const newSession = await response.json();
-        setSessions(prev => [...prev, {
-          ...newSession,
-          date: newSession.date.split('T')[0],
-          customerName: 'Mihaela (Own Training)'
-        }]);
-        setShowOwnTrainingModal(false);
-        setOwnTrainingDate('');
-        setOwnTrainingStartTime('');
-        alert('Own training session created successfully!');
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || 'Error creating own training session');
-      }
-    } catch (error) {
-      console.error('Error creating own training session:', error);
-      alert('Error creating own training session. Please try again.');
-    }
-  };
 
   // Auto-complete past sessions
   const handleAutoCompleteSessions = async () => {
@@ -524,7 +584,10 @@ export default function ScheduleClient({
   };
 
   // Handle updating session status
-  const handleUpdateSessionStatus = async (sessionId: string, newStatus: string) => {
+  const handleUpdateSessionStatus = async (
+    sessionId: string,
+    newStatus: 'scheduled' | 'completed' | 'cancelled' | 'no-show'
+  ) => {
     try {
       const response = await fetch(`/api/training-sessions/${sessionId}`, {
         method: 'PUT',
@@ -581,18 +644,18 @@ export default function ScheduleClient({
             
             <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
               <button
+                onClick={() => setShowDebugModal(true)}
+                className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-colors duration-200"
+              >
+                <Clock className="w-5 h-5 mr-2" />
+                Debug Logs
+              </button>
+              <button
                 onClick={handleAutoCompleteSessions}
                 className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition-colors duration-200"
               >
                 <Clock className="w-5 h-5 mr-2" />
                 Auto Complete
-              </button>
-              <button
-                onClick={() => setShowOwnTrainingModal(true)}
-                className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg shadow hover:bg-purple-600 transition-colors duration-200"
-              >
-                <Target className="w-5 h-5 mr-2" />
-                Own Training
               </button>
               <button
                 onClick={() => setShowNewSessionModal(true)}
@@ -711,46 +774,10 @@ export default function ScheduleClient({
                   })}
                 </div>
               ))}
+              </div>
             </div>
           </div>
-
-          {/* Customer Summary */}
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Customer Overview</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {customers.map((customer) => (
-                <div key={customer.id} className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-800">{customer.name}</h4>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      customer.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {customer.status}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <div className="flex items-center">
-                      <Users className="w-4 h-4 mr-2" />
-                      {customer.trainingFrequency}x per week
-                    </div>
-                    <div className="flex items-center">
-                      <Target className="w-4 h-4 mr-2" />
-                      {getCustomerTrainingType(customer)}
-                    </div>
-                    {customer.discount && customer.discount > 0 && (
-                      <div className="flex items-center">
-                        <Euro className="w-4 h-4 mr-2" />
-                        {customer.discount}% discount
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        </main>
 
         {/* New Session Modal */}
         {showNewSessionModal && (
@@ -759,9 +786,17 @@ export default function ScheduleClient({
               className="bg-white rounded-2xl p-6 w-full max-w-md"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-800">New Training Session</h3>
+                <h3 className="text-xl font-bold text-gray-800">
+                  {sessionType === 'intake' ? 'Create Intake Session' : 
+                   sessionType === 'own-training' ? 'Create Own Training Session' : 
+                   'New Training Session'}
+                </h3>
                 <button
-                  onClick={() => setShowNewSessionModal(false)}
+                  onClick={() => {
+                    setShowNewSessionModal(false);
+                    setSessionType('client');
+                    setIntakeFormData({ name: '', email: '', phone: '' });
+                  }}
                   className="p-2 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-5 h-5" />
@@ -769,23 +804,115 @@ export default function ScheduleClient({
               </div>
 
               <div className="space-y-4">
+                {/* Session Type Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Customer *
-                  </label>
-                  <select
-                    value={selectedCustomerId}
-                    onChange={(e) => setSelectedCustomerId(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
-                  >
-                    <option value="">Select a customer</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Session Type</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => setSessionType('client')}
+                      className={`p-3 rounded-lg border-2 transition-colors duration-200 ${
+                        sessionType === 'client'
+                          ? 'border-rose-500 bg-rose-50 text-rose-700'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <Users className="w-4 h-4 mr-2" />
+                        <span className="font-medium">Client Session</span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setSessionType('intake')}
+                      className={`p-3 rounded-lg border-2 transition-colors duration-200 ${
+                        sessionType === 'intake'
+                          ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        <span className="font-medium">Intake</span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setSessionType('own-training')}
+                      className={`p-3 rounded-lg border-2 transition-colors duration-200 ${
+                        sessionType === 'own-training'
+                          ? 'border-purple-500 bg-purple-50 text-purple-700'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <Target className="w-4 h-4 mr-2" />
+                        <span className="font-medium">Own Training</span>
+                      </div>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Customer Selection - Only show for client sessions */}
+                {sessionType === 'client' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Customer *
+                    </label>
+                    <select
+                      value={selectedCustomerId}
+                      onChange={(e) => setSelectedCustomerId(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
+                    >
+                      <option value="">Select a customer</option>
+                      {customers.map((customer) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Intake Form - Only show for intake sessions */}
+                {sessionType === 'intake' && (
+                  <div className="space-y-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <h4 className="font-medium text-yellow-800">New Client Details</h4>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={intakeFormData.name}
+                        onChange={(e) => setIntakeFormData(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
+                        placeholder="Enter client's full name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        value={intakeFormData.email}
+                        onChange={(e) => setIntakeFormData(prev => ({ ...prev, email: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
+                        placeholder="Enter client's email"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        value={intakeFormData.phone}
+                        onChange={(e) => setIntakeFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
+                        placeholder="Enter client's phone number"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -832,7 +959,11 @@ export default function ScheduleClient({
 
                 <div className="flex gap-3 pt-4">
                   <button
-                    onClick={() => setShowNewSessionModal(false)}
+                    onClick={() => {
+                      setShowNewSessionModal(false);
+                      setSessionType('client');
+                      setIntakeFormData({ name: '', email: '', phone: '' });
+                    }}
                     className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Cancel
@@ -841,7 +972,9 @@ export default function ScheduleClient({
                     onClick={handleCreateSession}
                     className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
                   >
-                    Create Session
+                    {sessionType === 'intake' ? 'Create Intake Session' : 
+                     sessionType === 'own-training' ? 'Create Own Training Session' : 
+                     'Create Session'}
                   </button>
                 </div>
               </div>
@@ -849,71 +982,6 @@ export default function ScheduleClient({
           </div>
         )}
 
-        {/* Own Training Modal */}
-        {showOwnTrainingModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div
-              className="bg-white rounded-2xl p-6 w-full max-w-md"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-800">Own Training Session</h3>
-                <button
-                  onClick={() => setShowOwnTrainingModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date *
-                  </label>
-                  <input
-                    type="date"
-                    value={ownTrainingDate}
-                    onChange={(e) => setOwnTrainingDate(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Time *
-                  </label>
-                  <select
-                    value={ownTrainingStartTime}
-                    onChange={(e) => setOwnTrainingStartTime(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    <option value="">Select start time</option>
-                    {timeSlots.map((timeSlot) => (
-                      <option key={timeSlot} value={timeSlot}>
-                        {formatTime(timeSlot)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={() => setShowOwnTrainingModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleCreateOwnTraining}
-                    className="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-                  >
-                    Create Session
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Session Details Modal */}
         {showSessionDetailsModal && selectedSession && (
@@ -952,7 +1020,7 @@ export default function ScheduleClient({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Type
                   </label>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSessionTypeColor(selectedSession.type)}`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSessionTypeColor(selectedSession.type, selectedSession.status)}`}>
                     {selectedSession.type}
                   </span>
                 </div>
@@ -1084,6 +1152,52 @@ export default function ScheduleClient({
                     Close
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Debug Modal */}
+        {showDebugModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-800">Debug Logs</h2>
+                <button
+                  onClick={() => setShowDebugModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="bg-gray-100 rounded-lg p-4 h-96 overflow-y-auto">
+                {debugLogs.length === 0 ? (
+                  <p className="text-gray-500">No debug logs yet. Navigate to the schedule to see logs.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {debugLogs.map((log, index) => (
+                      <div key={index} className="text-sm font-mono bg-white p-2 rounded border">
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setDebugLogs([])}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Clear Logs
+                </button>
+                <button
+                  onClick={() => setShowDebugModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Clock, Target, Dumbbell, Calendar, Users, Star, Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, Clock, Target, Dumbbell, Calendar, Users, Star, Plus, Edit, Trash2, Save, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter, useParams } from 'next/navigation';
 
@@ -48,6 +48,9 @@ export default function TrainingSchemaDetailPage() {
   const [activeTab, setActiveTab] = useState(1);
   const [showAddExerciseModal, setShowAddExerciseModal] = useState(false);
   const [editingExercise, setEditingExercise] = useState<WorkoutExercise | null>(null);
+  const [editingWorkout, setEditingWorkout] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
   const [availableExercises, setAvailableExercises] = useState<any[]>([]);
   const [filteredExercises, setFilteredExercises] = useState<any[]>([]);
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('');
@@ -344,6 +347,132 @@ export default function TrainingSchemaDetailPage() {
     }
   };
 
+  const handleEditWorkout = () => {
+    setEditingWorkout(true);
+    setEditName(schema?.name || '');
+    setEditDescription(schema?.description || '');
+  };
+
+  const handleSaveWorkout = async () => {
+    if (!schema) return;
+    
+    try {
+      const response = await fetch(`/api/workouts/${schema.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editName,
+          description: editDescription,
+          duration: schema.duration,
+          difficulty: schema.difficulty,
+          category: schema.category,
+          trainingType: schema.trainingType,
+          exercises: schema.exercises
+        }),
+      });
+
+      if (response.ok) {
+        const updatedWorkout = await response.json();
+        setSchema(updatedWorkout);
+        setEditingWorkout(false);
+      } else {
+        alert('Error updating workout');
+      }
+    } catch (error) {
+      console.error('Error updating workout:', error);
+      alert('Error updating workout');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingWorkout(false);
+    setEditName('');
+    setEditDescription('');
+  };
+
+  const handleMoveExercise = async (exerciseId: string, direction: 'up' | 'down') => {
+    if (loading) return;
+    
+    try {
+      // Get all exercises for the current day (both database and default)
+      const allDayExercises = getExercisesForDay(activeTab);
+      const currentIndex = allDayExercises.findIndex(ex => ex.id === exerciseId);
+      
+      if (currentIndex === -1) {
+        console.log('Exercise not found');
+        return;
+      }
+      
+      const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      
+      if (newIndex < 0 || newIndex >= allDayExercises.length) return;
+      
+      // Only proceed if the exercise has a real database ID
+      if (exerciseId.startsWith('db-') || exerciseId.startsWith('schema-')) {
+        console.log('Cannot reorder default exercises - add them to database first');
+        return;
+      }
+      
+      // Get only database exercises for this day
+      const dayExercises = workoutExercises
+        .filter(ex => ex.day === activeTab)
+        .sort((a, b) => a.order - b.order);
+      
+      const dbCurrentIndex = dayExercises.findIndex(ex => ex.id === exerciseId);
+      
+      if (dbCurrentIndex === -1) {
+        console.log('Exercise not found in database records');
+        return;
+      }
+      
+      const dbNewIndex = direction === 'up' ? dbCurrentIndex - 1 : dbCurrentIndex + 1;
+      
+      if (dbNewIndex < 0 || dbNewIndex >= dayExercises.length) return;
+      
+      // Create new order array
+      const newOrder = [...dayExercises];
+      const [movedExercise] = newOrder.splice(dbCurrentIndex, 1);
+      newOrder.splice(dbNewIndex, 0, movedExercise);
+      
+      // Update order values
+      const updatedExercises = newOrder.map((exercise, index) => ({
+        id: exercise.id,
+        order: index + 1
+      }));
+      
+      // Send to API
+      const response = await fetch('/api/workout-exercises/reorder', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workoutId: schemaId,
+          day: activeTab,
+          exercises: updatedExercises
+        }),
+      });
+      
+      if (response.ok) {
+        // Update local state
+        setWorkoutExercises(prev => {
+          if (!Array.isArray(prev)) return [];
+          return prev.map(ex => {
+            const updatedEx = updatedExercises.find(ue => ue.id === ex.id);
+            return updatedEx ? { ...ex, order: updatedEx.order } : ex;
+          });
+        });
+      } else {
+        alert('Error reordering exercises');
+      }
+    } catch (error) {
+      console.error('Error reordering exercises:', error);
+      alert('Error reordering exercises');
+    }
+  };
+
   const getMuscleGroupColor = (muscleGroup: string) => {
     switch (muscleGroup) {
       case 'chest': return 'bg-red-100 text-red-800';
@@ -491,8 +620,60 @@ export default function TrainingSchemaDetailPage() {
             Back
           </button>
           
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2">{schema.name}</h1>
-          <p className="text-gray-600">{schema.description}</p>
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              {editingWorkout ? (
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600 w-full"
+                    placeholder="Workout name"
+                  />
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="text-gray-600 bg-transparent border border-gray-300 rounded-lg p-3 focus:outline-none focus:border-blue-500 w-full h-32 resize-none"
+                    placeholder="Workout description"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2">{schema.name}</h1>
+                  <p className="text-gray-600">{schema.description}</p>
+                </div>
+              )}
+            </div>
+            <div className="ml-4 flex gap-2">
+              {editingWorkout ? (
+                <>
+                  <button
+                    onClick={handleSaveWorkout}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleEditWorkout}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
@@ -636,7 +817,36 @@ export default function TrainingSchemaDetailPage() {
                             </p>
                           </div>
                           {exercise.id && (
-                            <div className="flex items-center gap-2 ml-4">
+                            <div className="flex items-center gap-1 ml-4">
+                              {/* Show reorder buttons for exercises that have real database IDs (not db- prefixed) */}
+                              {!exercise.id.startsWith('db-') && !exercise.id.startsWith('schema-') && (
+                                <>
+                                  <button
+                                    onClick={() => handleMoveExercise(exercise.id, 'up')}
+                                    disabled={index === 0}
+                                    className={`p-2 rounded-lg transition-colors ${
+                                      index === 0 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                    title="Move up"
+                                  >
+                                    <ArrowUp className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleMoveExercise(exercise.id, 'down')}
+                                    disabled={index === getExercisesForDay(activeTab).length - 1}
+                                    className={`p-2 rounded-lg transition-colors ${
+                                      index === getExercisesForDay(activeTab).length - 1 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                    title="Move down"
+                                  >
+                                    <ArrowDown className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
                               <button
                                 onClick={() => handleEditExercise(exercise)}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

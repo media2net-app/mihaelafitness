@@ -654,6 +654,8 @@ export default function ClientDetailPage() {
     createdAt: string;
   }>>([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showDeletePaymentModal, setShowDeletePaymentModal] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddMeasurementModal, setShowAddMeasurementModal] = useState(false);
   const [showEditMeasurementModal, setShowEditMeasurementModal] = useState(false);
@@ -666,6 +668,32 @@ export default function ClientDetailPage() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showEditClientModal, setShowEditClientModal] = useState(false);
+
+  // Delete an entire week of photos and renumber subsequent weeks
+  const deleteWeekAndRenumber = async (week: number) => {
+    if (!clientId) return;
+    if (!confirm(`Delete all photos for Week ${week}? Week numbers after this will shift down by 1.`)) return;
+
+    try {
+      const res = await fetch(`/api/customer-photos?customerId=${clientId}&week=${week}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Failed to delete week');
+        return;
+      }
+      // Refresh photos after deletion/renumbering
+      const refreshed = await fetch(`/api/customer-photos?customerId=${clientId}`);
+      if (refreshed.ok) {
+        const refreshedPhotos = await refreshed.json();
+        setCustomerPhotos(refreshedPhotos);
+        setPhotos(refreshedPhotos);
+      }
+      alert(`Deleted Week ${week}. Updated ${data.shiftedCount || 0} subsequent photos.`);
+    } catch (e) {
+      console.error('Delete week error', e);
+      alert('Delete failed');
+    }
+  };
 
   // Keyboard navigation for photo viewer
   useEffect(() => {
@@ -862,9 +890,38 @@ export default function ClientDetailPage() {
     }
   }, [selectedPhoto, customerPhotos]);
 
+  const handleOpenPhotoGallery = (photo: any) => {
+    console.log('🖼️ Opening photo gallery for photo:', photo);
+    console.log('🖼️ Current customerPhotos:', customerPhotos);
+    
+    // Sort all photos by week and position for better navigation
+    const sortedPhotos = [...customerPhotos].sort((a, b) => {
+      if (a.week !== b.week) return b.week - a.week; // Newest weeks first
+      const positions = ['front', 'side', 'back'];
+      return positions.indexOf(a.position) - positions.indexOf(b.position);
+    });
+    
+    console.log('🖼️ Sorted photos:', sortedPhotos);
+    
+    setGalleryPhotos(sortedPhotos);
+    setCurrentPhotoIndex(sortedPhotos.findIndex(p => p.id === photo.id));
+    setSelectedPhoto(photo);
+    setShowPhotoGalleryModal(true);
+    
+    console.log('🖼️ Modal should be open now');
+    console.log('🖼️ showPhotoGalleryModal state:', true);
+  };
+
   const handleAddMeasurement = async (formData: any) => {
     try {
-      console.log('Adding measurement with data:', { ...formData, customerId: clientId });
+      console.log('[Frontend] Adding measurement with data:', { ...formData, customerId: clientId });
+      console.log('[Frontend] Client ID from params:', clientId);
+      console.log('[Frontend] Client data:', client);
+      
+      if (!clientId) {
+        alert('Error: No client ID found. Please refresh the page and try again.');
+        return;
+      }
       
       const response = await fetch('/api/customer-measurements', {
         method: 'POST',
@@ -872,18 +929,22 @@ export default function ClientDetailPage() {
         body: JSON.stringify({ ...formData, customerId: clientId })
       });
 
+      console.log('[Frontend] Response status:', response.status);
+      
       if (response.ok) {
         const newMeasurement = await response.json();
+        console.log('[Frontend] Measurement created successfully:', newMeasurement);
         setMeasurements([newMeasurement, ...measurements]);
         setShowAddMeasurementModal(false);
         alert('Measurement added successfully!');
       } else {
         const errorData = await response.json();
-        console.error('Error adding measurement:', errorData);
+        console.error('[Frontend] Error adding measurement:', errorData);
+        console.error('[Frontend] Response status:', response.status);
         alert(`Error adding measurement: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error: any) {
-      console.error('Error adding measurement:', error);
+      console.error('[Frontend] Error adding measurement:', error);
       alert(`Failed to add measurement: ${error.message || 'Network error'}`);
     }
   };
@@ -932,6 +993,35 @@ export default function ClientDetailPage() {
         console.error('Error deleting measurement:', error);
         alert('Failed to delete measurement');
       }
+    }
+  };
+
+  const handleDeletePaymentClick = (payment: any) => {
+    setPaymentToDelete(payment);
+    setShowDeletePaymentModal(true);
+  };
+
+  const handleDeletePayment = async () => {
+    if (!paymentToDelete) return;
+    
+    try {
+      const response = await fetch(`/api/payments/${paymentToDelete.id}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        // Remove payment from local state
+        setPayments(prev => prev.filter(p => p.id !== paymentToDelete.id));
+        setShowDeletePaymentModal(false);
+        setPaymentToDelete(null);
+        alert('Payment deleted successfully!');
+      } else {
+        console.error('Failed to delete payment');
+        alert('Failed to delete payment');
+      }
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      alert('Failed to delete payment');
     }
   };
 
@@ -1326,21 +1416,42 @@ export default function ClientDetailPage() {
             <div className="space-y-4 sm:space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800">Progress Photos</h3>
-                <button
-                  onClick={() => setShowPhotoUploadModal(true)}
-                  className="bg-rose-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors flex items-center gap-2 text-sm"
-                >
-                  <Upload className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">Upload Photos</span>
-                  <span className="sm:hidden">Upload</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      console.log('🧪 Test button clicked');
+                      setShowPhotoGalleryModal(true);
+                    }}
+                    className="bg-blue-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 text-sm"
+                  >
+                    <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Test Gallery</span>
+                    <span className="sm:hidden">Test</span>
+                  </button>
+                  <button
+                    onClick={() => setShowPhotoUploadModal(true)}
+                    className="bg-rose-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors flex items-center gap-2 text-sm"
+                  >
+                    <Upload className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Upload Photos</span>
+                    <span className="sm:hidden">Upload</span>
+                  </button>
+                </div>
               </div>
 
               {customerPhotos.length > 0 ? (
                 <div className="space-y-4 sm:space-y-6">
                   {Array.from(new Set(customerPhotos.map(p => p.week))).sort((a, b) => b - a).map(week => (
                     <div key={week} className="border border-gray-200 rounded-lg p-3 sm:p-4">
-                      <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Week {week}</h4>
+                      <div className="flex items-center justify-between mb-3 sm:mb-4">
+                        <h4 className="text-base sm:text-lg font-semibold text-gray-800">Week {week}</h4>
+                        <button
+                          className="text-red-600 text-sm hover:underline"
+                          onClick={() => deleteWeekAndRenumber(week)}
+                        >
+                          Delete Week
+                        </button>
+                      </div>
                       <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                         {['front', 'side', 'back'].map(position => {
                           const photo = customerPhotos.find(p => p.week === week && p.position === position);
@@ -1353,11 +1464,7 @@ export default function ClientDetailPage() {
                                     src={photo.imageUrl}
                                     alt={`${position} view week ${week}`}
                                     className="w-full h-48 object-contain bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
-                                    onClick={() => {
-                                      console.log('Photo clicked:', photo);
-                                      setSelectedPhoto(photo);
-                                      // Don't open gallery modal, just show individual photo
-                                    }}
+                                    onClick={() => handleOpenPhotoGallery(photo)}
                                   />
                                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
                                     <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1420,7 +1527,7 @@ export default function ClientDetailPage() {
                               {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg
                             </div>
                             <div className="text-xs sm:text-sm text-blue-600">
-                              Week {first.week} → Week {last.week}
+                              Week 1 → Week {sortedMeasurements.length}
                             </div>
                             <div className="text-xs text-blue-500 mt-1">
                               {first.weight} kg → {last.weight} kg
@@ -1436,7 +1543,7 @@ export default function ClientDetailPage() {
                               {bmiDiff > 0 ? '+' : ''}{bmiDiff.toFixed(1)}
                             </div>
                             <div className="text-xs sm:text-sm text-green-600">
-                              Week {first.week} → Week {last.week}
+                              Week 1 → Week {sortedMeasurements.length}
                             </div>
                             <div className="text-xs text-green-500 mt-1">
                               {first.bmi} → {last.bmi}
@@ -1452,7 +1559,7 @@ export default function ClientDetailPage() {
                               {bodyFatDiff > 0 ? '+' : ''}{bodyFatDiff.toFixed(1)}%
                             </div>
                             <div className="text-xs sm:text-sm text-purple-600">
-                              Week {first.week} → Week {last.week}
+                              Week 1 → Week {sortedMeasurements.length}
                             </div>
                             <div className="text-xs text-purple-500 mt-1">
                               {first.bodyFat}% → {last.bodyFat}%
@@ -1473,7 +1580,7 @@ export default function ClientDetailPage() {
                         return (
                           <div key={measurement.id} className="border border-gray-200 rounded-lg p-4">
                             <div className="flex items-center justify-between mb-3">
-                              <h5 className="font-semibold text-gray-800">Week {measurement.week}</h5>
+                              <h5 className="font-semibold text-gray-800">Week {index + 1}</h5>
                               <span className="text-sm text-gray-500">{new Date(measurement.date).toLocaleDateString()}</span>
                             </div>
                             
@@ -1856,7 +1963,7 @@ export default function ClientDetailPage() {
 
         {/* Workout Plan Tab */}
         {activeTab === 'workout' && (
-          <WorkoutPlanTab customerId={params.id} />
+          <WorkoutPlanTab customerId={Array.isArray(params.id) ? params.id[0] : params.id || ''} />
         )}
 
         {/* Pricing & Payments Tab */}
@@ -1959,6 +2066,7 @@ export default function ClientDetailPage() {
                         <th className="text-left py-3 px-2 font-semibold text-gray-700">Type</th>
                         <th className="text-left py-3 px-2 font-semibold text-gray-700">Status</th>
                         <th className="text-left py-3 px-2 font-semibold text-gray-700">Notes</th>
+                        <th className="text-left py-3 px-2 font-semibold text-gray-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1980,6 +2088,15 @@ export default function ClientDetailPage() {
                             </span>
                           </td>
                           <td className="py-3 px-2 text-gray-600">{payment.notes || '-'}</td>
+                          <td className="py-3 px-2">
+                            <button
+                              onClick={() => handleDeletePaymentClick(payment)}
+                              className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                              title="Delete Payment"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -2119,18 +2236,26 @@ export default function ClientDetailPage() {
                   </div>
                 <button
                   onClick={() => setShowPhotoGalleryModal(false)}
-                    className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
+                  className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
                 >
-                    <X className="w-6 h-6" />
+                  <X className="w-6 h-6" />
                 </button>
               </div>
-              </div>
+            </div>
 
               {/* Photo Grid */}
               <div className="p-6 pt-20 pb-4 overflow-y-auto max-h-[90vh]">
                 {Array.from(new Set(customerPhotos.map(p => p.week))).sort((a, b) => b - a).map(week => (
                   <div key={week} className="mb-8">
-                    <h3 className="text-xl font-semibold text-white mb-4">Week {week}</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-semibold text-white">Week {week}</h3>
+                      <button
+                        className="text-red-400 hover:text-red-300 text-sm"
+                        onClick={() => deleteWeekAndRenumber(week)}
+                      >
+                        Delete Week
+                      </button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {['front', 'side', 'back'].map(position => {
                         const photo = customerPhotos.find(p => p.week === week && p.position === position);
@@ -2154,6 +2279,7 @@ export default function ClientDetailPage() {
                                       // Open individual photo view
                                       setSelectedPhoto(photo);
                                       setShowPhotoGalleryModal(false);
+                                      // The individual photo viewer will be shown automatically when selectedPhoto is set
                                     }}
                                   />
                                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
@@ -2542,6 +2668,54 @@ export default function ClientDetailPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Payment Modal */}
+        {showDeletePaymentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800">Delete Payment</h2>
+                <button
+                  onClick={() => setShowDeletePaymentModal(false)}
+                  className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-600 mb-4">
+                  Are you sure you want to delete this payment?
+                </p>
+                {paymentToDelete && (
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="text-sm text-gray-600">
+                      <strong>Amount:</strong> {paymentToDelete.amount} RON<br/>
+                      <strong>Date:</strong> {new Date(paymentToDelete.paymentDate).toLocaleDateString()}<br/>
+                      <strong>Method:</strong> {paymentToDelete.paymentMethod}<br/>
+                      <strong>Type:</strong> {paymentToDelete.paymentType}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeletePaymentModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeletePayment}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Delete Payment
+                </button>
+              </div>
             </div>
           </div>
         )}

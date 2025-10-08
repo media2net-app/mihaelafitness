@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LogOut, Globe, Menu, X, Home, User, Calendar, Target, Trophy, BookOpen, Users, Settings, Shield, Calculator, Dumbbell, ChevronRight, Ruler, CheckSquare } from 'lucide-react';
+import { LogOut, Globe, Menu, X, Home, User, Calendar, Target, Trophy, BookOpen, Users, Settings, Shield, Calculator, Dumbbell, ChevronRight, Ruler, CheckSquare, DollarSign } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,7 +43,8 @@ export default function Header() {
     { path: '/admin/ingredienten', icon: BookOpen, label: t.admin.dashboard.ingredients },
     { path: '/admin/nutrition-calculator', icon: Calculator, label: t.admin.dashboard.nutritionCalculator },
     { path: '/admin/measurements', icon: Ruler, label: t.admin.dashboard.measurements },
-    { path: '/admin/tarieven', icon: Settings, label: t.admin.dashboard.pricingCalculator }
+    { path: '/admin/tarieven', icon: Settings, label: t.admin.dashboard.pricingCalculator },
+    { path: '/admin/payments', icon: DollarSign, label: 'Payments' }
   ];
 
   const isAdmin = pathname.startsWith('/admin');

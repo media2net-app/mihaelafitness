@@ -3,27 +3,71 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
-    const today = new Date()
-    today.setHours(23, 59, 59, 999) // End of today
+    const now = new Date()
+    const currentTime = now.toTimeString().slice(0, 5) // HH:MM format
     
-    console.log('Auto-completing sessions before:', today.toISOString())
+    // Start of today (00:00:00)
+    const startOfToday = new Date(now)
+    startOfToday.setHours(0, 0, 0, 0)
     
-    // Find all sessions that are scheduled and have passed (date + endTime < now)
-    const sessionsToUpdate = await prisma.trainingSession.findMany({
+    // End of today (23:59:59)
+    const endOfToday = new Date(now)
+    endOfToday.setHours(23, 59, 59, 999)
+    
+    console.log('Auto-completing sessions - Current time:', currentTime)
+    console.log('Start of today:', startOfToday.toISOString())
+    
+    // Find all scheduled sessions up to and including today
+    const allScheduledSessions = await prisma.trainingSession.findMany({
       where: {
         status: 'scheduled',
         date: {
-          lt: today
+          lte: endOfToday // Up to and including today
         }
       },
       include: {
         customer: {
           select: { id: true, name: true, email: true }
         }
-      }
+      },
+      orderBy: [
+        { date: 'asc' },
+        { startTime: 'asc' }
+      ]
     })
     
-    console.log(`Found ${sessionsToUpdate.length} sessions to auto-complete`)
+    console.log(`Found ${allScheduledSessions.length} scheduled sessions to check`)
+    
+    // Filter sessions that should be auto-completed
+    const sessionsToUpdate = allScheduledSessions.filter(session => {
+      const sessionDate = new Date(session.date)
+      sessionDate.setHours(0, 0, 0, 0)
+      
+      const todayDate = new Date(now)
+      todayDate.setHours(0, 0, 0, 0)
+      
+      // If session is from a previous day, auto-complete it
+      if (sessionDate < todayDate) {
+        console.log(`Session ${session.id} is from previous day, will complete`)
+        return true
+      }
+      
+      // If session is today, check if endTime has passed
+      if (sessionDate.getTime() === todayDate.getTime()) {
+        const sessionEndTime = session.endTime
+        if (sessionEndTime && sessionEndTime < currentTime) {
+          console.log(`Session ${session.id} ended at ${sessionEndTime}, current time ${currentTime}, will complete`)
+          return true
+        } else {
+          console.log(`Session ${session.id} ends at ${sessionEndTime}, current time ${currentTime}, NOT completing yet`)
+          return false
+        }
+      }
+      
+      return false
+    })
+    
+    console.log(`Will auto-complete ${sessionsToUpdate.length} sessions`)
     
     if (sessionsToUpdate.length === 0) {
       return NextResponse.json({
@@ -32,7 +76,7 @@ export async function POST(request: NextRequest) {
       })
     }
     
-    // Update all sessions to completed status
+    // Update filtered sessions to completed status
     const updateResult = await prisma.trainingSession.updateMany({
       where: {
         id: {

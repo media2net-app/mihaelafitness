@@ -380,3 +380,38 @@ model Payment {
 
   @@map("payments")
 }
+
+model Recipe {
+  id            String            @id @default(cuid())
+  name          String
+  description   String?
+  prepTime      Int?              // in minutes
+  servings      Int               @default(1)
+  instructions  String?           // JSON string of instructions array
+  totalCalories Float             @default(0)
+  totalProtein  Float             @default(0)
+  totalCarbs    Float             @default(0)
+  totalFat      Float             @default(0)
+  status        String            @default("active")
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  ingredients   RecipeIngredient[]
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id              String   @id @default(cuid())
+  recipeId        String
+  name            String
+  quantity        Float
+  unit            String
+  exists          Boolean  @default(false)
+  availableInApi  Boolean  @default(false)
+  apiMatch        String?  // JSON string of API match data
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  recipe          Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@map("recipe_ingredients")
+}

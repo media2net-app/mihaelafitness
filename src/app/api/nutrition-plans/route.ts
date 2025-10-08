@@ -3,48 +3,58 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
-    const nutritionPlans = await prisma.nutritionPlan.findMany({
-      select: {
-        id: true,
-        name: true,
-        goal: true,
-        calories: true,
-        protein: true,
-        carbs: true,
-        fat: true,
-        meals: true,
-        clients: true,
-        status: true,
-        description: true,
-        weekMenu: true,
-        created: true,
-        lastUsed: true,
-        createdAt: true,
-        updatedAt: true,
-        userId: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        customerNutritionPlans: {
-          select: {
-            id: true,
-            customerId: true,
-            status: true,
-            assignedAt: true,
-            customer: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
+    const { searchParams } = new URL(request.url);
+    const includeWeekMenu = searchParams.get('includeWeekMenu') === 'true';
+    
+    // Base select fields (always included)
+    const baseSelect = {
+      id: true,
+      name: true,
+      goal: true,
+      calories: true,
+      protein: true,
+      carbs: true,
+      fat: true,
+      meals: true,
+      clients: true,
+      status: true,
+      description: true,
+      created: true,
+      lastUsed: true,
+      createdAt: true,
+      updatedAt: true,
+      userId: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      customerNutritionPlans: {
+        select: {
+          id: true,
+          customerId: true,
+          status: true,
+          assignedAt: true,
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              email: true
             }
           }
         }
-      },
+      }
+    };
+
+    // Add weekMenu only if specifically requested
+    const selectFields = includeWeekMenu 
+      ? { ...baseSelect, weekMenu: true }
+      : baseSelect;
+
+    const nutritionPlans = await prisma.nutritionPlan.findMany({
+      select: selectFields,
       orderBy: {
         createdAt: 'desc'
       }

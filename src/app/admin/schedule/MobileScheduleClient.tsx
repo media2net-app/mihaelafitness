@@ -14,6 +14,7 @@ import {
   Users,
   Euro,
   Target,
+  UserPlus,
   X
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -27,7 +28,7 @@ interface TrainingSession {
   date: string; // YYYY-MM-DD
   startTime: string; // HH:MM
   endTime: string; // HH:MM
-  type: '1:1' | 'group' | 'own-training' | 'workout-plan';
+  type: '1:1' | 'group' | 'own-training' | 'workout-plan' | 'Intake Consultation' | 'block-time';
   status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
   notes?: string;
   trainingType?: string; // Full Body, Upper/Lower Split, Push/Pull/Legs, etc.
@@ -78,6 +79,66 @@ export default function MobileScheduleClient({
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Group data for group sessions - derived from customers with group plan
+  const [groups, setGroups] = useState<Array<{
+    id: string;
+    name: string;
+    members: Array<{ id: string; name: string; }>;
+  }>>([]);
+
+  // Function to generate groups from customer data
+  const generateGroupsFromCustomers = async (customers: Customer[]) => {
+    console.log('🔍 DEBUG: All customers:', customers.map(c => ({ name: c.name, plan: c.plan })));
+    
+    try {
+      // Fetch group training pricing calculations
+      const response = await fetch('/api/group-subscriptions');
+      if (!response.ok) {
+        console.log('🔍 DEBUG: No group subscriptions API available, setting empty groups');
+        setGroups([]);
+        return;
+      }
+      
+      const groupSubscriptions = await response.json();
+      console.log('🔍 DEBUG: Group subscriptions from API:', groupSubscriptions);
+      
+      if (groupSubscriptions.length === 0) {
+        console.log('🔍 DEBUG: No group subscriptions found, setting empty groups');
+        setGroups([]);
+        return;
+      }
+
+      // Group all customers from all subscriptions into one group
+      const allMembers = new Map();
+      
+      groupSubscriptions.forEach((subscription: any) => {
+        subscription.customerNames.forEach((name: any, i: number) => {
+          const customerId = subscription.customerIds[i];
+          if (!allMembers.has(customerId)) {
+            allMembers.set(customerId, {
+              id: customerId,
+              name: name
+            });
+          }
+        });
+      });
+
+      // Create a single group with all members
+      const groupsArray = [{
+        id: 'group-1',
+        name: 'Groep 1',
+        members: Array.from(allMembers.values())
+      }];
+
+      console.log('🔍 DEBUG: Generated groups from subscriptions:', groupsArray);
+      setGroups(groupsArray);
+      
+    } catch (error) {
+      console.error('🔍 DEBUG: Error fetching group subscriptions:', error);
+      setGroups([]);
+    }
+  };
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -87,30 +148,57 @@ export default function MobileScheduleClient({
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
     // Convert to our format: 0 = Monday, 1 = Tuesday, etc.
-    return dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 6, Monday = 0
+    // We only have 6 days (Mon-Sat -> indices 0..5). Map Sunday to Saturday (5).
+    return dayOfWeek === 0 ? 5 : dayOfWeek - 1; // Sunday -> 5, Monday -> 0
   });
   const [trainingDays, setTrainingDays] = useState<{[key: string]: string}>({}); // customerId -> training day
+  const [selectedDay, setSelectedDay] = useState<string | null>(() => {
+    // Initialize with today's date in YYYY-MM-DD format
+    const today = new Date();
+    return today.toLocaleDateString('en-CA');
+  }); // Selected day for mobile view
+  const [isMobile, setIsMobile] = useState(false); // Detect if device is mobile
   
   // New session form state
   const [newSessionData, setNewSessionData] = useState({
     customerId: '',
     startTime: '',
     endTime: '',
-    notes: ''
+    notes: '',
+    clientName: '',
+    clientEmail: '',
+    clientPhone: ''
   });
   
   // Session type selection
-  const [sessionType, setSessionType] = useState<'client' | 'own-training'>('client');
+  const [sessionType, setSessionType] = useState<'client' | 'own-training' | 'intake' | 'group' | 'block-time'>('client');
+  
+  // Debug state
+  const [showDebugModal, setShowDebugModal] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  
+  // Debug function
+  const addDebugLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = `[${timestamp}] ${message}`;
+    setDebugLogs(prev => [...prev, logMessage]);
+    console.log('🔍 DEBUG:', message);
+  };
   
   // Recurring sessions state
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringWeeks, setRecurringWeeks] = useState(12);
+  // Extra weekdays for recurring (0..5 -> Mon..Sat aligned with `days`)
+  const [additionalRecurringDays, setAdditionalRecurringDays] = useState<number[]>([]);
   
   // Session counts state
   const [sessionCounts, setSessionCounts] = useState<{[key: string]: {scheduled: number, total: number, remaining: number}}>({});
   
   // State for clicking on time slots
   const [clickedTimeSlot, setClickedTimeSlot] = useState<{date: Date, time: string} | null>(null);
+  
+  // State for the selected date in the modal (when creating new session)
+  const [modalSelectedDate, setModalSelectedDate] = useState<Date | null>(null);
 
   // Generate time slots from 08:30 to 20:30 (30-minute blocks)
   const timeSlots = Array.from({ length: 25 }, (_, i) => {
@@ -149,7 +237,12 @@ export default function MobileScheduleClient({
 
   // Check if time slot is available (not booked and not break time)
   const isTimeSlotAvailable = (date: string, timeSlot: string, duration: number = 1) => {
-    if (isBreakTime(timeSlot)) return false;
+    console.log(`🔍 DEBUG: isTimeSlotAvailable called for ${date} at ${timeSlot}`);
+    
+    if (isBreakTime(timeSlot)) {
+      console.log(`❌ Time slot ${timeSlot} is break time`);
+      return false;
+    }
     
     const [startHours, startMinutes] = timeSlot.split(':').map(Number);
     const startTimeInMinutes = startHours * 60 + startMinutes;
@@ -157,12 +250,31 @@ export default function MobileScheduleClient({
     
     // Use same date normalization as getSessionsForDayAndTime
     const normalizedDate = new Date(date).toLocaleDateString('en-CA');
+    console.log(`📅 Normalized date: ${normalizedDate}`);
+    
+    // Check closed days (Friday, Saturday, Sunday)
+    const dateObj = new Date(date);
+    const dayOfWeek = dateObj.getDay();
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+    const dateString = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    const isFriday = dayOfWeek === 5;
+    const isHoliday = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+    
+    console.log(`📆 Date: ${date} (${dayName}, day ${dayOfWeek}) - Holiday: ${isHoliday}`);
+    
+    if (isFriday || isHoliday) {
+      console.log(`🏖️ CLOSED: ${dateString} is blocked (${isFriday ? 'Friday closed' : 'Weekend in Holland'})`);
+      return false;
+    }
     
     // Filter sessions for the specific date only - use same logic as getSessionsForDayAndTime
     const sessionsForDate = sessions.filter(session => {
       const sessionDate = new Date(session.date).toLocaleDateString('en-CA');
       return sessionDate === normalizedDate && session.status === 'scheduled';
     });
+    
+    console.log(`📋 Sessions for ${normalizedDate}:`, sessionsForDate.map(s => `${s.startTime}-${s.endTime} (${s.type})`));
     
     // Check for conflicts with existing sessions for this specific date
     const hasConflict = sessionsForDate.some(session => {
@@ -179,7 +291,9 @@ export default function MobileScheduleClient({
       return hasOverlap;
     });
     
-    return !hasConflict;
+    const isAvailable = !hasConflict;
+    console.log(`✅ Time slot ${timeSlot} on ${normalizedDate}: ${isAvailable ? 'AVAILABLE' : 'BLOCKED'}`);
+    return isAvailable;
   };
 
   // Days of the week (Monday to Saturday)
@@ -188,76 +302,97 @@ export default function MobileScheduleClient({
 
   const currentWeekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
 
+  // Detect if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Function to handle day selection and refresh data
+  const handleDaySelection = (dayIndex: number) => {
+    setCurrentDayIndex(dayIndex);
+    const dateObj = currentWeekDates[dayIndex] || currentWeekDates[0];
+    const selectedDate = dateObj ? dateObj.toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA');
+    setSelectedDay(selectedDate);
+  };
+
   useEffect(() => {
     const loadScheduleData = async () => {
       try {
-        // Load customers with their workout assignments
-        const customersResponse = await fetch('/api/users');
-        const customersData = await customersResponse.json();
-        
-        // Load workout assignments, schedule assignments and discount for each customer
-        const customersWithWorkouts = await Promise.all(
-          customersData.map(async (customer: any) => {
-            let customerWorkouts = [];
-            let scheduleAssignments = [];
-            let discount = 0;
-            
-            try {
-              // Load customer workouts
-              const workoutsResponse = await fetch(`/api/customer-workouts?customerId=${customer.id}`);
-              if (workoutsResponse.ok) {
-                customerWorkouts = await workoutsResponse.json();
-              }
-              
-              // Load schedule assignments
-              const assignmentsResponse = await fetch(`/api/customer-schedule-assignments?customerId=${customer.id}`);
-              if (assignmentsResponse.ok) {
-                scheduleAssignments = await assignmentsResponse.json();
-              }
-              
-              // Load pricing discount
-              const pricingResponse = await fetch(`/api/pricing-calculations?customerId=${customer.id}`);
-              if (pricingResponse.ok) {
-                const calculations = await pricingResponse.json();
-                if (calculations.length > 0) {
-                  discount = calculations[0].discount || 0;
-                }
-              }
-            } catch (error) {
-              console.error(`Error loading data for customer ${customer.id}:`, error);
-            }
-            
-            return { 
-              ...customer, 
-              customerWorkouts,
-              scheduleAssignments,
-              discount 
-            };
-          })
-        );
-        
-        setCustomers(customersWithWorkouts);
-        
-        // Load training sessions for current week
-        const startDate = currentWeekDates[0].toLocaleDateString('en-CA');
-        const endDate = currentWeekDates[5].toLocaleDateString('en-CA');
-        
-        const sessionsResponse = await fetch(`/api/training-sessions?startDate=${startDate}&endDate=${endDate}`);
-        const sessionsData = await sessionsResponse.json();
-        
-        // Transform sessions to ensure date format is correct and customer name is available
-        const transformedSessions = sessionsData.map((session: any) => {
-          // Date is already in YYYY-MM-DD format from the API
-          const transformedDate = session.date;
+        if (isMobile) {
+          // Use mobile-optimized API endpoint that loads only selected day data
+          const selectedDate = selectedDay || currentWeekDates[0].toLocaleDateString('en-CA');
           
-          return {
-            ...session,
-            date: transformedDate,
-            customerName: (session.customer?.name || session.customerName || 'Unknown Customer').replace(/ completed?/gi, '').trim()
-          };
-        });
-        
-        setSessions(transformedSessions);
+          const response = await fetch(`/api/schedule/mobile?date=${selectedDate}`);
+          const data = await response.json();
+          
+          if (response.ok) {
+            setCustomers(data.customers);
+            
+            // Generate groups from customer data
+            await generateGroupsFromCustomers(data.customers);
+            
+            // DEBUG: Log all sessions to see what's being loaded
+            addDebugLog(`Loaded ${data.sessions.length} total sessions`);
+            addDebugLog(`Intake sessions: ${data.sessions.filter((s: any) => s.type === 'Intake Consultation').length}`);
+            addDebugLog(`All sessions: ${JSON.stringify(data.sessions, null, 2)}`);
+            
+            // Transform sessions to ensure date format is correct and customer name is available
+            const transformedSessions = data.sessions.map((session: any) => {
+              return {
+                ...session,
+                customerName: (session.customerName || 'Unknown Customer').replace(/ completed?/gi, '').trim()
+              };
+            });
+            
+            setSessions(transformedSessions);
+            addDebugLog(`Transformed ${transformedSessions.length} sessions`);
+          } else {
+            console.error('Failed to load mobile schedule data:', data.error);
+            setCustomers([]);
+            setSessions([]);
+          }
+        } else {
+          // Use desktop-optimized API endpoint that loads whole week data
+          const startDate = currentWeekDates[0].toISOString().split('T')[0];
+          const endDate = currentWeekDates[5].toISOString().split('T')[0];
+          
+          const response = await fetch(`/api/schedule/desktop?startDate=${startDate}&endDate=${endDate}`);
+          const data = await response.json();
+          
+          if (response.ok) {
+            setCustomers(data.customers);
+            
+            // Generate groups from customer data
+            await generateGroupsFromCustomers(data.customers);
+            
+            // DEBUG: Log all sessions to see what's being loaded
+            addDebugLog(`Loaded ${data.sessions.length} total sessions (desktop)`);
+            addDebugLog(`Intake sessions: ${data.sessions.filter((s: any) => s.type === 'Intake Consultation').length}`);
+            addDebugLog(`All sessions: ${JSON.stringify(data.sessions, null, 2)}`);
+            
+            // Transform sessions to ensure date format is correct and customer name is available
+            const transformedSessions = data.sessions.map((session: any) => {
+              return {
+                ...session,
+                customerName: (session.customerName || 'Unknown Customer').replace(/ completed?/gi, '').trim()
+              };
+            });
+            
+            setSessions(transformedSessions);
+            addDebugLog(`Transformed ${transformedSessions.length} sessions (desktop)`);
+          } else {
+            console.error('Failed to load desktop schedule data:', data.error);
+            setCustomers([]);
+            setSessions([]);
+          }
+        }
       } catch (error) {
         console.error('Error loading schedule data:', error);
         setCustomers([]);
@@ -266,42 +401,48 @@ export default function MobileScheduleClient({
     };
 
     loadScheduleData();
-  }, [currentWeek, currentWeekDates]);
+  }, [currentWeek, currentWeekDates, selectedDay, isMobile]);
 
   // Auto-refresh sessions when they change
   useEffect(() => {
     const refreshSessions = async () => {
       try {
-        const startDate = currentWeekDates[0].toLocaleDateString('en-CA');
-        const endDate = currentWeekDates[5].toLocaleDateString('en-CA');
-        
-        const sessionsResponse = await fetch(`/api/training-sessions?startDate=${startDate}&endDate=${endDate}`);
-        const sessionsData = await sessionsResponse.json();
-        
-        const transformedSessions = sessionsData.map((session: any) => {
-          // Ensure consistent date format (YYYY-MM-DD)
-          let transformedDate;
-          if (typeof session.date === 'string') {
-            // If it's already a string, use it directly if it's in YYYY-MM-DD format
-            if (session.date.includes('T')) {
-              transformedDate = session.date.split('T')[0];
-            } else {
-              transformedDate = session.date;
-            }
-          } else if (session.date instanceof Date) {
-            transformedDate = session.date.toISOString().split('T')[0];
-          } else {
-            transformedDate = new Date(session.date).toISOString().split('T')[0];
-          }
+        if (isMobile) {
+          const selectedDate = selectedDay || currentWeekDates[0].toLocaleDateString('en-CA');
           
-          return {
-            ...session,
-            date: transformedDate,
-            customerName: (session.customer?.name || 'Unknown Customer').replace(/ completed?/gi, '').trim()
-          };
-        });
-        
-        setSessions(transformedSessions);
+          // Use mobile-optimized endpoint for session refresh
+          const response = await fetch(`/api/schedule/mobile?date=${selectedDate}`);
+          const data = await response.json();
+          
+          if (response.ok) {
+            const transformedSessions = data.sessions.map((session: any) => {
+              return {
+                ...session,
+                customerName: (session.customerName || 'Unknown Customer').replace(/ completed?/gi, '').trim()
+              };
+            });
+            
+            setSessions(transformedSessions);
+          }
+        } else {
+          const startDate = currentWeekDates[0].toISOString().split('T')[0];
+          const endDate = currentWeekDates[5].toISOString().split('T')[0];
+          
+          // Use desktop-optimized endpoint for session refresh
+          const response = await fetch(`/api/schedule/desktop?startDate=${startDate}&endDate=${endDate}`);
+          const data = await response.json();
+          
+          if (response.ok) {
+            const transformedSessions = data.sessions.map((session: any) => {
+              return {
+                ...session,
+                customerName: (session.customerName || 'Unknown Customer').replace(/ completed?/gi, '').trim()
+              };
+            });
+            
+            setSessions(transformedSessions);
+          }
+        }
       } catch (error) {
         console.error('Error refreshing sessions:', error);
       }
@@ -311,7 +452,7 @@ export default function MobileScheduleClient({
     const interval = setInterval(refreshSessions, 30000);
     
     return () => clearInterval(interval);
-  }, [currentWeekDates]);
+  }, [currentWeekDates, selectedDay, isMobile]);
 
   // Load session counts when customers change
   useEffect(() => {
@@ -336,16 +477,34 @@ export default function MobileScheduleClient({
 
   const navigateDay = (direction: 'prev' | 'next') => {
     if (direction === 'prev' && currentDayIndex > 0) {
-      setCurrentDayIndex(currentDayIndex - 1);
+      const newDayIndex = currentDayIndex - 1;
+      setCurrentDayIndex(newDayIndex);
+      const selectedDate = currentWeekDates[newDayIndex].toLocaleDateString('en-CA');
+      setSelectedDay(selectedDate);
     } else if (direction === 'next' && currentDayIndex < 5) {
-      setCurrentDayIndex(currentDayIndex + 1);
+      const newDayIndex = currentDayIndex + 1;
+      setCurrentDayIndex(newDayIndex);
+      const selectedDate = currentWeekDates[newDayIndex].toLocaleDateString('en-CA');
+      setSelectedDay(selectedDate);
     }
   };
 
   // Handle creating new training session
-  const handleCreateSession = async () => {
-    if (sessionType === 'client' && !newSessionData.customerId) {
-      alert('Please select a customer for client sessions');
+    const handleCreateSession = async () => {
+      if (sessionType === 'client' && !newSessionData.customerId) {
+        alert('Please select a customer for client sessions');
+        return;
+      }
+      if (sessionType === 'group' && !newSessionData.customerId) {
+        alert('Please select a group for group sessions');
+        return;
+      }
+      if (sessionType === 'block-time' && !newSessionData.notes.trim()) {
+        alert('Please enter a reason for blocking this time');
+        return;
+      }
+    if (sessionType === 'intake' && (!newSessionData.clientName || !newSessionData.clientEmail || !newSessionData.clientPhone)) {
+      alert('Please fill in all client details for intake sessions');
       return;
     }
     if (!newSessionData.startTime || !newSessionData.endTime) {
@@ -354,7 +513,9 @@ export default function MobileScheduleClient({
     }
     
     // Check if the selected time slot is available
-    const isAvailable = isTimeSlotAvailable(currentDay.toLocaleDateString('en-CA'), newSessionData.startTime);
+    const selectedDate = modalSelectedDate || currentDay;
+    const durationHours = sessionType === 'intake' ? 0.5 : 1;
+    const isAvailable = isTimeSlotAvailable(selectedDate.toLocaleDateString('en-CA'), newSessionData.startTime, durationHours);
     if (!isAvailable) {
       alert('The selected time slot is not available. Please choose a different time.');
       return;
@@ -362,6 +523,32 @@ export default function MobileScheduleClient({
 
     try {
       let customerId = newSessionData.customerId;
+      
+      // For intake sessions, create a new client first
+      if (sessionType === 'intake') {
+        const intakeResponse = await fetch('/api/intake', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: newSessionData.clientName,
+            email: newSessionData.clientEmail,
+            phone: newSessionData.clientPhone,
+            preferredDate: selectedDate.toLocaleDateString('en-CA'),
+            preferredTime: newSessionData.startTime
+          }),
+        });
+
+        if (!intakeResponse.ok) {
+          const error = await intakeResponse.json();
+          alert(error.error || 'Failed to create intake client');
+          return;
+        }
+
+        const intakeData = await intakeResponse.json();
+        customerId = intakeData.clientId;
+      }
       
       // For own training, find Mihaela's customer ID
       if (sessionType === 'own-training') {
@@ -375,22 +562,47 @@ export default function MobileScheduleClient({
 
       if (isRecurring && sessionType === 'client') {
         // Create recurring sessions for multiple weeks
-        const sessionsToCreate = [];
-        const startDate = new Date(currentDay);
+        const sessionsToCreate: any[] = [];
+        const startDate = new Date(selectedDate);
+        // Determine Monday of the start week
+        const jsDay = startDate.getDay(); // 0..6 Sun..Sat
+        const diffToMonday = jsDay === 0 ? -6 : 1 - jsDay;
+        const weekMonday = new Date(startDate);
+        weekMonday.setDate(startDate.getDate() + diffToMonday);
         
         for (let week = 0; week < recurringWeeks; week++) {
-          const sessionDate = new Date(startDate);
-          sessionDate.setDate(startDate.getDate() + (week * 7));
-          
+          // Base day (selected date)
+          const baseDate = new Date(startDate);
+          baseDate.setDate(startDate.getDate() + (week * 7));
           sessionsToCreate.push({
             customerId: customerId,
-            date: sessionDate.toLocaleDateString('en-CA'),
+            date: baseDate.toLocaleDateString('en-CA'),
             startTime: newSessionData.startTime,
             endTime: newSessionData.endTime,
             type: '1:1',
             status: 'scheduled',
             notes: newSessionData.notes
           });
+
+          // Extra selected weekdays (exclude Friday=4 in our Mon..Sat mapping)
+          for (const dayIndex of additionalRecurringDays) {
+            if (dayIndex === 4) continue; // Friday closed
+            const thisWeekMonday = new Date(weekMonday);
+            thisWeekMonday.setDate(weekMonday.getDate() + (week * 7));
+            const extraDate = new Date(thisWeekMonday);
+            extraDate.setDate(thisWeekMonday.getDate() + dayIndex);
+            // Skip if equals base date
+            if (extraDate.toDateString() === baseDate.toDateString()) continue;
+            sessionsToCreate.push({
+              customerId: customerId,
+              date: extraDate.toLocaleDateString('en-CA'),
+              startTime: newSessionData.startTime,
+              endTime: newSessionData.endTime,
+              type: '1:1',
+              status: 'scheduled',
+              notes: newSessionData.notes
+            });
+          }
         }
 
         // Create all sessions
@@ -426,6 +638,162 @@ export default function MobileScheduleClient({
         } else {
           alert('Failed to create any sessions');
         }
+      } else if (sessionType === 'group') {
+        // Create sessions for group members
+        const selectedGroup = groups.find(g => g.id === newSessionData.customerId);
+        if (!selectedGroup) {
+          alert('Selected group not found');
+          return;
+        }
+
+        if (isRecurring) {
+          // Create recurring sessions for multiple weeks for all group members
+          const startDate = new Date(selectedDate);
+          const jsDay = startDate.getDay();
+          const diffToMonday = jsDay === 0 ? -6 : 1 - jsDay;
+          const weekMonday = new Date(startDate);
+          weekMonday.setDate(startDate.getDate() + diffToMonday);
+          const sessionsToCreate: any[] = [];
+          for (let week = 0; week < recurringWeeks; week++) {
+            // Base day
+            const baseDate = new Date(startDate);
+            baseDate.setDate(startDate.getDate() + (week * 7));
+            const baseStr = baseDate.toLocaleDateString('en-CA');
+            selectedGroup.members.forEach(member => {
+              sessionsToCreate.push({
+                customerId: member.id,
+                date: baseStr,
+                startTime: newSessionData.startTime,
+                endTime: newSessionData.endTime,
+                type: 'group',
+                status: 'scheduled',
+                notes: newSessionData.notes
+              });
+            });
+
+            // Extra weekdays for each week (skip Friday)
+            for (const dayIndex of additionalRecurringDays) {
+              if (dayIndex === 4) continue; // Friday closed
+              const thisWeekMonday = new Date(weekMonday);
+              thisWeekMonday.setDate(weekMonday.getDate() + (week * 7));
+              const extraDate = new Date(thisWeekMonday);
+              extraDate.setDate(thisWeekMonday.getDate() + dayIndex);
+              const dateStr = extraDate.toLocaleDateString('en-CA');
+              // Avoid duplicating base day
+              if (dateStr === baseStr) continue;
+              selectedGroup.members.forEach(member => {
+                sessionsToCreate.push({
+                  customerId: member.id,
+                  date: dateStr,
+                  startTime: newSessionData.startTime,
+                  endTime: newSessionData.endTime,
+                  type: 'group',
+                  status: 'scheduled',
+                  notes: newSessionData.notes
+                });
+              });
+            }
+          }
+
+          const createPromises = sessionsToCreate.map(sessionData => 
+            fetch('/api/training-sessions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(sessionData),
+            })
+          );
+
+          const responses = await Promise.all(createPromises);
+          const successfulSessions: TrainingSession[] = [];
+          for (let i = 0; i < responses.length; i++) {
+            if (responses[i].ok) {
+              const newSession = await responses[i].json();
+              successfulSessions.push({
+                ...newSession,
+                customerName: selectedGroup.members.find(m => m.id === newSession.customerId)?.name || 'Unknown Member'
+              });
+            }
+          }
+
+          if (successfulSessions.length > 0) {
+            setSessions(prev => [...prev, ...successfulSessions]);
+            alert(`Successfully created ${successfulSessions.length} recurring group sessions for ${selectedGroup.name}!`);
+            window.location.reload();
+          } else {
+            alert('Failed to create recurring group sessions');
+          }
+        } else {
+          // Single-week group create (existing behavior)
+          const sessionsToCreate = selectedGroup.members.map(member => ({
+            customerId: member.id,
+            date: selectedDate.toLocaleDateString('en-CA'),
+            startTime: newSessionData.startTime,
+            endTime: newSessionData.endTime,
+            type: 'group',
+            status: 'scheduled',
+            notes: newSessionData.notes
+          }));
+
+          const createPromises = sessionsToCreate.map(sessionData => 
+            fetch('/api/training-sessions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(sessionData),
+            })
+          );
+
+          const responses = await Promise.all(createPromises);
+          const successfulSessions: TrainingSession[] = [];
+          for (let i = 0; i < responses.length; i++) {
+            if (responses[i].ok) {
+              const newSession = await responses[i].json();
+              successfulSessions.push({
+                ...newSession,
+                customerName: selectedGroup.members.find(m => m.id === newSession.customerId)?.name || 'Unknown Member'
+              });
+            }
+          }
+
+          if (successfulSessions.length > 0) {
+            setSessions(prev => [...prev, ...successfulSessions]);
+            alert(`Successfully created ${successfulSessions.length} group sessions for ${selectedGroup.name}!`);
+            window.location.reload();
+          } else {
+            alert('Failed to create any group sessions');
+          }
+        }
+      } else if (sessionType === 'block-time') {
+        // Create block time session
+        const response = await fetch('/api/training-sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerId: 'cmgf1fmsj000m6ofa4y22whbd', // Blocked time system user ID
+            date: selectedDate.toLocaleDateString('en-CA'),
+            startTime: newSessionData.startTime,
+            endTime: newSessionData.endTime,
+            type: 'block-time',
+            status: 'scheduled',
+            notes: newSessionData.notes
+          }),
+        });
+
+        if (response.ok) {
+          const newSession = await response.json();
+          setSessions(prev => [...prev, {
+            ...newSession,
+            customerName: 'Blocked Time'
+          }]);
+          alert('Time blocked successfully!');
+          setShowNewSessionModal(false);
+          setNewSessionData({ customerId: '', startTime: '', endTime: '', notes: '', clientName: '', clientEmail: '', clientPhone: '' });
+          // Force refresh to ensure UI updates
+          window.location.reload();
+        } else {
+          alert('Failed to block time');
+        }
       } else {
         // Create single session
         const response = await fetch('/api/training-sessions', {
@@ -435,10 +803,10 @@ export default function MobileScheduleClient({
           },
           body: JSON.stringify({
             customerId: customerId,
-            date: currentDay.toLocaleDateString('en-CA'),
+            date: selectedDate.toLocaleDateString('en-CA'),
             startTime: newSessionData.startTime,
             endTime: newSessionData.endTime,
-            type: sessionType === 'own-training' ? 'own-training' : '1:1',
+            type: sessionType === 'own-training' ? 'own-training' : sessionType === 'intake' ? 'Intake Consultation' : '1:1',
             status: 'scheduled',
             notes: newSessionData.notes
           }),
@@ -461,6 +829,7 @@ export default function MobileScheduleClient({
       // Reset form
       setShowNewSessionModal(false);
       setClickedTimeSlot(null);
+      setModalSelectedDate(null);
       setSessionType('client');
       setIsRecurring(false);
       setRecurringWeeks(12);
@@ -468,7 +837,10 @@ export default function MobileScheduleClient({
         customerId: '',
         startTime: '',
         endTime: '',
-        notes: ''
+        notes: '',
+        clientName: '',
+        clientEmail: '',
+        clientPhone: ''
       });
     } catch (error) {
       console.error('Error creating session:', error);
@@ -478,21 +850,27 @@ export default function MobileScheduleClient({
 
   // Handle deleting a session
   const handleDeleteSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to delete this session? This action cannot be undone.')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to delete this session?')) return;
+
+    // Ask if we should delete the full recurring series
+    const deleteSeries = confirm('Delete all recurring sessions in this weekly series (e.g., all 12x)?\nOK = delete entire series, Cancel = delete only this one');
 
     try {
-      const response = await fetch(`/api/training-sessions/${sessionId}`, {
-        method: 'DELETE',
-      });
+      const url = deleteSeries
+        ? `/api/training-sessions/${sessionId}?series=true`
+        : `/api/training-sessions/${sessionId}`;
+
+      const response = await fetch(url, { method: 'DELETE' });
 
       if (response.ok) {
-        // Remove session from local state
+        // Remove session from local state (and refresh to reflect series deletion)
         setSessions(prev => prev.filter(session => session.id !== sessionId));
         setShowSessionDetailsModal(false);
         setSelectedSession(null);
-        // Force refresh to ensure UI updates
+        const result = await response.json().catch(() => null);
+        if (deleteSeries && result?.deletedCount) {
+          alert(`Deleted ${result.deletedCount} sessions in the series.`);
+        }
         window.location.reload();
       } else {
         const error = await response.json();
@@ -614,9 +992,11 @@ export default function MobileScheduleClient({
     // Default colors based on type
     switch (type) {
       case '1:1': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'group': return 'bg-green-100 text-green-800 border-green-200';
+      case 'group': return 'bg-rose-100 text-rose-800 border-rose-200';
       case 'own-training': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'workout-plan': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'Intake Consultation': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'block-time': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -654,14 +1034,14 @@ export default function MobileScheduleClient({
   // Function to get active workouts for a customer
   const getActiveWorkoutsForCustomer = async (customerId: string) => {
     try {
-      const response = await fetch(`/api/customer-workouts?customerId=${customerId}`);
-      if (response.ok) {
-        const workouts = await response.json();
-        return workouts.filter((workout: any) => workout.status === 'active');
+      // Use data already loaded from mobile API instead of making new calls
+      const customer = customers.find(c => c.id === customerId);
+      if (customer && customer.customerWorkouts) {
+        return customer.customerWorkouts.filter((workout: any) => workout.status === 'active');
       }
       return [];
     } catch (error) {
-      console.error('Error fetching customer workouts:', error);
+      console.error('Error getting customer workouts:', error);
       return [];
     }
   };
@@ -672,10 +1052,9 @@ export default function MobileScheduleClient({
     
     for (const customer of customers) {
       try {
-        const activeWorkouts = await getActiveWorkoutsForCustomer(customer.id);
-        
-        if (activeWorkouts.length > 0) {
-          const workout = activeWorkouts[0]; // Get the first active workout
+        // Use data already loaded from mobile API instead of making new calls
+        if (customer.scheduleAssignments && customer.scheduleAssignments.length > 0) {
+          const workout = customer.scheduleAssignments[0]; // Get the first active workout
           trainingDaysMap[customer.id] = workout.workout.name;
         } else if (customer.name.includes('Leca Georgiana')) {
           // Fallback for Leca with hardcoded plan
@@ -802,16 +1181,27 @@ export default function MobileScheduleClient({
     return `${hours}:${minutes}`;
   };
 
-  // Calculate end time automatically (start time + 1 hour)
+  // Calculate end time automatically (+30 min for intake, +60 min otherwise)
   const calculateEndTime = (startTime: string) => {
     if (!startTime) return '';
     const [hours, minutes] = startTime.split(':');
     const startMinutes = parseInt(hours) * 60 + parseInt(minutes);
-    const endMinutes = startMinutes + 60; // Add 1 hour
+    const addMinutes = sessionType === 'intake' ? 30 : 60;
+    const endMinutes = startMinutes + addMinutes;
     const endHours = Math.floor(endMinutes / 60);
     const endMins = endMinutes % 60;
     return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
   };
+
+  // Ensure end time reflects current session type duration rules
+  useEffect(() => {
+    if (newSessionData.startTime) {
+      setNewSessionData(prev => ({
+        ...prev,
+        endTime: calculateEndTime(prev.startTime)
+      }));
+    }
+  }, [sessionType, newSessionData.startTime]);
 
   // Load session counts for all customers
   const loadSessionCounts = async () => {
@@ -821,32 +1211,18 @@ export default function MobileScheduleClient({
       const totalSessions = customer.trainingFrequency * 12; // 3 × 12 = 36
       
       try {
-        // Fetch ALL sessions for this customer from the database
-        const response = await fetch(`/api/training-sessions?customerId=${customer.id}`);
-        if (response.ok) {
-          const allSessions = await response.json();
-          const scheduledSessions = allSessions.filter((session: any) => 
-            session.status === 'scheduled'
-          ).length;
-          
-          counts[customer.id] = {
-            scheduled: scheduledSessions,
-            total: totalSessions,
-            remaining: totalSessions - scheduledSessions
-          };
-        } else {
-          // Fallback to local sessions
-          const scheduledSessions = sessions.filter(session => 
-            session.customerId === customer.id && 
-            session.status === 'scheduled'
-          ).length;
-          
-          counts[customer.id] = {
-            scheduled: scheduledSessions,
-            total: totalSessions,
-            remaining: totalSessions - scheduledSessions
-          };
-        }
+        // Use data already loaded from mobile API instead of making new calls
+        // Count scheduled sessions from the already loaded sessions data
+        const scheduledSessions = sessions.filter(session => 
+          session.customerId === customer.id && 
+          session.status === 'scheduled'
+        ).length;
+        
+        counts[customer.id] = {
+          scheduled: scheduledSessions,
+          total: totalSessions,
+          remaining: totalSessions - scheduledSessions
+        };
       } catch (error) {
         console.error(`Error fetching sessions for customer ${customer.id}:`, error);
         // Fallback to local sessions
@@ -874,6 +1250,7 @@ export default function MobileScheduleClient({
   // Handle clicking on time slots
   const handleTimeSlotClick = (date: Date, time: string) => {
     setClickedTimeSlot({ date, time });
+    setModalSelectedDate(date); // Set the selected date for the modal
     setNewSessionData(prev => ({
       ...prev,
       startTime: time,
@@ -905,6 +1282,13 @@ export default function MobileScheduleClient({
             
             <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
               <button
+                onClick={() => setShowDebugModal(true)}
+                className="flex items-center justify-center px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-colors duration-200"
+              >
+                <Clock className="w-4 h-4 md:w-5 md:h-5 mr-2" />
+                <span className="text-sm md:text-base">Debug Logs</span>
+              </button>
+              <button
                 onClick={handleAutoCompleteSessions}
                 className="flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition-colors duration-200"
               >
@@ -912,7 +1296,10 @@ export default function MobileScheduleClient({
                 <span className="text-sm md:text-base">Auto Complete</span>
               </button>
               <button
-                onClick={() => setShowNewSessionModal(true)}
+                onClick={() => {
+                  setModalSelectedDate(currentDay); // Set the selected date to current day
+                  setShowNewSessionModal(true);
+                }}
                 className="flex items-center justify-center px-4 py-2 bg-rose-500 text-white rounded-lg shadow hover:bg-rose-600 transition-colors duration-200"
               >
                 <Plus className="w-4 h-4 md:w-5 md:h-5 mr-2" />
@@ -985,7 +1372,12 @@ export default function MobileScheduleClient({
                 <label className="block text-sm font-medium text-gray-700 mb-2">Available Days</label>
                 <select
                   value={currentDayIndex}
-                  onChange={(e) => setCurrentDayIndex(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const newDayIndex = parseInt(e.target.value);
+                    setCurrentDayIndex(newDayIndex);
+                    const selectedDate = currentWeekDates[newDayIndex].toLocaleDateString('en-CA');
+                    setSelectedDay(selectedDate);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
                 >
                   {currentWeekDates.map((date, index) => {
@@ -1058,8 +1450,17 @@ export default function MobileScheduleClient({
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center">
-                              <User className="w-3 h-3 mr-2" />
-                              <span className="truncate">{session.customerName.replace(/ completed?/gi, '').trim()}</span>
+                              {session.type === 'block-time' ? (
+                                <Clock className="w-3 h-3 mr-2" />
+                              ) : (
+                                <User className="w-3 h-3 mr-2" />
+                              )}
+                              <span className="truncate">
+                                {session.type === 'block-time' 
+                                  ? `Blocked: ${session.notes || 'No reason provided'}`
+                                  : session.customerName.replace(/ completed?/gi, '').trim()
+                                }
+                              </span>
                             </div>
                             <div className={`px-2 py-1 rounded text-xs ${getSessionStatusColor(session.status)}`}>
                               {session.status === 'scheduled' ? '' : session.status}
@@ -1149,8 +1550,17 @@ export default function MobileScheduleClient({
                             >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center">
-                                <User className="w-3 h-3 mr-1" />
-                                <span className="truncate">{session.customerName.replace(/ completed?/gi, '').trim()}</span>
+                                {session.type === 'block-time' ? (
+                                  <Clock className="w-3 h-3 mr-1" />
+                                ) : (
+                                  <User className="w-3 h-3 mr-1" />
+                                )}
+                                <span className="truncate">
+                                  {session.type === 'block-time' 
+                                    ? `Blocked: ${session.notes || 'No reason provided'}`
+                                    : session.customerName.replace(/ completed?/gi, '').trim()
+                                  }
+                                </span>
                               </div>
                               <div className={`px-1 py-0.5 rounded text-xs ${getSessionStatusColor(session.status)}`}>
                                 {session.status === 'scheduled' ? '' : session.status}
@@ -1182,42 +1592,6 @@ export default function MobileScheduleClient({
             </div>
           </div>
 
-          {/* Customer Summary */}
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Customer Overview</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {customers.map((customer) => (
-                <div key={customer.id} className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-800">{customer.name}</h4>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      customer.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {customer.status}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <div className="flex items-center">
-                      <Users className="w-4 h-4 mr-2" />
-                      {customer.trainingFrequency}x per week
-                    </div>
-                    <div className="flex items-center">
-                      <Target className="w-4 h-4 mr-2" />
-                      {customer.plan}
-                    </div>
-                    {customer.discount && customer.discount > 0 && (
-                      <div className="flex items-center">
-                        <Euro className="w-4 h-4 mr-2" />
-                        {customer.discount}% discount
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Session Details Modal */}
@@ -1239,9 +1613,14 @@ export default function MobileScheduleClient({
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Customer
+                    {selectedSession.type === 'block-time' ? 'Block Reason' : 'Customer'}
                   </label>
-                  <p className="text-gray-800">{selectedSession.customerName}</p>
+                  <p className="text-gray-800">
+                    {selectedSession.type === 'block-time' 
+                      ? selectedSession.notes || 'No reason provided'
+                      : selectedSession.customerName
+                    }
+                  </p>
                 </div>
 
                 <div>
@@ -1314,19 +1693,22 @@ export default function MobileScheduleClient({
             <div
               className="bg-white rounded-2xl p-3 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
             >
-              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6">
-                {sessionType === 'own-training' ? 'Schedule Own Training' : 'Create New Session'}
-              </h3>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6">
+              {sessionType === 'own-training' ? 'Schedule Own Training' : 
+               sessionType === 'intake' ? 'Create Intake Session' : 
+               sessionType === 'group' ? 'Create Group Session' : 
+               sessionType === 'block-time' ? 'Block Time' : 'Create New Session'}
+            </h3>
             
-            {clickedTimeSlot && (
+            {(clickedTimeSlot || modalSelectedDate) && (
               <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-xs sm:text-sm text-blue-800">
-                  <strong>Selected:</strong> {clickedTimeSlot.date.toLocaleDateString('en-US', { 
+                  <strong>Selected:</strong> {(clickedTimeSlot?.date || modalSelectedDate)?.toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
                     month: 'long', 
                     day: 'numeric' 
-                  })} at {formatTime(clickedTimeSlot.time)}
+                  })} {clickedTimeSlot ? `at ${formatTime(clickedTimeSlot.time)}` : ''}
                 </p>
               </div>
             )}
@@ -1335,7 +1717,7 @@ export default function MobileScheduleClient({
                 {/* Session Type Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Session Type</label>
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
                     <button
                       onClick={() => setSessionType('client')}
                       className={`p-2 sm:p-3 rounded-lg border-2 transition-colors duration-200 ${
@@ -1347,6 +1729,19 @@ export default function MobileScheduleClient({
                       <div className="flex items-center justify-center">
                         <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                         <span className="font-medium text-xs sm:text-sm">Client Session</span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setSessionType('intake')}
+                      className={`p-2 sm:p-3 rounded-lg border-2 transition-colors duration-200 ${
+                        sessionType === 'intake'
+                          ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <UserPlus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        <span className="font-medium text-xs sm:text-sm">Intake</span>
                       </div>
                     </button>
                     <button
@@ -1362,10 +1757,37 @@ export default function MobileScheduleClient({
                         <span className="font-medium text-xs sm:text-sm">Own Training</span>
                       </div>
                     </button>
+                    <button
+                      onClick={() => setSessionType('group')}
+                      className={`p-2 sm:p-3 rounded-lg border-2 transition-colors duration-200 ${
+                        sessionType === 'group'
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        <span className="font-medium text-xs sm:text-sm">Group Session</span>
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => setSessionType('block-time')}
+                      className={`p-2 sm:p-3 rounded-lg border-2 transition-colors duration-200 ${
+                        sessionType === 'block-time'
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        <span className="font-medium text-xs sm:text-sm">Block Time</span>
+                      </div>
+                    </button>
                   </div>
                 </div>
 
-                {/* Customer Selection - Only show for client sessions */}
+                {/* Customer Selection - Show for client sessions */}
                 {sessionType === 'client' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
@@ -1401,12 +1823,102 @@ export default function MobileScheduleClient({
                   </div>
                 )}
 
+                {/* Group Selection - Show for group sessions */}
+                {sessionType === 'group' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Groep</label>
+                    <select
+                      value={newSessionData.customerId}
+                      onChange={(e) => setNewSessionData(prev => ({ ...prev, customerId: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="">Selecteer een groep</option>
+                      {groups.map(group => (
+                        <option key={group.id} value={group.id}>
+                          {group.name} ({group.members.length} leden)
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {/* Show group members for selected group */}
+                    {newSessionData.customerId && (
+                      <div className="mt-2 p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200">
+                        <div className="text-xs sm:text-sm text-green-800 mb-2">
+                          <strong>Groepsleden:</strong>
+                        </div>
+                        <div className="space-y-1">
+                          {groups.find(g => g.id === newSessionData.customerId)?.members.map(member => (
+                            <div key={member.id} className="text-xs text-green-700 flex items-center">
+                              <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                              {member.name}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Intake Client Details - Only show for intake sessions */}
+                {sessionType === 'intake' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Client Name</label>
+                      <input
+                        type="text"
+                        value={newSessionData.clientName || ''}
+                        onChange={(e) => setNewSessionData(prev => ({ ...prev, clientName: e.target.value }))}
+                        placeholder="Enter client name"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={newSessionData.clientEmail || ''}
+                        onChange={(e) => setNewSessionData(prev => ({ ...prev, clientEmail: e.target.value }))}
+                        placeholder="Enter client email"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                      <input
+                        type="tel"
+                        value={newSessionData.clientPhone || ''}
+                        onChange={(e) => setNewSessionData(prev => ({ ...prev, clientPhone: e.target.value }))}
+                        placeholder="Enter client phone"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Block Time Description - Show for block time sessions */}
+                {sessionType === 'block-time' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Block Reason *</label>
+                    <textarea
+                      value={newSessionData.notes}
+                      onChange={(e) => setNewSessionData(prev => ({ ...prev, notes: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="Enter reason for blocking this time (e.g., Doctor appointment, Personal meeting, etc.)"
+                      rows={3}
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">This description will be visible in the schedule</p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
                   {/* V2 Time Selection - Simple List */}
                   <div className="space-y-2 max-h-48 overflow-y-auto rose-scrollbar">
                     {timeSlots.map(time => {
-                      const isAvailable = isTimeSlotAvailable(currentDay.toLocaleDateString('en-CA'), time);
+                      const selectedDate = modalSelectedDate || currentDay;
+                      const durationHours = sessionType === 'intake' ? 0.5 : 1;
+                      const isAvailable = isTimeSlotAvailable(selectedDate.toLocaleDateString('en-CA'), time, durationHours);
                       const isBreak = isBreakTime(time);
                       const isSelected = newSessionData.startTime === time;
                       
@@ -1462,8 +1974,8 @@ export default function MobileScheduleClient({
                   />
                 </div>
 
-                {/* Recurring Sessions - Only show for client sessions */}
-                {sessionType === 'client' && (
+                {/* Recurring Sessions - show for client and group sessions */}
+                {(sessionType === 'client' || sessionType === 'group') && (
                   <div className="border-t pt-3 sm:pt-4">
                     <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
                       <input
@@ -1479,15 +1991,70 @@ export default function MobileScheduleClient({
                     </div>
                     
                     {isRecurring && (
-                      <div className="p-2 sm:p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                        <div className="text-xs sm:text-sm text-yellow-800">
-                          <strong>⚠️ Recurring Sessions:</strong> This will create {recurringWeeks} sessions 
-                          every {newSessionData.startTime} on the same day of the week.
+                      <>
+                        <div className="flex items-center gap-3 mb-2">
+          <label className="text-xs sm:text-sm text-gray-700">Duration:</label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setRecurringWeeks(4)}
+              className={`px-2 py-1 text-xs rounded border ${recurringWeeks === 4 ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-700 border-gray-300'}`}
+            >
+              4 weeks
+            </button>
+            <button
+              type="button"
+              onClick={() => setRecurringWeeks(12)}
+              className={`px-2 py-1 text-xs rounded border ${recurringWeeks === 12 ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-700 border-gray-300'}`}
+            >
+              12 weeks
+            </button>
+          </div>
+        </div>
+                        {/* Extra weekdays (Mon..Sat, skip Friday and base day) */}
+                        {(() => {
+                          const baseDate = (modalSelectedDate || currentDay);
+                          const jsDay = new Date(baseDate).getDay();
+                          // Map JS day (Sun=0..Sat=6) to our Mon..Sat index (0..5)
+                          const baseIndex = jsDay === 0 ? 5 : jsDay - 1;
+                          return (
+                            <div className="mb-2">
+                              <div className="text-xs sm:text-sm text-gray-700 mb-1">Also repeat on:</div>
+                              <div className="flex flex-wrap gap-2">
+                                {days.map((d, idx) => {
+                                  const disabled = idx === 4 || idx === baseIndex; // Friday or base
+                                  const active = additionalRecurringDays.includes(idx);
+                                  return (
+                                    <button
+                                      key={d}
+                                      type="button"
+                                      disabled={disabled}
+                                      onClick={() => {
+                                        setAdditionalRecurringDays(prev => {
+                                          if (prev.includes(idx)) return prev.filter(x => x !== idx);
+                                          return [...prev, idx];
+                                        });
+                                      }}
+                                      className={`px-2 py-1 text-xs rounded border ${disabled ? 'opacity-40 cursor-not-allowed' : active ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-700 border-gray-300'}`}
+                                    >
+                                      {d.slice(0, 3)}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        <div className="p-2 sm:p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <div className="text-xs sm:text-sm text-yellow-800">
+                            <strong>⚠️ Recurring Sessions:</strong> This will create {recurringWeeks} sessions 
+                            every {newSessionData.startTime} on the same day of the week.
+                          </div>
+                          <div className="text-xs text-yellow-600 mt-1">
+                            Total sessions to be created: {recurringWeeks}
+                          </div>
                         </div>
-                        <div className="text-xs text-yellow-600 mt-1">
-                          Total sessions to be created: {recurringWeeks}
-                        </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -1498,22 +2065,29 @@ export default function MobileScheduleClient({
                   onClick={() => {
                     setShowNewSessionModal(false);
                     setClickedTimeSlot(null);
+                    setModalSelectedDate(null);
                   }}
                   className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base"
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleCreateSession}
-                  className="flex-1 px-3 sm:px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm sm:text-base"
-                >
-                  {sessionType === 'own-training' 
-                    ? 'Schedule Training' 
-                    : isRecurring 
-                      ? `Create ${recurringWeeks} Sessions` 
-                      : 'Create Session'
-                  }
-                </button>
+            <button
+              onClick={handleCreateSession}
+              className="flex-1 px-3 sm:px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm sm:text-base"
+            >
+              {sessionType === 'own-training' 
+                ? 'Schedule Training' 
+                : sessionType === 'intake'
+                  ? 'Create Intake Session'
+                  : sessionType === 'group'
+                    ? (isRecurring ? `Create ${recurringWeeks}x Group Sessions` : 'Create Group Session')
+                    : sessionType === 'block-time'
+                      ? 'Block Time'
+                      : isRecurring 
+                        ? `Create ${recurringWeeks} Sessions` 
+                        : 'Create Session'
+              }
+            </button>
               </div>
             </div>
           </div>
@@ -1536,9 +2110,14 @@ export default function MobileScheduleClient({
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Customer
+                    {selectedSession.type === 'block-time' ? 'Block Reason' : 'Customer'}
                   </label>
-                  <p className="text-gray-800">{selectedSession.customerName}</p>
+                  <p className="text-gray-800">
+                    {selectedSession.type === 'block-time' 
+                      ? selectedSession.notes || 'No reason provided'
+                      : selectedSession.customerName
+                    }
+                  </p>
                 </div>
 
                 <div>
@@ -1606,6 +2185,52 @@ export default function MobileScheduleClient({
                     Close
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Debug Modal */}
+        {showDebugModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-800">Debug Logs</h2>
+                <button
+                  onClick={() => setShowDebugModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="bg-gray-100 rounded-lg p-4 h-96 overflow-y-auto">
+                {debugLogs.length === 0 ? (
+                  <p className="text-gray-500">No debug logs yet. Navigate to the schedule to see logs.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {debugLogs.map((log, index) => (
+                      <div key={index} className="text-sm font-mono bg-white p-2 rounded border">
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setDebugLogs([])}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Clear Logs
+                </button>
+                <button
+                  onClick={() => setShowDebugModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { DollarSign, TrendingUp, Users, CreditCard, Calendar, AlertCircle, CheckCircle, Clock, Filter, Download, RefreshCw } from 'lucide-react';
+import MobilePaymentsPage from './MobilePaymentsPage';
 
 interface PaymentOverview {
   summary: {
@@ -58,6 +59,19 @@ export default function PaymentsPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [filterStatus, setFilterStatus] = useState('all');
   const [currency, setCurrency] = useState<'RON' | 'EUR'>('RON');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Currency conversion function
   const convertAmount = (amount: number): number => {
@@ -116,6 +130,11 @@ export default function PaymentsPage() {
   }
 
   const { summary, customerOverview, distributions, recentPayments, recentPricing } = overview;
+
+  // Render mobile version on mobile devices
+  if (isMobile) {
+    return <MobilePaymentsPage />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

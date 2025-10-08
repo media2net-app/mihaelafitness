@@ -25,7 +25,7 @@ export default function TodoPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'title'>('date');
   
   const [newTodo, setNewTodo] = useState({
