@@ -80,11 +80,10 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create nutrition calculation' },
       { status: 500 }
     );
+  }
 }
 
 export async function DELETE(request: NextRequest) {
-  const prisma = new PrismaClient();
-  
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

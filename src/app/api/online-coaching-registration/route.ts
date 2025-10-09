@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,32 +23,26 @@ export async function POST(request: NextRequest) {
       name, email, phone, program, interests, notes
     });
 
-    // Import Prisma dynamically to avoid issues
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
+    // Create online coaching registration
+    const registration = await prisma.onlineCoachingRegistration.create({
+      data: {
+        name: String(name),
+        email: String(email),
+        phone: phone ? String(phone) : null,
+        program: program ? String(program) : null,
+        interests: Array.isArray(interests) ? interests : [],
+        notes: notes ? String(notes) : null,
+        status: 'pending',
+      }
+    });
 
-    try {
-      // Create online coaching registration
-      const registration = await prisma.onlineCoachingRegistration.create({
-        data: {
-          name: String(name),
-          email: String(email),
-          phone: phone ? String(phone) : null,
-          program: program ? String(program) : null,
-          interests: Array.isArray(interests) ? interests : [],
-          notes: notes ? String(notes) : null,
-          status: 'pending',
-        }
-      });
+    console.log('API: Created online coaching registration:', registration.id);
 
-      console.log('API: Created online coaching registration:', registration.id);
-
-      return NextResponse.json({
-        success: true,
-        message: 'Online coaching registration submitted successfully',
-        registrationId: registration.id
-      });
-
+    return NextResponse.json({
+      success: true,
+      message: 'Online coaching registration submitted successfully',
+      registrationId: registration.id
+    });
   } catch (error) {
     console.error('API: Error creating online coaching registration:', error);
     console.error('API: Error details:', error.message);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,11 +23,8 @@ export async function POST(request: NextRequest) {
       name, email, phone, program, interests, notes
     });
 
-    // Import Prisma dynamically and save to database
+    // Save to database
     try {
-      const { PrismaClient } = await import('@prisma/client');
-      const prisma = new PrismaClient();
-
       const registration = await prisma.onlineCoachingRegistration.create({
         data: {
           name: String(name),

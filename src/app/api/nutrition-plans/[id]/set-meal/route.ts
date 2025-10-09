@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
+
+
 
 export async function POST(
   request: NextRequest,
@@ -28,4 +29,5 @@ export async function POST(
   } catch (e) {
     console.error('[set-meal] error', e);
     return NextResponse.json({ error: 'Failed to set meal' }, { status: 500 });
+  }
 }

@@ -71,6 +71,5 @@ export async function GET(
       { error: 'Failed to fetch nutrition calculation' },
       { status: 500 }
     );
+  }
 }
-
-
