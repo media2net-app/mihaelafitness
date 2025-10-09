@@ -259,8 +259,17 @@ export default function MyPlanPage() {
     });
 
       // Convert map to sorted array
-    return Array.from(ingredientMap.values())
+    const list = Array.from(ingredientMap.values())
       .sort((a, b) => a.name.localeCompare(b.name));
+    
+    console.log('🛒 [Shopping List Generated] Total items:', list.length);
+    list.forEach((item, idx) => {
+      if (idx < 10) { // Only log first 10 to avoid spam
+        console.log(`  📝 [Shopping List] Item ${idx + 1}: "${item.name}" (${item.quantity}${item.unit})`);
+      }
+    });
+    
+    return list;
   }, [nutritionPlan, days]);
 
   // Get Romanian translations from the nutrition plan data (already loaded)
@@ -268,6 +277,9 @@ export default function MyPlanPage() {
     const translations = nutritionPlan?._ingredientTranslations || {};
     console.log('🔍 [Frontend Translation Debug] Received translations:', translations);
     console.log('📊 [Frontend Translation Debug] Translation count:', Object.keys(translations).length);
+    if (Object.keys(translations).length === 0) {
+      console.error('⚠️ [Frontend Translation Debug] NO TRANSLATIONS RECEIVED! This means the API did not send _ingredientTranslations');
+    }
     Object.entries(translations).forEach(([en, ro]) => {
       console.log(`  🔤 [Frontend Translation Debug] "${en}" -> "${ro}"`);
     });
@@ -277,10 +289,18 @@ export default function MyPlanPage() {
   // Helper function to get ingredient name in current language
   const getIngredientName = (englishName: string): string => {
     if (language === 'en') {
+      console.log(`🇬🇧 [Get Name] Language is EN, returning: "${englishName}"`);
       return englishName;
     }
     // Return Romanian translation or fallback to English
-    return ingredientTranslationsMap[englishName] || englishName;
+    const translation = ingredientTranslationsMap[englishName];
+    if (translation) {
+      console.log(`✅ [Get Name] Found translation for "${englishName}" -> "${translation}"`);
+      return translation;
+    } else {
+      console.warn(`❌ [Get Name] NO translation found for "${englishName}", available keys:`, Object.keys(ingredientTranslationsMap).slice(0, 5));
+      return englishName;
+    }
   };
 
   if (loading) {
@@ -543,11 +563,7 @@ export default function MyPlanPage() {
                       </button>
                       <div className="flex-1">
                         <span className={`font-medium ${isChecked ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
-                          {(() => {
-                            const display = getIngredientName(item.name);
-                            console.log(`🛒 [Shopping List] "${item.name}" -> "${display}" (lang: ${language})`);
-                            return display;
-                          })()}
+                          {getIngredientName(item.name)}
                         </span>
                       </div>
                       <div className="flex-shrink-0">
