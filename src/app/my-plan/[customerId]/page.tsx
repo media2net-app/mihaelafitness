@@ -55,6 +55,9 @@ export default function MyPlanPage() {
         if (!planResponse.ok) throw new Error('Failed to fetch plan details');
         
         const planData = await planResponse.json();
+        console.log('📥 [Data Loaded] Nutrition plan received');
+        console.log('🔍 [Data Loaded] Has _ingredientTranslations?', !!planData._ingredientTranslations);
+        console.log('📊 [Data Loaded] Translation keys:', Object.keys(planData._ingredientTranslations || {}));
         setNutritionPlan(planData);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -261,7 +264,13 @@ export default function MyPlanPage() {
 
   // Get Romanian translations from the nutrition plan data (already loaded)
   const ingredientTranslationsMap = useMemo(() => {
-    return nutritionPlan?._ingredientTranslations || {};
+    const translations = nutritionPlan?._ingredientTranslations || {};
+    console.log('🔍 [Frontend Translation Debug] Received translations:', translations);
+    console.log('📊 [Frontend Translation Debug] Translation count:', Object.keys(translations).length);
+    Object.entries(translations).forEach(([en, ro]) => {
+      console.log(`  🔤 [Frontend Translation Debug] "${en}" -> "${ro}"`);
+    });
+    return translations;
   }, [nutritionPlan]);
 
   if (loading) {
@@ -507,7 +516,12 @@ export default function MyPlanPage() {
                       </button>
                       <div className="flex-1">
                         <span className={`font-medium ${isChecked ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
-                          {ingredientTranslationsMap[item.name] || item.name}
+                          {(() => {
+                            const translated = ingredientTranslationsMap[item.name];
+                            const display = translated || item.name;
+                            console.log(`🛒 [Shopping List] "${item.name}" -> "${display}" (translated: ${!!translated})`);
+                            return display;
+                          })()}
                         </span>
                       </div>
                       <div className="flex-shrink-0">

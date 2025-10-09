@@ -25,17 +25,28 @@ export async function GET(
 
     // Get all unique ingredient names from the weekMenu
     const ingredientNames = new Set<string>();
+    console.log('🔍 [Translation Debug] Starting to extract ingredient names from weekMenu');
+    
     if (nutritionPlan.weekMenu && typeof nutritionPlan.weekMenu === 'object') {
       const weekMenu = nutritionPlan.weekMenu as any;
-      Object.values(weekMenu).forEach((day: any) => {
-        Object.values(day || {}).forEach((meal: any) => {
+      console.log('📋 [Translation Debug] WeekMenu keys:', Object.keys(weekMenu));
+      
+      Object.entries(weekMenu).forEach(([dayKey, day]: [string, any]) => {
+        console.log(`📅 [Translation Debug] Processing day: ${dayKey}`);
+        Object.entries(day || {}).forEach(([mealKey, meal]: [string, any]) => {
           if (Array.isArray(meal)) {
-            meal.forEach(item => {
+            console.log(`🍽️ [Translation Debug] Processing meal: ${mealKey}, items:`, meal.length);
+            meal.forEach((item, idx) => {
               if (typeof item === 'string') {
+                console.log(`  📝 [Translation Debug] Item ${idx}: "${item}"`);
                 // Extract ingredient name from strings like "200g Banana" or "1 Egg"
                 const match = item.match(/^[\d.]+\s*(?:g|kg|ml|l|piece|pieces|stuk|stuks|slice|slices|tbsp|tsp|cup|lgă|lgţ|buc|felie|felii)?\s*(.+)$/i);
                 if (match && match[1]) {
-                  ingredientNames.add(match[1].trim());
+                  const cleanName = match[1].trim();
+                  ingredientNames.add(cleanName);
+                  console.log(`  ✅ [Translation Debug] Extracted ingredient: "${cleanName}"`);
+                } else {
+                  console.log(`  ❌ [Translation Debug] Failed to extract ingredient from: "${item}"`);
                 }
               }
             });
@@ -43,8 +54,12 @@ export async function GET(
         });
       });
     }
+    
+    console.log(`📊 [Translation Debug] Total unique ingredients extracted: ${ingredientNames.size}`);
+    console.log('🔤 [Translation Debug] Ingredient names:', Array.from(ingredientNames));
 
     // Fetch all ingredient translations in one query
+    console.log('🔍 [Translation Debug] Querying database for ingredients:', Array.from(ingredientNames));
     const ingredients = await prisma.ingredient.findMany({
       where: {
         name: {
@@ -57,13 +72,24 @@ export async function GET(
       }
     });
 
+    console.log(`📊 [Translation Debug] Found ${ingredients.length} ingredients in database`);
+    ingredients.forEach(ing => {
+      console.log(`  🔤 [Translation Debug] DB: "${ing.name}" -> "${ing.nameRo || 'NO TRANSLATION'}"`);
+    });
+
     // Create a translation map
     const translationMap: { [key: string]: string } = {};
     ingredients.forEach(ing => {
       if (ing.nameRo) {
         translationMap[ing.name] = ing.nameRo;
+        console.log(`  ✅ [Translation Debug] Added to map: "${ing.name}" -> "${ing.nameRo}"`);
+      } else {
+        console.log(`  ⚠️ [Translation Debug] Skipped (no nameRo): "${ing.name}"`);
       }
     });
+
+    console.log('📦 [Translation Debug] Final translation map:', translationMap);
+    console.log(`✨ [Translation Debug] Sending ${Object.keys(translationMap).length} translations to frontend`);
 
     // Return the plan with translations embedded
     return NextResponse.json({
