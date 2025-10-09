@@ -48,10 +48,6 @@ export async function POST(request: NextRequest) {
         registrationId: registration.id
       });
 
-    } finally {
-      await prisma.$disconnect();
-    }
-
   } catch (error) {
     console.error('API: Error creating online coaching registration:', error);
     console.error('API: Error details:', error.message);

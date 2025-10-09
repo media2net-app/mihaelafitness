@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
       });
 
       console.log('Test API: Created registration in database:', registration.id);
-      await prisma.$disconnect();
 
       return NextResponse.json({
         success: true,

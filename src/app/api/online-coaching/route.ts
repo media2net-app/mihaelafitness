@@ -17,9 +17,6 @@ export async function GET() {
       console.log('API: Data:', registrations);
       
       return NextResponse.json(registrations);
-    } finally {
-      await prisma.$disconnect();
-    }
   } catch (error) {
     console.error('API: Error fetching online coaching registrations:', error);
     console.error('API: Error details:', error.message);

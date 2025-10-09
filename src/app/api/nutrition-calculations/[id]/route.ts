@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
 export async function DELETE(
   request: NextRequest,
@@ -35,9 +35,6 @@ export async function DELETE(
       },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
-  }
 }
 
 export async function GET(
@@ -74,9 +71,6 @@ export async function GET(
       { error: 'Failed to fetch nutrition calculation' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
-  }
 }
 
 

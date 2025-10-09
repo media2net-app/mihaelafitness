@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -88,8 +86,6 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to fetch ingredients' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -172,7 +168,5 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create ingredient' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+
 
 const MEALS = ['breakfast','morning-snack','lunch','afternoon-snack','dinner','evening-snack'] as const;
 
@@ -32,7 +31,4 @@ export async function POST(
   } catch (error) {
     console.error('Error clearing day meals:', error);
     return NextResponse.json({ error: 'Failed to clear day meals' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-  }
 }

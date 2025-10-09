@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NutritionTextParser } from '@/lib/textParser';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+
 
 // Function to get ingredient synonyms for better matching
 function getIngredientSynonyms(ingredientName: string): string[] {
@@ -232,7 +231,4 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to parse nutrition plan text' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
-  }
 }

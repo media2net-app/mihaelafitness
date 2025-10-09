@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   const prisma = new PrismaClient();
@@ -25,9 +25,6 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to fetch nutrition calculations' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
-  }
 }
 
 export async function POST(request: NextRequest) {
@@ -84,9 +81,6 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create nutrition calculation' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
-  }
 }
 
 export async function DELETE(request: NextRequest) {
@@ -121,7 +115,4 @@ export async function DELETE(request: NextRequest) {
       },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
-  }
 }
