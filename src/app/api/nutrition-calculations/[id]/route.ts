@@ -35,13 +35,13 @@ export async function DELETE(
       },
       { status: 500 }
     );
+  }
 }
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const prisma = new PrismaClient();
   
   try {
     const { id } = await params;

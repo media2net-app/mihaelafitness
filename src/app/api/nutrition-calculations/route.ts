@@ -25,11 +25,10 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to fetch nutrition calculations' },
       { status: 500 }
     );
+  }
 }
 
 export async function POST(request: NextRequest) {
-  const prisma = new PrismaClient();
-  
   try {
     const data = await request.json();
     
