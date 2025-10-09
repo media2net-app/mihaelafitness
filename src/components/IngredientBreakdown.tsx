@@ -125,6 +125,12 @@ function parseMealDescription(mealDescription: string): string[] {
 }
 
 export default function IngredientBreakdown({ mealDescription, mealType, planId, dayKey, mealTypeKey, editable = false, onPlanUpdated, onMacrosUpdated, ingredientTranslations = {}, currentLanguage = 'ro' }: IngredientBreakdownProps) {
+  console.log(`🔍 [IngredientBreakdown] Received props:`, {
+    mealType,
+    currentLanguage,
+    translationsCount: Object.keys(ingredientTranslations).length,
+    sampleTranslations: Object.entries(ingredientTranslations).slice(0, 3)
+  });
   const [ingredientData, setIngredientData] = useState<any[]>([]);
   const [totalMacros, setTotalMacros] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [loading, setLoading] = useState(true);
@@ -587,9 +593,19 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             // extra data for editing in string mode
             rawAmount,
             rawUnit,
-            displayName: currentLanguage === 'ro' 
-              ? (ingredientTranslations[cleanName] || result.nameRo || cleanName)
-              : cleanName, // Use Romanian name from translations map if language is RO
+            displayName: (() => {
+              if (currentLanguage === 'en') {
+                console.log(`  🇬🇧 [Display] "${cleanName}" -> EN: "${cleanName}"`);
+                return cleanName;
+              }
+              const translation = ingredientTranslations[cleanName] || result.nameRo || cleanName;
+              if (translation !== cleanName) {
+                console.log(`  ✅ [Display] "${cleanName}" -> RO: "${translation}"`);
+              } else {
+                console.log(`  ⚠️ [Display] "${cleanName}" -> NO TRANSLATION (using EN)`);
+              }
+              return translation;
+            })(),
             displayNameEn: result.nameEn || cleanName, // Keep English for reference
           };
         });
