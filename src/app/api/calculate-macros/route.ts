@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
         
         // Parse ingredient string (e.g., "100g chicken breast" or "2 eggs" or "id|name")
         const parsed = parseIngredientString(ingredientString);
+        console.log(`[parse] "${ingredientString}" → `, JSON.stringify(parsed));
+        
         if (!parsed) {
           results.push({
             ingredient: ingredientString,
@@ -214,6 +216,9 @@ export async function POST(request: NextRequest) {
           fiber: Math.round((ingredient.fiber ?? 0) * multiplier)
         };
 
+        // Log for debugging
+        console.log(`[calculate-macros] ${ingredientString} -> amount: ${parsed.amount}, unit: ${parsed.unit}, pieces: ${parsed.pieces || 1}, multiplier: ${multiplier}`);
+        
         results.push({
           ingredient: ingredientString,
           macros,

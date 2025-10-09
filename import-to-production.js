@@ -21,12 +21,17 @@ console.log(`🧪 Dry Run: ${isDryRun ? 'YES (no changes will be made)' : 'NO (w
 
 async function importIngredients() {
   try {
-    // Load exported data
-    const exportPath = path.join(__dirname, 'ingredients-export.json');
+    // Load exported data - try basic export first, fall back to full export
+    let exportPath = path.join(__dirname, 'ingredients-basic-export.json');
     
     if (!fs.existsSync(exportPath)) {
-      console.error('❌ Error: ingredients-export.json not found!');
-      console.log('   Please run: node export-ingredients.js first\n');
+      console.log('⚠️  Basic export not found, trying full export...');
+      exportPath = path.join(__dirname, 'ingredients-export.json');
+    }
+    
+    if (!fs.existsSync(exportPath)) {
+      console.error('❌ Error: No export file found!');
+      console.log('   Please run: node export-basic-ingredients.js first\n');
       process.exit(1);
     }
     

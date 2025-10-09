@@ -1,0 +1,3969 @@
+[
+  {
+    "id": "cmgbfet9q01ao8igv9u7u3r3s",
+    "name": "1 Apple",
+    "per": "1",
+    "calories": 95,
+    "protein": 0.5,
+    "carbs": 25,
+    "fat": 0.4,
+    "fiber": 4.4,
+    "sugar": 19,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Apple",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeui801av8igvph1eosu4",
+    "name": "1 Avocado",
+    "per": "1",
+    "calories": 320,
+    "protein": 4,
+    "carbs": 17,
+    "fat": 29,
+    "fiber": 13,
+    "sugar": 1.4,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Avocado",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfetk801ap8igvx0ada7pw",
+    "name": "1 Banana",
+    "per": "1",
+    "calories": 105,
+    "protein": 1.3,
+    "carbs": 27,
+    "fat": 0.4,
+    "fiber": 3.1,
+    "sugar": 14,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Banana",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfexoi01be8igvuow7a57d",
+    "name": "1 Beef Steak",
+    "per": "1",
+    "calories": 500,
+    "protein": 52,
+    "carbs": 0,
+    "fat": 30,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "PerPiece:Beef Steak",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfevil01b18igv6jo0rzqg",
+    "name": "1 Bell Pepper",
+    "per": "1",
+    "calories": 24,
+    "protein": 1.1,
+    "carbs": 5.5,
+    "fat": 0.2,
+    "fiber": 1.8,
+    "sugar": 2.9,
+    "category": "vegetables",
+    "aliases": [
+      "PerPiece:Bell Pepper",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfev0c01ay8igvacojuah5",
+    "name": "1 Carrot",
+    "per": "1",
+    "calories": 25,
+    "protein": 0.5,
+    "carbs": 6,
+    "fat": 0.1,
+    "fiber": 1.7,
+    "sugar": 2.9,
+    "category": "vegetables",
+    "aliases": [
+      "PerPiece:Carrot",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfewmg01b88igvbx8uxvw9",
+    "name": "1 Chicken Breast",
+    "per": "1",
+    "calories": 330,
+    "protein": 62,
+    "carbs": 0,
+    "fat": 7.2,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "PerPiece:Chicken Breast",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfewv901b98igv8rvg2s3r",
+    "name": "1 Chicken Thigh",
+    "per": "1",
+    "calories": 209,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 10,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "PerPiece:Chicken Thigh",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfex0201ba8igvx89i0edu",
+    "name": "1 Chicken Wing",
+    "per": "1",
+    "calories": 183,
+    "protein": 16,
+    "carbs": 0,
+    "fat": 13,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "PerPiece:Chicken Wing",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfexci01bc8igvvdm2amhq",
+    "name": "1 Cod Fillet",
+    "per": "1",
+    "calories": 123,
+    "protein": 27,
+    "carbs": 0,
+    "fat": 1.1,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "PerPiece:Cod",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfevbn01b08igvwq383fhp",
+    "name": "1 Cucumber",
+    "per": "1",
+    "calories": 32,
+    "protein": 1.4,
+    "carbs": 8,
+    "fat": 0.2,
+    "fiber": 1,
+    "sugar": 3.4,
+    "category": "vegetables",
+    "aliases": [
+      "PerPiece:Cucumber",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfezap01bn8igvsqgm657p",
+    "name": "1 Cup Cooked Brown Rice",
+    "per": "1",
+    "calories": 216,
+    "protein": 5,
+    "carbs": 45,
+    "fat": 1.8,
+    "fiber": 3.5,
+    "sugar": 0.8,
+    "category": "carbohydrates",
+    "aliases": [
+      "PerPiece:Brown Rice",
+      "TYPE:cup"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfezfe01bo8igvj8nz1iis",
+    "name": "1 Cup Cooked Pasta",
+    "per": "1",
+    "calories": 183,
+    "protein": 7,
+    "carbs": 35,
+    "fat": 1.5,
+    "fiber": 2.5,
+    "sugar": 0.8,
+    "category": "carbohydrates",
+    "aliases": [
+      "PerPiece:Pasta",
+      "TYPE:cup"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfez5v01bm8igvtk5jfxxz",
+    "name": "1 Cup Cooked Rice",
+    "per": "1",
+    "calories": 205,
+    "protein": 4.3,
+    "carbs": 44,
+    "fat": 0.5,
+    "fiber": 0.6,
+    "sugar": 0.2,
+    "category": "carbohydrates",
+    "aliases": [
+      "PerPiece:White Rice",
+      "TYPE:cup"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeymh01bj8igvnn7rewjm",
+    "name": "1 Cup Greek Yogurt",
+    "per": "1",
+    "calories": 100,
+    "protein": 17,
+    "carbs": 6,
+    "fat": 0.7,
+    "fiber": 0,
+    "sugar": 6,
+    "category": "dairy",
+    "aliases": [
+      "PerPiece:Greek Yogurt",
+      "TYPE:cup"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeyhr01bi8igvii58lpcj",
+    "name": "1 Cup Milk",
+    "per": "1",
+    "calories": 103,
+    "protein": 8,
+    "carbs": 12,
+    "fat": 2.4,
+    "fiber": 0,
+    "sugar": 12,
+    "category": "dairy",
+    "aliases": [
+      "PerPiece:Milk",
+      "TYPE:cup"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfezmh01bp8igvus8kh0r8",
+    "name": "1 Cup Oats",
+    "per": "1",
+    "calories": 315,
+    "protein": 14,
+    "carbs": 54,
+    "fat": 5.6,
+    "fiber": 8.6,
+    "sugar": 0.4,
+    "category": "carbohydrates",
+    "aliases": [
+      "PerPiece:Oats",
+      "TYPE:cup"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfezrt01bq8igv6ouaec7u",
+    "name": "1 Cup Quinoa",
+    "per": "1",
+    "calories": 222,
+    "protein": 8,
+    "carbs": 41,
+    "fat": 3.5,
+    "fiber": 5.2,
+    "sugar": 1.7,
+    "category": "carbohydrates",
+    "aliases": [
+      "PerPiece:Quinoa",
+      "TYPE:cup"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfewgp01b78igv3zsoydrf",
+    "name": "1 Egg",
+    "per": "1",
+    "calories": 78,
+    "protein": 6.5,
+    "carbs": 0.6,
+    "fat": 5.5,
+    "fiber": 0,
+    "sugar": 0.6,
+    "category": "proteins",
+    "aliases": [
+      "PerPiece:Eggs",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfewbi01b68igvj3ui4689",
+    "name": "1 Eggplant",
+    "per": "1",
+    "calories": 21,
+    "protein": 0.8,
+    "carbs": 5,
+    "fat": 0.2,
+    "fiber": 2.5,
+    "sugar": 2.9,
+    "category": "vegetables",
+    "aliases": [
+      "PerPiece:Eggplant",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfezyk01br8igvg8avgklk",
+    "name": "1 Handful Almonds",
+    "per": "1",
+    "calories": 162,
+    "protein": 6,
+    "carbs": 6,
+    "fat": 14,
+    "fiber": 3.5,
+    "sugar": 1.2,
+    "category": "nuts-seeds",
+    "aliases": [
+      "PerPiece:Almonds",
+      "TYPE:handful"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbff08i01bt8igv9ajrg6i9",
+    "name": "1 Handful Cashews",
+    "per": "1",
+    "calories": 155,
+    "protein": 5.1,
+    "carbs": 8.5,
+    "fat": 12,
+    "fiber": 0.9,
+    "sugar": 1.7,
+    "category": "nuts-seeds",
+    "aliases": [
+      "PerPiece:Cashews",
+      "TYPE:handful"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbff03w01bs8igvihvb8a56",
+    "name": "1 Handful Walnuts",
+    "per": "1",
+    "calories": 183,
+    "protein": 4.3,
+    "carbs": 3.8,
+    "fat": 18,
+    "fiber": 1.9,
+    "sugar": 0.7,
+    "category": "nuts-seeds",
+    "aliases": [
+      "PerPiece:Walnuts",
+      "TYPE:handful"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeu6z01at8igvu4mip33i",
+    "name": "1 Kiwi",
+    "per": "1",
+    "calories": 55,
+    "protein": 1,
+    "carbs": 13,
+    "fat": 0.5,
+    "fiber": 2.7,
+    "sugar": 8,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Kiwi",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeupa01aw8igvt5g80r0m",
+    "name": "1 Lemon",
+    "per": "1",
+    "calories": 17,
+    "protein": 0.6,
+    "carbs": 5.4,
+    "fat": 0.2,
+    "fiber": 1.6,
+    "sugar": 1.5,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Lemon",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeuui01ax8igvuq505n54",
+    "name": "1 Lime",
+    "per": "1",
+    "calories": 20,
+    "protein": 0.5,
+    "carbs": 7,
+    "fat": 0.1,
+    "fiber": 1.9,
+    "sugar": 1.1,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Lime",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeud701au8igv2965x0ye",
+    "name": "1 Mango",
+    "per": "1",
+    "calories": 120,
+    "protein": 1.6,
+    "carbs": 30,
+    "fat": 0.8,
+    "fiber": 3.2,
+    "sugar": 27,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Mango",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfevnl01b28igvwoc5cuh1",
+    "name": "1 Onion",
+    "per": "1",
+    "calories": 44,
+    "protein": 1.2,
+    "carbs": 10,
+    "fat": 0.1,
+    "fiber": 1.9,
+    "sugar": 4.6,
+    "category": "vegetables",
+    "aliases": [
+      "PerPiece:Onion",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfetp401aq8igvv96kj3s4",
+    "name": "1 Orange",
+    "per": "1",
+    "calories": 66,
+    "protein": 1.3,
+    "carbs": 16.5,
+    "fat": 0.1,
+    "fiber": 3.4,
+    "sugar": 13,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Orange",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeu1i01as8igvw2xrkqak",
+    "name": "1 Peach",
+    "per": "1",
+    "calories": 59,
+    "protein": 1.4,
+    "carbs": 14,
+    "fat": 0.4,
+    "fiber": 2.3,
+    "sugar": 13,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Peach",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfetwb01ar8igv6jokxgr2",
+    "name": "1 Pear",
+    "per": "1",
+    "calories": 95,
+    "protein": 0.7,
+    "carbs": 25,
+    "fat": 0.2,
+    "fiber": 5.1,
+    "sugar": 16,
+    "category": "fruits",
+    "aliases": [
+      "PerPiece:Pear",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfexj101bd8igve0tcv19m",
+    "name": "1 Pork Chop",
+    "per": "1",
+    "calories": 484,
+    "protein": 55,
+    "carbs": 0,
+    "fat": 28,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "PerPiece:Pork Chop",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfevz801b48igvg1zcmpgz",
+    "name": "1 Potato",
+    "per": "1",
+    "calories": 133,
+    "protein": 3.5,
+    "carbs": 30,
+    "fat": 0.2,
+    "fiber": 3.8,
+    "sugar": 1.4,
+    "category": "vegetables",
+    "aliases": [
+      "PerPiece:Potato",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfex6w01bb8igv0jrx6qqy",
+    "name": "1 Salmon Fillet",
+    "per": "1",
+    "calories": 312,
+    "protein": 38,
+    "carbs": 0,
+    "fat": 19,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "PerPiece:Salmon",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfey5n01bg8igvsoqp4dzj",
+    "name": "1 Slice Cheese",
+    "per": "1",
+    "calories": 113,
+    "protein": 7,
+    "carbs": 0.4,
+    "fat": 9,
+    "fiber": 0,
+    "sugar": 0.1,
+    "category": "dairy",
+    "aliases": [
+      "PerPiece:Cheddar Cheese",
+      "TYPE:slice"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeycf01bh8igviav7bro0",
+    "name": "1 Slice Mozzarella",
+    "per": "1",
+    "calories": 78,
+    "protein": 6,
+    "carbs": 0.6,
+    "fat": 6,
+    "fiber": 0,
+    "sugar": 0.3,
+    "category": "dairy",
+    "aliases": [
+      "PerPiece:Mozzarella",
+      "TYPE:slice"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeytn01bk8igvam9vdygu",
+    "name": "1 Slice White Bread",
+    "per": "1",
+    "calories": 66,
+    "protein": 2.3,
+    "carbs": 12,
+    "fat": 0.8,
+    "fiber": 0.7,
+    "sugar": 1.4,
+    "category": "carbohydrates",
+    "aliases": [
+      "PerPiece:White Bread",
+      "TYPE:slice"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfeyyn01bl8igvuzmjc8ut",
+    "name": "1 Slice Whole Wheat Bread",
+    "per": "1",
+    "calories": 62,
+    "protein": 3.3,
+    "carbs": 10,
+    "fat": 1.1,
+    "fiber": 1.5,
+    "sugar": 1.1,
+    "category": "carbohydrates",
+    "aliases": [
+      "PerPiece:Whole Wheat Bread",
+      "TYPE:slice"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfevth01b38igvwwmex1xp",
+    "name": "1 Sweet Potato",
+    "per": "1",
+    "calories": 112,
+    "protein": 2.1,
+    "carbs": 26,
+    "fat": 0.1,
+    "fiber": 3.9,
+    "sugar": 5.5,
+    "category": "vegetables",
+    "aliases": [
+      "PerPiece:Sweet Potato",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbff0kr01bv8igv4c0ryomj",
+    "name": "1 Tablespoon Olive Oil",
+    "per": "1",
+    "calories": 124,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 14,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "healthy-fats",
+    "aliases": [
+      "PerPiece:Olive Oil",
+      "TYPE:tablespoon"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbff0fj01bu8igvjnig0pdr",
+    "name": "1 Tablespoon Peanut Butter",
+    "per": "1",
+    "calories": 94,
+    "protein": 4,
+    "carbs": 3.2,
+    "fat": 8,
+    "fiber": 1.4,
+    "sugar": 1.5,
+    "category": "healthy-fats",
+    "aliases": [
+      "PerPiece:Peanut Butter",
+      "TYPE:tablespoon"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfev6b01az8igviifdjem6",
+    "name": "1 Tomato",
+    "per": "1",
+    "calories": 22,
+    "protein": 1.1,
+    "carbs": 4.8,
+    "fat": 0.2,
+    "fiber": 1.5,
+    "sugar": 3.2,
+    "category": "vegetables",
+    "aliases": [
+      "PerPiece:Tomato",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmge1jq1s002r87gynqbbrjxz",
+    "name": "1 tsp Coconut Oil",
+    "per": "1 tsp (4.5g)",
+    "calories": 39,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "healthy-fats",
+    "aliases": [
+      "Pure:Coconut Oil",
+      "TYPE:tsp"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfey0i01bf8igvrzl4ex6k",
+    "name": "1 Turkey Breast",
+    "per": "1",
+    "calories": 203,
+    "protein": 45,
+    "carbs": 0,
+    "fat": 1.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "PerPiece:Turkey Breast",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfew4w01b58igv6vi31x7s",
+    "name": "1 Zucchini",
+    "per": "1",
+    "calories": 33,
+    "protein": 2.4,
+    "carbs": 6,
+    "fat": 0.6,
+    "fiber": 2,
+    "sugar": 4.9,
+    "category": "vegetables",
+    "aliases": [
+      "PerPiece:Zucchini",
+      "TYPE:piece"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgdxe8aw002a7sfkfwiq36r7",
+    "name": "Agave Syrup",
+    "per": "1 tsp (7g)",
+    "calories": 20,
+    "protein": 0,
+    "carbs": 5,
+    "fat": 0,
+    "fiber": 0,
+    "sugar": 5,
+    "category": "other",
+    "aliases": [
+      "Pure:Other",
+      "TYPE:tsp"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5nra018a8igv39uhyl0g",
+    "name": "Almond Butter",
+    "per": "100g",
+    "calories": 614,
+    "protein": 21.2,
+    "carbs": 18.8,
+    "fat": 55.5,
+    "fiber": 10.3,
+    "sugar": 4.4,
+    "category": "healthy-fats",
+    "aliases": [
+      "Pure:Almond Butter",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmge2u46d003287gywaub13sq",
+    "name": "Almond milk",
+    "per": "100ml",
+    "calories": 17,
+    "protein": 0.6,
+    "carbs": 0.5,
+    "fat": 1.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Almond milk"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5mjo017v8igvdbpxa1qi",
+    "name": "Almonds",
+    "per": "100g",
+    "calories": 579,
+    "protein": 21.2,
+    "carbs": 21.6,
+    "fat": 49.9,
+    "fiber": 12.5,
+    "sugar": 4.4,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Almonds",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9zis019w8igvjq5bsf68",
+    "name": "Anchovies",
+    "per": "100g",
+    "calories": 131,
+    "protein": 20,
+    "carbs": 0,
+    "fat": 4.8,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Anchovies",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5gad015v8igvksxjfuwd",
+    "name": "Apple",
+    "per": "100g",
+    "calories": 52,
+    "protein": 0.3,
+    "carbs": 13.8,
+    "fat": 0.2,
+    "fiber": 2.4,
+    "sugar": 10.4,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Apple",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ipn016m8igv00tm0q6u",
+    "name": "Asparagus",
+    "per": "100g",
+    "calories": 20,
+    "protein": 2.2,
+    "carbs": 4,
+    "fat": 0.1,
+    "fiber": 2.1,
+    "sugar": 0,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Asparagus",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5hwz016c8igv0rqomyyz",
+    "name": "Avocado",
+    "per": "100g",
+    "calories": 160,
+    "protein": 2,
+    "carbs": 8.5,
+    "fat": 14.7,
+    "fiber": 6.7,
+    "sugar": 0.7,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Avocado",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5nms01898igvpnryx2dt",
+    "name": "Avocado Oil",
+    "per": "100g",
+    "calories": 884,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 100,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "healthy-fats",
+    "aliases": [
+      "Pure:Avocado Oil",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9vw501998igvsnozazko",
+    "name": "Bacon",
+    "per": "100g",
+    "calories": 541,
+    "protein": 37,
+    "carbs": 1.4,
+    "fat": 42,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Bacon",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgdxdtg600277sfkmczwvpn3",
+    "name": "Baking Powder",
+    "per": "1 tsp (4g)",
+    "calories": 2,
+    "protein": 0,
+    "carbs": 1,
+    "fat": 0,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Other",
+      "TYPE:tsp"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ghc015w8igv3bln5ooa",
+    "name": "Banana",
+    "per": "100g",
+    "calories": 89,
+    "protein": 1.1,
+    "carbs": 22.8,
+    "fat": 0.3,
+    "fiber": 2.6,
+    "sugar": 12.2,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Banana",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5mg1017u8igvdbvn593j",
+    "name": "Barley",
+    "per": "100g",
+    "calories": 352,
+    "protein": 12,
+    "carbs": 73,
+    "fat": 2.3,
+    "fiber": 17,
+    "sugar": 0.8,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Barley",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5opu018m8igv9e6i0ebb",
+    "name": "Basil",
+    "per": "100g",
+    "calories": 22,
+    "protein": 3.2,
+    "carbs": 2.6,
+    "fat": 0.6,
+    "fiber": 1.6,
+    "sugar": 0.3,
+    "category": "other",
+    "aliases": [
+      "Pure:Basil",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5lya017o8igvoceezzrx",
+    "name": "Basmati Rice",
+    "per": "100g",
+    "calories": 130,
+    "protein": 2.7,
+    "carbs": 28,
+    "fat": 0.3,
+    "fiber": 0.4,
+    "sugar": 0.1,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Basmati Rice",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9zsg019y8igvgz16csag",
+    "name": "Bass",
+    "per": "100g",
+    "calories": 97,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 2,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Bass",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5jiw016w8igv985rdgdo",
+    "name": "Beef",
+    "per": "100g",
+    "calories": 250,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 15,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Beef",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9udv01918igv0qibbs9q",
+    "name": "Beef Brisket",
+    "per": "100g",
+    "calories": 250,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 15,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Beef Brisket",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9u9301908igvwrnk8adn",
+    "name": "Beef Chuck",
+    "per": "100g",
+    "calories": 250,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 15,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Beef Chuck",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9uk401928igvtx1wbig4",
+    "name": "Beef Short Ribs",
+    "per": "100g",
+    "calories": 250,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 15,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Beef Short Ribs",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9tgj018v8igvypndnf1j",
+    "name": "Beef Steak",
+    "per": "100g",
+    "calories": 250,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 15,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Beef Steak",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5if0016i8igvg6g4e698",
+    "name": "Bell Pepper",
+    "per": "100g",
+    "calories": 20,
+    "protein": 0.9,
+    "carbs": 4.6,
+    "fat": 0.2,
+    "fiber": 1.5,
+    "sugar": 2.4,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Bell Pepper",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa3mn01al8igvysr00om6",
+    "name": "Bison",
+    "per": "100g",
+    "calories": 143,
+    "protein": 28,
+    "carbs": 0,
+    "fat": 2.4,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Bison",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5o8l018g8igvbpteyvzh",
+    "name": "Black Pepper",
+    "per": "100g",
+    "calories": 251,
+    "protein": 10,
+    "carbs": 64,
+    "fat": 3.3,
+    "fiber": 25,
+    "sugar": 0.6,
+    "category": "other",
+    "aliases": [
+      "Pure:Black Pepper",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgdxdyl400287sfkijj00pag",
+    "name": "Blueberries",
+    "per": "100g",
+    "calories": 57,
+    "protein": 0.7,
+    "carbs": 14.5,
+    "fat": 0.3,
+    "fiber": 2.4,
+    "sugar": 10,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Fruits",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5gpe015z8igvtgxut6fq",
+    "name": "Blueberry",
+    "per": "100g",
+    "calories": 57,
+    "protein": 0.7,
+    "carbs": 14.5,
+    "fat": 0.3,
+    "fiber": 2.4,
+    "sugar": 10,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Blueberry",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5hzc016d8igvygu6cm2l",
+    "name": "Broccoli",
+    "per": "100g",
+    "calories": 34,
+    "protein": 2.8,
+    "carbs": 6.6,
+    "fat": 0.4,
+    "fiber": 2.6,
+    "sugar": 1.5,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Broccoli",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5lvq017n8igvs88y9bew",
+    "name": "Brown Rice",
+    "per": "100g",
+    "calories": 111,
+    "protein": 2.6,
+    "carbs": 23,
+    "fat": 0.9,
+    "fiber": 1.8,
+    "sugar": 0.4,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Brown Rice",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5md1017t8igvvx7h8nfg",
+    "name": "Bulgur",
+    "per": "100g",
+    "calories": 83,
+    "protein": 3.1,
+    "carbs": 19,
+    "fat": 0.2,
+    "fiber": 4.5,
+    "sugar": 0,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Bulgur",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5l7d017f8igvuvs0btbr",
+    "name": "Butter",
+    "per": "100g",
+    "calories": 717,
+    "protein": 0.9,
+    "carbs": 0.1,
+    "fat": 81,
+    "fiber": 0,
+    "sugar": 0.1,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Butter",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5j7n016s8igvlk4z8mrq",
+    "name": "Cabbage",
+    "per": "100g",
+    "calories": 25,
+    "protein": 1.3,
+    "carbs": 5.8,
+    "fat": 0.1,
+    "fiber": 2.5,
+    "sugar": 3.2,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Cabbage",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5hl501698igvynw4l7jj",
+    "name": "Cantaloupe",
+    "per": "100g",
+    "calories": 34,
+    "protein": 0.8,
+    "carbs": 8.2,
+    "fat": 0.2,
+    "fiber": 0.9,
+    "sugar": 7.9,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Cantaloupe",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa17901a78igvkr0xhp35",
+    "name": "Carp",
+    "per": "100g",
+    "calories": 127,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 5.6,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Carp",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5i63016f8igv6wor3yvl",
+    "name": "Carrot",
+    "per": "100g",
+    "calories": 41,
+    "protein": 0.9,
+    "carbs": 9.6,
+    "fat": 0.2,
+    "fiber": 2.8,
+    "sugar": 4.7,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Carrot",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5mow017x8igveufng70b",
+    "name": "Cashews",
+    "per": "100g",
+    "calories": 553,
+    "protein": 18.2,
+    "carbs": 30.2,
+    "fat": 43.8,
+    "fiber": 3.3,
+    "sugar": 5.9,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Cashews",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa0qb01a48igv9hck25qk",
+    "name": "Catfish",
+    "per": "100g",
+    "calories": 95,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 2.3,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Catfish",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5j44016r8igv0lwb6seb",
+    "name": "Cauliflower",
+    "per": "100g",
+    "calories": 25,
+    "protein": 1.9,
+    "carbs": 5,
+    "fat": 0.3,
+    "fiber": 2,
+    "sugar": 1.9,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Cauliflower",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5kxa017b8igv2gv8aqbz",
+    "name": "Cheddar Cheese",
+    "per": "100g",
+    "calories": 403,
+    "protein": 25,
+    "carbs": 1.3,
+    "fat": 33,
+    "fiber": 0,
+    "sugar": 0.5,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Cheddar Cheese",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5hcl01668igve722zbu4",
+    "name": "Cherry",
+    "per": "100g",
+    "calories": 63,
+    "protein": 1.1,
+    "carbs": 16,
+    "fat": 0.2,
+    "fiber": 2.1,
+    "sugar": 12.8,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Cherry",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5n8w01848igvze4j6av8",
+    "name": "Chia Seeds",
+    "per": "100g",
+    "calories": 486,
+    "protein": 17,
+    "carbs": 42,
+    "fat": 31,
+    "fiber": 34,
+    "sugar": 0,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Chia Seeds",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5jgf016v8igv5viv7qkz",
+    "name": "Chicken Breast",
+    "per": "100g",
+    "calories": 165,
+    "protein": 31,
+    "carbs": 0,
+    "fat": 3.6,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Chicken Breast",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9wjt019d8igvkt39pg67",
+    "name": "Chicken Drumstick",
+    "per": "100g",
+    "calories": 172,
+    "protein": 28,
+    "carbs": 0,
+    "fat": 5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Chicken Drumstick",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9wqy019e8igvpck21vxa",
+    "name": "Chicken Leg",
+    "per": "100g",
+    "calories": 172,
+    "protein": 28,
+    "carbs": 0,
+    "fat": 5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Chicken Leg",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9x34019g8igvj3s4yf2t",
+    "name": "Chicken Liver",
+    "per": "100g",
+    "calories": 116,
+    "protein": 17,
+    "carbs": 0.7,
+    "fat": 4.8,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Chicken Liver",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9wah019b8igve2tpm0s3",
+    "name": "Chicken Thigh",
+    "per": "100g",
+    "calories": 209,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 10,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Chicken Thigh",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9wf8019c8igv35fgsl5n",
+    "name": "Chicken Wing",
+    "per": "100g",
+    "calories": 203,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 14,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Chicken Wing",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5oz2018p8igvr0vfzd9j",
+    "name": "Cinnamon",
+    "per": "100g",
+    "calories": 247,
+    "protein": 4,
+    "carbs": 80.6,
+    "fat": 1.2,
+    "fiber": 53.1,
+    "sugar": 2.2,
+    "category": "other",
+    "aliases": [
+      "Pure:Cinnamon",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa27801ae8igvt5hendh0",
+    "name": "Clams",
+    "per": "100g",
+    "calories": 86,
+    "protein": 14,
+    "carbs": 2.6,
+    "fat": 1.7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Clams",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh2qo9l006p89gxswga5zs1",
+    "name": "Coconut flakes",
+    "per": "100g",
+    "calories": 660,
+    "protein": 7,
+    "carbs": 25,
+    "fat": 65,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Coconut flakes"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5nki01888igvlx9t56nc",
+    "name": "Coconut Oil",
+    "per": "100g",
+    "calories": 862,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 100,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "healthy-fats",
+    "aliases": [
+      "Pure:Coconut Oil",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5k6q01748igvcfwimqs2",
+    "name": "Cod",
+    "per": "100g",
+    "calories": 82,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 0.7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Cod",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9yru019r8igvv90f8uwz",
+    "name": "Cod Fillet",
+    "per": "100g",
+    "calories": 82,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 0.7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Cod Fillet",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh5w459006u89gxq5it4ynd",
+    "name": "Cooked beans",
+    "per": "100g",
+    "calories": 127,
+    "protein": 8.7,
+    "carbs": 22.8,
+    "fat": 0.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Cooked beans"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh6faoa006w89gxqq4i11ic",
+    "name": "Corn",
+    "per": "100g",
+    "calories": 96,
+    "protein": 3.4,
+    "carbs": 21,
+    "fat": 1.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Corn"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ktt017a8igvd05un12c",
+    "name": "Cottage Cheese",
+    "per": "100g",
+    "calories": 98,
+    "protein": 11.1,
+    "carbs": 3.4,
+    "fat": 4.3,
+    "fiber": 0,
+    "sugar": 2.7,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Cottage Cheese",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5kcn01768igvsm6emxbc",
+    "name": "Crab",
+    "per": "100g",
+    "calories": 97,
+    "protein": 20,
+    "carbs": 0,
+    "fat": 1.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Crab",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa2yo01ah8igvr8fiht3g",
+    "name": "Crayfish",
+    "per": "100g",
+    "calories": 82,
+    "protein": 16,
+    "carbs": 0,
+    "fat": 1.2,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Crayfish",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5lc6017g8igv1000xe28",
+    "name": "Cream Cheese",
+    "per": "100g",
+    "calories": 342,
+    "protein": 6,
+    "carbs": 4.1,
+    "fat": 34,
+    "fiber": 0,
+    "sugar": 3.2,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Cream Cheese",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ib4016h8igv77rvjpu4",
+    "name": "Cucumber",
+    "per": "100g",
+    "calories": 16,
+    "protein": 0.7,
+    "carbs": 4,
+    "fat": 0.1,
+    "fiber": 0.5,
+    "sugar": 1.7,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Cucumber",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5okb018k8igvey0y9mjf",
+    "name": "Cumin",
+    "per": "100g",
+    "calories": 375,
+    "protein": 18,
+    "carbs": 44,
+    "fat": 22,
+    "fiber": 11,
+    "sugar": 2.3,
+    "category": "other",
+    "aliases": [
+      "Pure:Cumin",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh5xh4m006v89gxgvtayhwm",
+    "name": "Dry beans",
+    "per": "100g",
+    "calories": 330,
+    "protein": 22,
+    "carbs": 60,
+    "fat": 2,
+    "fiber": 16,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Dry beans"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh5t3nr006t89gxod87g1o4",
+    "name": "Dry Couscous",
+    "per": "100g",
+    "calories": 112,
+    "protein": 12,
+    "carbs": 72,
+    "fat": 0.6,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Dry Couscous"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9x7l019h8igvlinly454",
+    "name": "Duck",
+    "per": "100g",
+    "calories": 337,
+    "protein": 19,
+    "carbs": 0,
+    "fat": 28,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Duck",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5k4f01738igv9bg7jnpm",
+    "name": "Egg Whites",
+    "per": "100g",
+    "calories": 52,
+    "protein": 10.9,
+    "carbs": 0.7,
+    "fat": 0.2,
+    "fiber": 0,
+    "sugar": 0.7,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Egg Whites",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5j1s016q8igvpt1mmlhp",
+    "name": "Eggplant",
+    "per": "100g",
+    "calories": 25,
+    "protein": 1,
+    "carbs": 6,
+    "fat": 0.2,
+    "fiber": 3,
+    "sugar": 3.5,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Eggplant",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5k0k01728igvvyj838u6",
+    "name": "Eggs",
+    "per": "100g",
+    "calories": 155,
+    "protein": 13,
+    "carbs": 1.1,
+    "fat": 11,
+    "fiber": 0,
+    "sugar": 1.1,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Eggs",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa3r901am8igvkjnb2enr",
+    "name": "Elk",
+    "per": "100g",
+    "calories": 111,
+    "protein": 22,
+    "carbs": 0,
+    "fat": 1.4,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Elk",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5l2q017d8igvuchn7lwk",
+    "name": "Feta Cheese",
+    "per": "100g",
+    "calories": 264,
+    "protein": 14,
+    "carbs": 4.1,
+    "fat": 21,
+    "fiber": 0,
+    "sugar": 4.1,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Feta Cheese",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ncp01858igvhrd9w7qp",
+    "name": "Flax Seeds",
+    "per": "100g",
+    "calories": 534,
+    "protein": 18.3,
+    "carbs": 28.9,
+    "fat": 42.2,
+    "fiber": 27.3,
+    "sugar": 1.6,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Flax Seeds",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ik7016k8igvcr9zcjbl",
+    "name": "Garlic",
+    "per": "100g",
+    "calories": 149,
+    "protein": 6.4,
+    "carbs": 33.1,
+    "fat": 0.5,
+    "fiber": 2.1,
+    "sugar": 1,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Garlic",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ob8018h8igv9kfmzqdp",
+    "name": "Garlic Powder",
+    "per": "100g",
+    "calories": 331,
+    "protein": 16.6,
+    "carbs": 72.7,
+    "fat": 0.7,
+    "fiber": 9,
+    "sugar": 2.4,
+    "category": "other",
+    "aliases": [
+      "Pure:Garlic Powder",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5p1a018q8igv5yqw4rk3",
+    "name": "Ginger",
+    "per": "100g",
+    "calories": 80,
+    "protein": 1.8,
+    "carbs": 18,
+    "fat": 0.8,
+    "fiber": 2,
+    "sugar": 1.7,
+    "category": "other",
+    "aliases": [
+      "Pure:Ginger",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9xcb019i8igvx7wt4pe2",
+    "name": "Goose",
+    "per": "100g",
+    "calories": 161,
+    "protein": 22,
+    "carbs": 0,
+    "fat": 7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Goose",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5gwa01608igv99ufujmb",
+    "name": "Grape",
+    "per": "100g",
+    "calories": 67,
+    "protein": 0.6,
+    "carbs": 17,
+    "fat": 0.4,
+    "fiber": 0.9,
+    "sugar": 16,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Grape",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5kqi01798igvv7l11gk0",
+    "name": "Greek Yogurt",
+    "per": "100g",
+    "calories": 59,
+    "protein": 10,
+    "carbs": 3.6,
+    "fat": 0.4,
+    "fiber": 0,
+    "sugar": 3.6,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Greek Yogurt",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5irz016n8igv5k7s9t64",
+    "name": "Green Beans",
+    "per": "100g",
+    "calories": 31,
+    "protein": 1.8,
+    "carbs": 7,
+    "fat": 0.1,
+    "fiber": 2.7,
+    "sugar": 0,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Green Beans",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9u22018z8igvpdnfn518",
+    "name": "Ground Beef",
+    "per": "100g",
+    "calories": 254,
+    "protein": 25,
+    "carbs": 0,
+    "fat": 16,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Ground Beef",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9wvf019f8igvs1ycu51s",
+    "name": "Ground Chicken",
+    "per": "100g",
+    "calories": 143,
+    "protein": 27,
+    "carbs": 0,
+    "fat": 3,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Ground Chicken",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9xyy019m8igv2fy2y827",
+    "name": "Ground Lamb",
+    "per": "100g",
+    "calories": 294,
+    "protein": 25,
+    "carbs": 0,
+    "fat": 21,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Ground Lamb",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9vjl01978igvtp8afw5z",
+    "name": "Ground Pork",
+    "per": "100g",
+    "calories": 242,
+    "protein": 27.3,
+    "carbs": 0,
+    "fat": 13.9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Ground Pork",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9yfs019p8igvliti5peu",
+    "name": "Ground Turkey",
+    "per": "100g",
+    "calories": 189,
+    "protein": 29,
+    "carbs": 0,
+    "fat": 7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Ground Turkey",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa04601a08igvugqhbflt",
+    "name": "Grouper",
+    "per": "100g",
+    "calories": 92,
+    "protein": 19,
+    "carbs": 0,
+    "fat": 1.2,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Grouper",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9ywo019s8igvesor9aca",
+    "name": "Haddock",
+    "per": "100g",
+    "calories": 90,
+    "protein": 20,
+    "carbs": 0,
+    "fat": 0.6,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Haddock",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9z18019t8igvecaex6cl",
+    "name": "Halibut",
+    "per": "100g",
+    "calories": 111,
+    "protein": 23,
+    "carbs": 0,
+    "fat": 1.3,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Halibut",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9w1r019a8igvialdfnoy",
+    "name": "Ham",
+    "per": "100g",
+    "calories": 145,
+    "protein": 18,
+    "carbs": 1.5,
+    "fat": 7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Ham",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5my901808igv4a4ohtl9",
+    "name": "Hazelnuts",
+    "per": "100g",
+    "calories": 628,
+    "protein": 15,
+    "carbs": 16.7,
+    "fat": 60.8,
+    "fiber": 9.7,
+    "sugar": 4.3,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Hazelnuts",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa1bq01a88igvttc8tzxe",
+    "name": "Herring",
+    "per": "100g",
+    "calories": 158,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Herring",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5nz2018d8igvpx48d6zr",
+    "name": "Honey",
+    "per": "100g",
+    "calories": 304,
+    "protein": 0.3,
+    "carbs": 82.4,
+    "fat": 0,
+    "fiber": 0.2,
+    "sugar": 82.1,
+    "category": "other",
+    "aliases": [
+      "Pure:Honey",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5jb2016t8igvawi7hj19",
+    "name": "Kale",
+    "per": "100g",
+    "calories": 49,
+    "protein": 4.3,
+    "carbs": 8.8,
+    "fat": 0.9,
+    "fiber": 3.6,
+    "sugar": 2.3,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Kale",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5h4101638igvc7vzzfoy",
+    "name": "Kiwi",
+    "per": "100g",
+    "calories": 61,
+    "protein": 1.1,
+    "carbs": 14.7,
+    "fat": 0.5,
+    "fiber": 3,
+    "sugar": 9,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Kiwi",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5jxc01718igv3b7s681b",
+    "name": "Lamb",
+    "per": "100g",
+    "calories": 294,
+    "protein": 25,
+    "carbs": 0,
+    "fat": 21,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Lamb",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9xhy019j8igvv9ifi80q",
+    "name": "Lamb Chop",
+    "per": "100g",
+    "calories": 294,
+    "protein": 25,
+    "carbs": 0,
+    "fat": 21,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Lamb Chop",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9xmb019k8igvprkgevnz",
+    "name": "Lamb Leg",
+    "per": "100g",
+    "calories": 294,
+    "protein": 25,
+    "carbs": 0,
+    "fat": 21,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Lamb Leg",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9xsv019l8igv02a4uwz3",
+    "name": "Lamb Shoulder",
+    "per": "100g",
+    "calories": 294,
+    "protein": 25,
+    "carbs": 0,
+    "fat": 21,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Lamb Shoulder",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5gys01618igvgbq4diw9",
+    "name": "Lemon",
+    "per": "100g",
+    "calories": 29,
+    "protein": 1.1,
+    "carbs": 9.3,
+    "fat": 0.3,
+    "fiber": 2.8,
+    "sugar": 2.5,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Lemon",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5p99018t8igvuzpjcv7b",
+    "name": "Lemon Juice",
+    "per": "100g",
+    "calories": 22,
+    "protein": 0.4,
+    "carbs": 7,
+    "fat": 0.2,
+    "fiber": 0.3,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Lemon Juice",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ind016l8igv1a70d7no",
+    "name": "Lettuce",
+    "per": "100g",
+    "calories": 15,
+    "protein": 1.4,
+    "carbs": 2.9,
+    "fat": 0.2,
+    "fiber": 1.3,
+    "sugar": 0.8,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Lettuce",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5h1f01628igvbwyin4vl",
+    "name": "Lime",
+    "per": "100g",
+    "calories": 30,
+    "protein": 0.7,
+    "carbs": 10.5,
+    "fat": 0.2,
+    "fiber": 2.8,
+    "sugar": 1.7,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Lime",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5pdm018u8igvahvn9pmp",
+    "name": "Lime Juice",
+    "per": "100g",
+    "calories": 25,
+    "protein": 0.4,
+    "carbs": 8.4,
+    "fat": 0.1,
+    "fiber": 0.2,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Lime Juice",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5kf701778igvidgugupg",
+    "name": "Lobster",
+    "per": "100g",
+    "calories": 89,
+    "protein": 19,
+    "carbs": 0,
+    "fat": 0.9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Lobster",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa35t01ai8igv1r5zljdm",
+    "name": "Lobster Tail",
+    "per": "100g",
+    "calories": 89,
+    "protein": 19,
+    "carbs": 0,
+    "fat": 0.9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Lobster Tail",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9z6h019u8igv8v21ykv2",
+    "name": "Mackerel",
+    "per": "100g",
+    "calories": 205,
+    "protein": 19,
+    "carbs": 0,
+    "fat": 14,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Mackerel",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa0bo01a18igvnk11nvai",
+    "name": "Mahi Mahi",
+    "per": "100g",
+    "calories": 85,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 0.7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Mahi Mahi",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5hou016a8igvv5p8cmob",
+    "name": "Mango",
+    "per": "100g",
+    "calories": 60,
+    "protein": 0.8,
+    "carbs": 15,
+    "fat": 0.4,
+    "fiber": 1.6,
+    "sugar": 13.7,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Mango",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5o2i018e8igv13hx2z99",
+    "name": "Maple Syrup",
+    "per": "100g",
+    "calories": 260,
+    "protein": 0,
+    "carbs": 67,
+    "fat": 0,
+    "fiber": 0,
+    "sugar": 67,
+    "category": "other",
+    "aliases": [
+      "Pure:Maple Syrup",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh55yt7006r89gxvvpxdfo2",
+    "name": "Mashed potato",
+    "per": "100g",
+    "calories": 90,
+    "protein": 2,
+    "carbs": 20,
+    "fat": 0.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Mashed potato"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ko601788igv4oj8j1yy",
+    "name": "Milk",
+    "per": "100g",
+    "calories": 42,
+    "protein": 3.4,
+    "carbs": 5,
+    "fat": 1,
+    "fiber": 0,
+    "sugar": 5,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Milk",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5kzp017c8igv7lpg6oqf",
+    "name": "Mozzarella",
+    "per": "100g",
+    "calories": 280,
+    "protein": 22,
+    "carbs": 2.2,
+    "fat": 22,
+    "fiber": 0,
+    "sugar": 1,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Mozzarella",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5iwj016o8igvg872zt5s",
+    "name": "Mushrooms",
+    "per": "100g",
+    "calories": 22,
+    "protein": 3.1,
+    "carbs": 3.3,
+    "fat": 0.3,
+    "fiber": 1,
+    "sugar": 0,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Mushrooms",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa1r201ab8igvcfa3i6jk",
+    "name": "Mussels",
+    "per": "100g",
+    "calories": 86,
+    "protein": 12,
+    "carbs": 3.7,
+    "fat": 2.2,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Mussels",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5m55017q8igvy7wc0y0v",
+    "name": "Oats",
+    "per": "100g",
+    "calories": 389,
+    "protein": 16.9,
+    "carbs": 66.3,
+    "fat": 6.9,
+    "fiber": 10.6,
+    "sugar": 0.5,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Oats",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa2u101ag8igv8ckousta",
+    "name": "Octopus",
+    "per": "100g",
+    "calories": 82,
+    "protein": 15,
+    "carbs": 2.2,
+    "fat": 1,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Octopus",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ni201878igvcqw98b27",
+    "name": "Olive Oil",
+    "per": "100g",
+    "calories": 884,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 100,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "healthy-fats",
+    "aliases": [
+      "Pure:Olive Oil",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ihw016j8igv1on3vlk2",
+    "name": "Onion",
+    "per": "100g",
+    "calories": 40,
+    "protein": 1.1,
+    "carbs": 9.3,
+    "fat": 0.1,
+    "fiber": 1.7,
+    "sugar": 4.2,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Onion",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5odl018i8igvsx6xw9mp",
+    "name": "Onion Powder",
+    "per": "100g",
+    "calories": 341,
+    "protein": 10,
+    "carbs": 79,
+    "fat": 1,
+    "fiber": 15,
+    "sugar": 38,
+    "category": "other",
+    "aliases": [
+      "Pure:Onion Powder",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5gk5015x8igval4ozi3v",
+    "name": "Orange",
+    "per": "100g",
+    "calories": 47,
+    "protein": 0.9,
+    "carbs": 11.8,
+    "fat": 0.1,
+    "fiber": 2.4,
+    "sugar": 9.4,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Orange",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5omp018l8igvnnkf9rz1",
+    "name": "Oregano",
+    "per": "100g",
+    "calories": 265,
+    "protein": 9,
+    "carbs": 69,
+    "fat": 4.3,
+    "fiber": 43,
+    "sugar": 4.1,
+    "category": "other",
+    "aliases": [
+      "Pure:Oregano",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa1y301ac8igvgkksm0k0",
+    "name": "Oysters",
+    "per": "100g",
+    "calories": 68,
+    "protein": 7,
+    "carbs": 4,
+    "fat": 2.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Oysters",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ofu018j8igvc3dm9dgx",
+    "name": "Paprika",
+    "per": "100g",
+    "calories": 282,
+    "protein": 14,
+    "carbs": 54,
+    "fat": 13,
+    "fiber": 35,
+    "sugar": 10,
+    "category": "other",
+    "aliases": [
+      "Pure:Paprika",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5l55017e8igvwl17n7y0",
+    "name": "Parmesan",
+    "per": "100g",
+    "calories": 431,
+    "protein": 38,
+    "carbs": 4.1,
+    "fat": 29,
+    "fiber": 0,
+    "sugar": 0.9,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Parmesan",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5lmt017k8igv7jor2b3b",
+    "name": "Pasta",
+    "per": "100g",
+    "calories": 131,
+    "protein": 5,
+    "carbs": 25,
+    "fat": 1.1,
+    "fiber": 1.8,
+    "sugar": 0.6,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Pasta",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ha801658igvije2rlgt",
+    "name": "Peach",
+    "per": "100g",
+    "calories": 39,
+    "protein": 0.9,
+    "carbs": 9.5,
+    "fat": 0.3,
+    "fiber": 1.5,
+    "sugar": 8.4,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Peach",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5nti018b8igvzs70hvt9",
+    "name": "Peanut Butter",
+    "per": "100g",
+    "calories": 588,
+    "protein": 25.1,
+    "carbs": 20,
+    "fat": 50.4,
+    "fiber": 8.5,
+    "sugar": 9.2,
+    "category": "healthy-fats",
+    "aliases": [
+      "Pure:Peanut Butter",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5n0q01818igvalzoq760",
+    "name": "Peanuts",
+    "per": "100g",
+    "calories": 567,
+    "protein": 26,
+    "carbs": 16,
+    "fat": 49,
+    "fiber": 8.5,
+    "sugar": 4.7,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Peanuts",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5h6k01648igv1jggzx0w",
+    "name": "Pear",
+    "per": "100g",
+    "calories": 57,
+    "protein": 0.4,
+    "carbs": 15.2,
+    "fat": 0.1,
+    "fiber": 3.1,
+    "sugar": 9.8,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Pear",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5mts017z8igvr70e40ly",
+    "name": "Pecans",
+    "per": "100g",
+    "calories": 691,
+    "protein": 9.2,
+    "carbs": 13.9,
+    "fat": 72,
+    "fiber": 9.6,
+    "sugar": 4,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Pecans",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa0v501a58igvss6a8u9t",
+    "name": "Perch",
+    "per": "100g",
+    "calories": 91,
+    "protein": 19,
+    "carbs": 0,
+    "fat": 0.9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Perch",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa11701a68igvu2mwt4nu",
+    "name": "Pike",
+    "per": "100g",
+    "calories": 88,
+    "protein": 19,
+    "carbs": 0,
+    "fat": 0.7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Pike",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5hui016b8igvxxokr18e",
+    "name": "Pineapple",
+    "per": "100g",
+    "calories": 50,
+    "protein": 0.5,
+    "carbs": 13.1,
+    "fat": 0.1,
+    "fiber": 1.4,
+    "sugar": 9.9,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Pineapple",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5mrh017y8igv3naadw7n",
+    "name": "Pistachios",
+    "per": "100g",
+    "calories": 560,
+    "protein": 20,
+    "carbs": 27,
+    "fat": 45,
+    "fiber": 10,
+    "sugar": 7.7,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Pistachios",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5hfn01678igvkmlkko35",
+    "name": "Plum",
+    "per": "100g",
+    "calories": 46,
+    "protein": 0.7,
+    "carbs": 11.4,
+    "fat": 0.3,
+    "fiber": 1.4,
+    "sugar": 9.9,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Plum",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa1gb01a98igvwwyoe543",
+    "name": "Pollock",
+    "per": "100g",
+    "calories": 82,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 0.6,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Pollock",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5jv401708igv12wiy23y",
+    "name": "Pork",
+    "per": "100g",
+    "calories": 242,
+    "protein": 27.3,
+    "carbs": 0,
+    "fat": 13.9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Pork",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9vd801968igvryvzmzkz",
+    "name": "Pork Belly",
+    "per": "100g",
+    "calories": 518,
+    "protein": 9,
+    "carbs": 0,
+    "fat": 53,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Pork Belly",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9uqa01938igvrbx1y9lb",
+    "name": "Pork Chop",
+    "per": "100g",
+    "calories": 242,
+    "protein": 27.3,
+    "carbs": 0,
+    "fat": 13.9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Pork Chop",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9vom01988igvwekh0nwv",
+    "name": "Pork Ribs",
+    "per": "100g",
+    "calories": 242,
+    "protein": 27.3,
+    "carbs": 0,
+    "fat": 13.9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Pork Ribs",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9uzr01958igvwgc0cfcv",
+    "name": "Pork Shoulder",
+    "per": "100g",
+    "calories": 242,
+    "protein": 27.3,
+    "carbs": 0,
+    "fat": 13.9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Pork Shoulder",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9uv601948igvbvcodjtm",
+    "name": "Pork Tenderloin",
+    "per": "100g",
+    "calories": 143,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 3,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Pork Tenderloin",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5m7h017r8igvaw5uouch",
+    "name": "Potato",
+    "per": "100g",
+    "calories": 77,
+    "protein": 2,
+    "carbs": 17.5,
+    "fat": 0.1,
+    "fiber": 2.2,
+    "sugar": 0.8,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Potato",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgdx7ow300267sfkl6m7qfaf",
+    "name": "Protein Powder",
+    "per": "1 scoop (15g)",
+    "calories": 60,
+    "protein": 15,
+    "carbs": 1,
+    "fat": 0.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Proteins",
+      "TYPE:scoop"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5n5o01838igvez6o0fny",
+    "name": "Pumpkin Seeds",
+    "per": "100g",
+    "calories": 559,
+    "protein": 30,
+    "carbs": 11,
+    "fat": 49,
+    "fiber": 6,
+    "sugar": 0,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Pumpkin Seeds",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5m0k017p8igvoip73ibx",
+    "name": "Quinoa",
+    "per": "100g",
+    "calories": 120,
+    "protein": 4.4,
+    "carbs": 22,
+    "fat": 1.9,
+    "fiber": 2.8,
+    "sugar": 0.9,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Quinoa",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa3gk01ak8igvts2yjvfo",
+    "name": "Rabbit",
+    "per": "100g",
+    "calories": 173,
+    "protein": 33,
+    "carbs": 0,
+    "fat": 3.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Rabbit",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgdx5a0100257sfkxb7tug2x",
+    "name": "Raspberries",
+    "per": "100g",
+    "calories": 52,
+    "protein": 1.2,
+    "carbs": 11.9,
+    "fat": 0.7,
+    "fiber": 6.5,
+    "sugar": 4.4,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Fruits",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9tlb018w8igvio3pcvdl",
+    "name": "Ribeye Steak",
+    "per": "100g",
+    "calories": 291,
+    "protein": 25,
+    "carbs": 0,
+    "fat": 20,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Ribeye Steak",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh5qg91006s89gxiy8sei1d",
+    "name": "Rice cake",
+    "per": "1",
+    "calories": 35,
+    "protein": 0.7,
+    "carbs": 7.5,
+    "fat": 0.3,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Rice cake"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5len017h8igvgg6czxkg",
+    "name": "Ricotta",
+    "per": "100g",
+    "calories": 174,
+    "protein": 11,
+    "carbs": 3,
+    "fat": 13,
+    "fiber": 0,
+    "sugar": 0.3,
+    "category": "dairy",
+    "aliases": [
+      "Pure:Ricotta",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ov9018o8igvxsanyudm",
+    "name": "Rosemary",
+    "per": "100g",
+    "calories": 131,
+    "protein": 3.3,
+    "carbs": 21,
+    "fat": 5.9,
+    "fiber": 14,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Rosemary",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh1z1g6006n89gxyv0eysti",
+    "name": "Salad",
+    "per": "100g",
+    "calories": 15,
+    "protein": 1.4,
+    "carbs": 2.9,
+    "fat": 0,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Salad"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5jl0016x8igvpoesllv8",
+    "name": "Salmon",
+    "per": "100g",
+    "calories": 208,
+    "protein": 25.4,
+    "carbs": 0,
+    "fat": 12.4,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Salmon",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5o5x018f8igvq01av7e5",
+    "name": "Salt",
+    "per": "100g",
+    "calories": 0,
+    "protein": 0,
+    "carbs": 0,
+    "fat": 0,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Salt",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9zaw019v8igv9ulqnxqx",
+    "name": "Sardines",
+    "per": "100g",
+    "calories": 208,
+    "protein": 25,
+    "carbs": 0,
+    "fat": 11,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Sardines",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa22s01ad8igvsf02v657",
+    "name": "Scallops",
+    "per": "100g",
+    "calories": 69,
+    "protein": 12,
+    "carbs": 2.4,
+    "fat": 0.8,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Scallops",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5nff01868igv4ufen48r",
+    "name": "Sesame Seeds",
+    "per": "100g",
+    "calories": 573,
+    "protein": 18,
+    "carbs": 23,
+    "fat": 50,
+    "fiber": 12,
+    "sugar": 0,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Sesame Seeds",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5k9n01758igva8w5olba",
+    "name": "Shrimp",
+    "per": "100g",
+    "calories": 99,
+    "protein": 24,
+    "carbs": 0,
+    "fat": 0.3,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Shrimp",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9tr8018x8igvqq3ykm8o",
+    "name": "Sirloin Steak",
+    "per": "100g",
+    "calories": 250,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 15,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Sirloin Steak",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9zze019z8igvna6eu4lh",
+    "name": "Snapper",
+    "per": "100g",
+    "calories": 100,
+    "protein": 20,
+    "carbs": 0,
+    "fat": 1.3,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Snapper",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5i3r016e8igvfc3sfn5n",
+    "name": "Spinach",
+    "per": "100g",
+    "calories": 23,
+    "protein": 2.9,
+    "carbs": 3.6,
+    "fat": 0.4,
+    "fiber": 2.2,
+    "sugar": 0.4,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Spinach",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa2cr01af8igv2ugxlxal",
+    "name": "Squid",
+    "per": "100g",
+    "calories": 92,
+    "protein": 16,
+    "carbs": 3,
+    "fat": 1.4,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Squid",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgdxe3f500297sfk7gxjxpm2",
+    "name": "Strawberries",
+    "per": "100g",
+    "calories": 32,
+    "protein": 0.7,
+    "carbs": 7.7,
+    "fat": 0.3,
+    "fiber": 2,
+    "sugar": 4.9,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Fruits",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5gn2015y8igvp5lz9okt",
+    "name": "Strawberry",
+    "per": "100g",
+    "calories": 32,
+    "protein": 0.7,
+    "carbs": 7.7,
+    "fat": 0.3,
+    "fiber": 2,
+    "sugar": 4.9,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Strawberry",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5n3e01828igv6dye82ba",
+    "name": "Sunflower Seeds",
+    "per": "100g",
+    "calories": 584,
+    "protein": 21,
+    "carbs": 20,
+    "fat": 51,
+    "fiber": 9,
+    "sugar": 0,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Sunflower Seeds",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5jda016u8igvzgck353p",
+    "name": "Sweet Potato",
+    "per": "100g",
+    "calories": 86,
+    "protein": 1.6,
+    "carbs": 20.1,
+    "fat": 0.1,
+    "fiber": 3,
+    "sugar": 4.2,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Sweet Potato",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa0g301a28igvzotorb7c",
+    "name": "Swordfish",
+    "per": "100g",
+    "calories": 144,
+    "protein": 23,
+    "carbs": 0,
+    "fat": 4.9,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Swordfish",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5nwr018c8igv7vaxmroy",
+    "name": "Tahini",
+    "per": "100g",
+    "calories": 595,
+    "protein": 17,
+    "carbs": 21,
+    "fat": 54,
+    "fiber": 9,
+    "sugar": 0.5,
+    "category": "healthy-fats",
+    "aliases": [
+      "Pure:Tahini",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9txb018y8igvwv6za9qt",
+    "name": "Tenderloin",
+    "per": "100g",
+    "calories": 250,
+    "protein": 26,
+    "carbs": 0,
+    "fat": 15,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Tenderloin",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh1lg99006m89gxhrqf9vf9",
+    "name": "Test chiel",
+    "per": "100g",
+    "calories": 30,
+    "protein": 30,
+    "carbs": 0,
+    "fat": 0,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Test chiel"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5os3018n8igv8h523gi4",
+    "name": "Thyme",
+    "per": "100g",
+    "calories": 101,
+    "protein": 5.6,
+    "carbs": 24,
+    "fat": 1.7,
+    "fiber": 14,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Thyme",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa0ko01a38igvllllkjom",
+    "name": "Tilapia",
+    "per": "100g",
+    "calories": 96,
+    "protein": 20,
+    "carbs": 0,
+    "fat": 1.7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Tilapia",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5i8q016g8igv11v4u9e7",
+    "name": "Tomato",
+    "per": "100g",
+    "calories": 18,
+    "protein": 0.9,
+    "carbs": 3.9,
+    "fat": 0.2,
+    "fiber": 1.2,
+    "sugar": 2.6,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Tomato",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgh2a02h006o89gxm6nq7wof",
+    "name": "Tomato sauce",
+    "per": "100g",
+    "calories": 40,
+    "protein": 1.5,
+    "carbs": 8,
+    "fat": 0.2,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "other",
+    "aliases": [
+      "Pure:Tomato sauce"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9znv019x8igvf5p7gv5f",
+    "name": "Trout",
+    "per": "100g",
+    "calories": 119,
+    "protein": 20,
+    "carbs": 0,
+    "fat": 3.5,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Trout",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5jpp016y8igvs4jl1qkc",
+    "name": "Tuna",
+    "per": "100g",
+    "calories": 132,
+    "protein": 28,
+    "carbs": 0,
+    "fat": 1.3,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Tuna",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5js4016z8igvh2ey21of",
+    "name": "Turkey",
+    "per": "100g",
+    "calories": 189,
+    "protein": 29,
+    "carbs": 0,
+    "fat": 7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Turkey",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9ylq019q8igv90qdog9i",
+    "name": "Turkey Breast",
+    "per": "100g",
+    "calories": 135,
+    "protein": 30,
+    "carbs": 0,
+    "fat": 1,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Turkey Breast",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9y3f019n8igvocxh8pfv",
+    "name": "Turkey Thigh",
+    "per": "100g",
+    "calories": 189,
+    "protein": 29,
+    "carbs": 0,
+    "fat": 7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Turkey Thigh",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf9yaz019o8igv2qgv4nlw",
+    "name": "Turkey Wing",
+    "per": "100g",
+    "calories": 189,
+    "protein": 29,
+    "carbs": 0,
+    "fat": 7,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Turkey Wing",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5p49018r8igvd3x0ivon",
+    "name": "Turmeric",
+    "per": "100g",
+    "calories": 354,
+    "protein": 8,
+    "carbs": 65,
+    "fat": 10,
+    "fiber": 21,
+    "sugar": 3.2,
+    "category": "other",
+    "aliases": [
+      "Pure:Turmeric",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa3b301aj8igvt0wp55r0",
+    "name": "Venison",
+    "per": "100g",
+    "calories": 158,
+    "protein": 30,
+    "carbs": 0,
+    "fat": 3.2,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Venison",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5p6p018s8igv6lmtavw3",
+    "name": "Vinegar",
+    "per": "100g",
+    "calories": 19,
+    "protein": 0,
+    "carbs": 0.9,
+    "fat": 0,
+    "fiber": 0,
+    "sugar": 0.4,
+    "category": "other",
+    "aliases": [
+      "Pure:Vinegar",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5mlz017w8igv9fvdnewz",
+    "name": "Walnuts",
+    "per": "100g",
+    "calories": 654,
+    "protein": 15.2,
+    "carbs": 13.7,
+    "fat": 65.2,
+    "fiber": 6.7,
+    "sugar": 2.6,
+    "category": "nuts-seeds",
+    "aliases": [
+      "Pure:Walnuts",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5hi601688igvco2w9ua6",
+    "name": "Watermelon",
+    "per": "100g",
+    "calories": 30,
+    "protein": 0.6,
+    "carbs": 7.6,
+    "fat": 0.2,
+    "fiber": 0.4,
+    "sugar": 6.2,
+    "category": "fruits",
+    "aliases": [
+      "Pure:Watermelon",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5lh5017i8igvv62s2g2a",
+    "name": "White Bread",
+    "per": "100g",
+    "calories": 265,
+    "protein": 9,
+    "carbs": 49,
+    "fat": 3.2,
+    "fiber": 2.7,
+    "sugar": 5.7,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:White Bread",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5lsv017m8igvvmlnnmn5",
+    "name": "White Rice",
+    "per": "100g",
+    "calories": 130,
+    "protein": 2.7,
+    "carbs": 28,
+    "fat": 0.3,
+    "fiber": 0.4,
+    "sugar": 0.1,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:White Rice",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa1lp01aa8igvt0rt94vc",
+    "name": "Whiting",
+    "per": "100g",
+    "calories": 90,
+    "protein": 18,
+    "carbs": 0,
+    "fat": 1.2,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Whiting",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5ljc017j8igvp7v9hmpk",
+    "name": "Whole Wheat Bread",
+    "per": "100g",
+    "calories": 247,
+    "protein": 13,
+    "carbs": 41,
+    "fat": 4.2,
+    "fiber": 6,
+    "sugar": 4.3,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Whole Wheat Bread",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5lqo017l8igvlv95h82q",
+    "name": "Whole Wheat Pasta",
+    "per": "100g",
+    "calories": 124,
+    "protein": 5,
+    "carbs": 25,
+    "fat": 1.1,
+    "fiber": 3.2,
+    "sugar": 0.6,
+    "category": "carbohydrates",
+    "aliases": [
+      "Pure:Whole Wheat Pasta",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbfa3w401an8igvaz6d5g3r",
+    "name": "Wild Boar",
+    "per": "100g",
+    "calories": 160,
+    "protein": 28,
+    "carbs": 0,
+    "fat": 4.3,
+    "fiber": 0,
+    "sugar": 0,
+    "category": "proteins",
+    "aliases": [
+      "Pure:Wild Boar",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  },
+  {
+    "id": "cmgbf5iyw016p8igv48mjh4ih",
+    "name": "Zucchini",
+    "per": "100g",
+    "calories": 17,
+    "protein": 1.2,
+    "carbs": 3.1,
+    "fat": 0.3,
+    "fiber": 1,
+    "sugar": 2.5,
+    "category": "vegetables",
+    "aliases": [
+      "Pure:Zucchini",
+      "TYPE:gram"
+    ],
+    "isActive": true
+  }
+]
