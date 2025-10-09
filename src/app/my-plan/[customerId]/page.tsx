@@ -33,6 +33,7 @@ export default function MyPlanPage() {
   const [activeDay, setActiveDay] = useState<string>('monday');
   const [activeView, setActiveView] = useState<'plan' | 'shopping'>('plan');
   const [checkedItems, setCheckedItems] = useState<{ [key: string]: boolean }>({});
+  const [language, setLanguage] = useState<'ro' | 'en'>('ro'); // Default Romanian
 
   useEffect(() => {
     const fetchData = async () => {
@@ -273,6 +274,15 @@ export default function MyPlanPage() {
     return translations;
   }, [nutritionPlan]);
 
+  // Helper function to get ingredient name in current language
+  const getIngredientName = (englishName: string): string => {
+    if (language === 'en') {
+      return englishName;
+    }
+    // Return Romanian translation or fallback to English
+    return ingredientTranslationsMap[englishName] || englishName;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100 flex items-center justify-center">
@@ -311,9 +321,17 @@ export default function MyPlanPage() {
               <div className="flex items-center">
                 <img src="/logo-mihaela.svg" alt="Mihaela Fitness" className="h-12 w-auto" />
               </div>
-              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
-                <User className="w-4 h-4" />
-                <span className="font-medium text-sm">{customer.name}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setLanguage(lang => lang === 'ro' ? 'en' : 'ro')}
+                  className="bg-white/10 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium hover:bg-white/20 transition-colors"
+                >
+                  {language === 'ro' ? '🇷🇴 RO' : '🇬🇧 EN'}
+                </button>
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
+                  <User className="w-4 h-4" />
+                  <span className="font-medium text-sm">{customer.name}</span>
+                </div>
               </div>
             </div>
             {/* Bottom row: Subtitle */}
@@ -328,9 +346,17 @@ export default function MyPlanPage() {
                 <p className="text-sm text-rose-100">Planul Tău Nutrițional Personalizat</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
-              <User className="w-5 h-5" />
-              <span className="font-medium">{customer.name}</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setLanguage(lang => lang === 'ro' ? 'en' : 'ro')}
+                className="bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg text-sm font-medium hover:bg-white/20 transition-colors"
+              >
+                {language === 'ro' ? '🇷🇴 Română' : '🇬🇧 English'}
+              </button>
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
+                <User className="w-5 h-5" />
+                <span className="font-medium">{customer.name}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -460,6 +486,7 @@ export default function MyPlanPage() {
                       mealTypeKey={meal}
                       editable={false}
                       ingredientTranslations={ingredientTranslationsMap}
+                      currentLanguage={language}
                     />
                   </div>
                 </div>
@@ -517,9 +544,8 @@ export default function MyPlanPage() {
                       <div className="flex-1">
                         <span className={`font-medium ${isChecked ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
                           {(() => {
-                            const translated = ingredientTranslationsMap[item.name];
-                            const display = translated || item.name;
-                            console.log(`🛒 [Shopping List] "${item.name}" -> "${display}" (translated: ${!!translated})`);
+                            const display = getIngredientName(item.name);
+                            console.log(`🛒 [Shopping List] "${item.name}" -> "${display}" (lang: ${language})`);
                             return display;
                           })()}
                         </span>

@@ -14,6 +14,7 @@ interface IngredientBreakdownProps {
   onPlanUpdated?: (updatedPlan: any) => void; // parent can refresh macros & totals
   onMacrosUpdated?: () => void; // New callback for when macros change
   ingredientTranslations?: { [key: string]: string }; // EN -> RO translations
+  currentLanguage?: 'ro' | 'en'; // Current language selection
 }
 
 // Improved parsing function for meal descriptions
@@ -123,7 +124,7 @@ function parseMealDescription(mealDescription: string): string[] {
   return ingredients;
 }
 
-export default function IngredientBreakdown({ mealDescription, mealType, planId, dayKey, mealTypeKey, editable = false, onPlanUpdated, onMacrosUpdated, ingredientTranslations = {} }: IngredientBreakdownProps) {
+export default function IngredientBreakdown({ mealDescription, mealType, planId, dayKey, mealTypeKey, editable = false, onPlanUpdated, onMacrosUpdated, ingredientTranslations = {}, currentLanguage = 'ro' }: IngredientBreakdownProps) {
   const [ingredientData, setIngredientData] = useState<any[]>([]);
   const [totalMacros, setTotalMacros] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [loading, setLoading] = useState(true);
@@ -586,7 +587,9 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             // extra data for editing in string mode
             rawAmount,
             rawUnit,
-            displayName: ingredientTranslations[cleanName] || result.nameRo || cleanName, // Use Romanian name from translations map first
+            displayName: currentLanguage === 'ro' 
+              ? (ingredientTranslations[cleanName] || result.nameRo || cleanName)
+              : cleanName, // Use Romanian name from translations map if language is RO
             displayNameEn: result.nameEn || cleanName, // Keep English for reference
           };
         });
