@@ -335,8 +335,29 @@ export default function MyPlanPage() {
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100">
       {/* Header */}
       <div className="bg-gradient-to-r from-rose-500 to-pink-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          {/* Mobile Layout: Logo + Name on top, subtitle below */}
+          <div className="sm:hidden">
+            {/* Top row: Logo and Customer name */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <img src="/logo-mihaela.svg" alt="Mihaela Fitness" className="h-8 w-auto" />
+                <div>
+                  <h1 className="text-lg font-bold tracking-tight">MIHAELA</h1>
+                  <p className="text-xs font-semibold -mt-1">FITNESS</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
+                <User className="w-4 h-4" />
+                <span className="font-medium text-sm">{customer.name}</span>
+              </div>
+            </div>
+            {/* Bottom row: Subtitle */}
+            <p className="text-sm text-rose-100">Planul Tău Nutrițional Personalizat</p>
+          </div>
+
+          {/* Desktop Layout: Original horizontal layout */}
+          <div className="hidden sm:flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img src="/logo-mihaela.svg" alt="Mihaela Fitness" className="h-10 w-auto" />
               <div>
