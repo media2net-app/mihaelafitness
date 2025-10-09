@@ -213,13 +213,13 @@ export default function MobileScheduleClient({
     return hours * 60 + minutes;
   };
 
-  // Check if time slot is during break time (12:30-14:00, 17:00-17:30, and 17:30-19:00)
+  // Check if time slot is during break time (only 12:30, 17:00-17:30, and 17:30-19:00)
   const isBreakTime = (timeSlot: string) => {
     const timeInMinutes = timeToMinutes(timeSlot);
     
-    // First break: 12:30-14:00 (exclude 14:30, now available)
+    // First break: 12:30-13:00 (only 12:30 is break, 13:00-13:30 now available)
     const break1Start = 12 * 60 + 30;  // 12:30
-    const break1End = 14 * 60 + 0;      // 14:00
+    const break1End = 13 * 60 + 0;      // 13:00
     
     // Second break: 17:00-17:30 (new break time)
     const break2Start = 17 * 60 + 0;   // 17:00
@@ -229,7 +229,7 @@ export default function MobileScheduleClient({
     const break3Start = 17 * 60 + 30;  // 17:30
     const break3End = 19 * 60 + 0;     // 19:00
     
-    // Break times exclude 14:30 and 19:30 (now available for booking)
+    // Break times: only 12:30, 17:00-19:00 (13:00-13:30, 14:30, and 19:30 now available for booking)
     return (timeInMinutes >= break1Start && timeInMinutes < break1End) ||
            (timeInMinutes >= break2Start && timeInMinutes < break2End) ||
            (timeInMinutes >= break3Start && timeInMinutes < break3End);
@@ -397,6 +397,8 @@ export default function MobileScheduleClient({
         console.error('Error loading schedule data:', error);
         setCustomers([]);
         setSessions([]);
+      } finally {
+        setLoading(false);
       }
     };
 
