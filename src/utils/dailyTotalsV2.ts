@@ -21,12 +21,12 @@ interface DailyTotals {
 }
 
 interface DayData {
-  breakfast?: string;
-  'morning-snack'?: string;
-  lunch?: string;
-  'afternoon-snack'?: string;
-  dinner?: string;
-  'evening-snack'?: string;
+  breakfast?: string | { description: string; cookingInstructions?: string } | { ingredients: string; cookingInstructions?: string };
+  'morning-snack'?: string | { description: string; cookingInstructions?: string } | { ingredients: string; cookingInstructions?: string };
+  lunch?: string | { description: string; cookingInstructions?: string } | { ingredients: string; cookingInstructions?: string };
+  'afternoon-snack'?: string | { description: string; cookingInstructions?: string } | { ingredients: string; cookingInstructions?: string };
+  dinner?: string | { description: string; cookingInstructions?: string } | { ingredients: string; cookingInstructions?: string };
+  'evening-snack'?: string | { description: string; cookingInstructions?: string } | { ingredients: string; cookingInstructions?: string };
 }
 
 /**
@@ -170,22 +170,43 @@ async function getIngredientDataFromAPI(ingredients: string[]): Promise<Ingredie
 function getMealString(dayData: DayData, mealType: string): string {
   if (!dayData) return '';
   
+  let mealData: string | { description: string; cookingInstructions?: string } | { ingredients: string; cookingInstructions?: string } | undefined;
+  
   switch (mealType) {
     case 'breakfast':
-      return dayData.breakfast || '';
+      mealData = dayData.breakfast;
+      break;
     case 'morning-snack':
-      return dayData['morning-snack'] || '';
+      mealData = dayData['morning-snack'];
+      break;
     case 'lunch':
-      return dayData.lunch || '';
+      mealData = dayData.lunch;
+      break;
     case 'afternoon-snack':
-      return dayData['afternoon-snack'] || '';
+      mealData = dayData['afternoon-snack'];
+      break;
     case 'dinner':
-      return dayData.dinner || '';
+      mealData = dayData.dinner;
+      break;
     case 'evening-snack':
-      return dayData['evening-snack'] || '';
+      mealData = dayData['evening-snack'];
+      break;
     default:
       return '';
   }
+  
+  // Support string format and object format (with description or ingredients field)
+  if (typeof mealData === 'string') {
+    return mealData;
+  } else if (mealData && typeof mealData === 'object') {
+    if ('description' in mealData) {
+      return mealData.description;
+    } else if ('ingredients' in mealData) {
+      return mealData.ingredients;
+    }
+  }
+  
+  return '';
 }
 
 /**

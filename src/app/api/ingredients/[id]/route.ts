@@ -3,6 +3,33 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    
+    const ingredient = await prisma.ingredient.findUnique({
+      where: { id }
+    });
+
+    if (!ingredient) {
+      return NextResponse.json(
+        { error: 'Ingredient not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(ingredient);
+  } catch (error) {
+    console.error('Error fetching ingredient:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch ingredient' },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;

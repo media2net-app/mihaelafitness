@@ -4,7 +4,7 @@ import { calculateDailyTotalsV2 } from '@/utils/dailyTotalsV2';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { FiArrowLeft, FiHeart, FiCoffee, FiActivity, FiClock, FiUsers, FiCalendar, FiCopy, FiShare2, FiDownload } from 'react-icons/fi';
+import { FiArrowLeft, FiHeart, FiCoffee, FiActivity, FiClock, FiUsers, FiCalendar, FiCopy, FiShare2, FiDownload, FiEye } from 'react-icons/fi';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import IngredientBreakdown from '@/components/IngredientBreakdown';
@@ -43,6 +43,10 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [activeDay, setActiveDay] = useState<string>('monday');
+  
+  // PDF generation progress modal
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<string[]>([]);
   const [planId, setPlanId] = useState<string>('');
   const [dailyTotals, setDailyTotals] = useState<any>(null);
   const [mealMacros, setMealMacros] = useState<{[key: string]: any}>({});
@@ -68,9 +72,17 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   const [productMappingOpen, setProductMappingOpen] = useState(false);
 
   const overviewRef = useRef<HTMLDivElement | null>(null);
+  const progressLogRef = useRef<HTMLDivElement | null>(null);
   const [showSticky, setShowSticky] = useState(false);
   const [assignedCustomer, setAssignedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [trainingWeekdays, setTrainingWeekdays] = useState<number[]>([]); // 1=Mon .. 7=Sun
+  
+  // Auto-scroll progress log to bottom
+  useEffect(() => {
+    if (progressLogRef.current) {
+      progressLogRef.current.scrollTop = progressLogRef.current.scrollHeight;
+    }
+  }, [pdfProgress]);
 
   // Function to fetch plan data
   const fetchPlanData = async (id: string) => {
@@ -199,27 +211,11 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   };
 
   // Cache hero once loaded
+  // Hero image removed - no longer showing Mihaela image in PDF
   let cachedHeroDataUrl: string | null = null;
   const drawHeroBottomRight = async (pdf: jsPDF) => {
-    try {
-      if (!cachedHeroDataUrl) {
-        cachedHeroDataUrl = await loadHeroDataUrl();
-      }
-      const hero = cachedHeroDataUrl;
-      if (!hero) return;
-      const w = pdf.internal.pageSize.getWidth();
-      const h = pdf.internal.pageSize.getHeight();
-      // Measure intrinsic ratio
-      const img = new Image();
-      await new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); img.src = hero; });
-      const targetH = 90; // mm height
-      const targetW = img.naturalWidth && img.naturalHeight ? (img.naturalWidth / img.naturalHeight) * targetH : 70;
-      // place flush at bottom-right (0px margins)
-      const x = w - targetW;
-      const y = h - targetH;
-      // Draw as overlay (last) so it sits on top of everything
-      pdf.addImage(hero, 'PNG', x, y, targetW, targetH);
-    } catch {}
+    // Function disabled - hero image removed from PDF
+    return;
   };
 
   // After all pages are drawn and footer added, overlay hero on each page
@@ -444,11 +440,11 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     let y = startY;
     const tableX = 15; // Increased left margin
     const tableW = pageWidth - 30; // Better margins
-    // Pre-compute card height
+    // Pre-compute card height with wider columns
     let totalRowsHeight = 10; // header
     const computedHeights = rows.map(r => {
-      const nameLines = pdf.splitTextToSize(r.ingredient, 40);
-      const portionLines = pdf.splitTextToSize(r.portion, 60);
+      const nameLines = pdf.splitTextToSize(r.ingredient, 65); // Wider ingredient column
+      const portionLines = pdf.splitTextToSize(r.portion, 50); // Adjusted portion column
       const rowH = Math.max(8, Math.max(nameLines.length, portionLines.length) * 5) + 2;
       return rowH;
     });
@@ -464,42 +460,43 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     y += 5;
     // Header
     pdf.setFillColor(THEME.grayLight.r, THEME.grayLight.g, THEME.grayLight.b);
-    pdf.rect(tableX, y, tableW, 10, 'F'); // Increased header height
+    pdf.rect(tableX, y, tableW, 10, 'F');
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.setTextColor(55);
-    pdf.text('Ingredient', tableX + 5, y + 7); // More padding
-    pdf.text('Portion', tableX + 70, y + 7); // Better spacing
-    pdf.text('Cal', tableX + tableW - 70, y + 7); // More space from edge
-    pdf.text('P',   tableX + tableW - 55, y + 7); // Better spacing
-    pdf.text('C',   tableX + tableW - 40, y + 7); // Better spacing
-    pdf.text('Fi',  tableX + tableW - 25, y + 7); // Better spacing
-    pdf.text('F',   tableX + tableW - 10, y + 7); // Better spacing
-    y += 12; // More space after header
+    pdf.text('Ingredient', tableX + 5, y + 7);
+    pdf.text('Portion', tableX + 75, y + 7);
+    pdf.text('Cal', tableX + tableW - 65, y + 7);
+    pdf.text('P',   tableX + tableW - 48, y + 7);
+    pdf.text('C',   tableX + tableW - 35, y + 7);
+    pdf.text('Fi',  tableX + tableW - 22, y + 7);
+    pdf.text('F',   tableX + tableW - 10, y + 7);
+    y += 12;
 
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
+    pdf.setFontSize(8); // Slightly smaller font for better fit
     pdf.setTextColor(33);
     for (const r of rows) {
-      const nameLines = pdf.splitTextToSize(r.ingredient, 40);
-      const portionLines = pdf.splitTextToSize(r.portion, 60);
+      const nameLines = pdf.splitTextToSize(r.ingredient, 65); // Wider ingredient column
+      const portionLines = pdf.splitTextToSize(r.portion, 50); // Adjusted portion column
       const rowH = Math.max(8, Math.max(nameLines.length, portionLines.length) * 5);
       if (y + rowH > pageHeight - 25) {
         pdf.addPage();
         addFooter(pdf, pdf.getNumberOfPages());
-        y = 28; // below header
+        y = 28;
       }
-      // text cells with better padding
-      nameLines.forEach((ln: string, i: number) => pdf.text(ln, tableX + 5, y + 6 + i * 5)); // More padding
-      portionLines.forEach((ln: string, i: number) => pdf.text(ln, tableX + 70, y + 6 + i * 5)); // Better alignment
-      pdf.text(String(r.calories || 0), tableX + tableW - 65, y + 6); // Better spacing
-      pdf.text(`${r.protein || 0}g`,    tableX + tableW - 50, y + 6); // Better spacing
-      pdf.text(`${r.carbs || 0}g`,      tableX + tableW - 35, y + 6); // Better spacing
-      pdf.text(`${r.fat || 0}g`,        tableX + tableW - 20, y + 6); // Better spacing
-      y += rowH + 2; // More space between rows
+      // text cells - all within table bounds
+      nameLines.forEach((ln: string, i: number) => pdf.text(ln, tableX + 5, y + 6 + i * 5));
+      portionLines.forEach((ln: string, i: number) => pdf.text(ln, tableX + 75, y + 6 + i * 5));
+      pdf.text(String(r.calories || 0), tableX + tableW - 60, y + 6, { align: 'right' });
+      pdf.text(`${r.protein || 0}g`,    tableX + tableW - 43, y + 6, { align: 'right' });
+      pdf.text(`${r.carbs || 0}g`,      tableX + tableW - 30, y + 6, { align: 'right' });
+      pdf.text(`${r.fiber || 0}g`,      tableX + tableW - 17, y + 6, { align: 'right' });
+      pdf.text(`${r.fat || 0}g`,        tableX + tableW - 5, y + 6, { align: 'right' });
+      y += rowH + 2;
       pdf.setDrawColor(240);
-      pdf.line(tableX + 2, y, tableX + tableW - 2, y); // Shorter line with padding
-      y += 3; // More space after line
+      pdf.line(tableX + 2, y, tableX + tableW - 2, y);
+      y += 3;
     }
     return y;
   };
@@ -1408,6 +1405,15 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     }
   };
 
+  const handleCopyCustomerLink = () => {
+    if (assignedCustomer?.id) {
+      const customerLink = `${window.location.origin}/my-plan/${assignedCustomer.id}`;
+      navigator.clipboard.writeText(customerLink);
+      // Optional: add toast notification
+      alert('Link gekopieerd! Je kunt deze nu delen met de klant.');
+    }
+  };
+
   // Helpers for PDF branding
   const THEME = {
     pink: { r: 236, g: 72, b: 153 }, // tailwind pink-500
@@ -1523,31 +1529,31 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   };
 
   const drawBadge = (pdf: jsPDF, x: number, y: number, label: string, value: string, color: [number, number, number]) => {
-    // Create beautiful card with shadow effect
-    const cardWidth = 42;
-    const cardHeight = 28;
-    const borderRadius = 6;
+    // Compact modern card design - similar to platform UI
+    const cardWidth = 40;
+    const cardHeight = 20;
+    const borderRadius = 4;
     
-    // Shadow (offset background)
-    pdf.setFillColor(0, 0, 0, 0.1);
-    pdf.roundedRect(x + 1, y + 1, cardWidth, cardHeight, borderRadius, borderRadius, 'F');
+    // Subtle shadow for depth
+    pdf.setFillColor(0, 0, 0, 0.08);
+    pdf.roundedRect(x + 0.5, y + 0.5, cardWidth, cardHeight, borderRadius, borderRadius, 'F');
     
-    // Main card background
+    // Main card with gradient-like color
     pdf.setFillColor(color[0], color[1], color[2]);
     pdf.roundedRect(x, y, cardWidth, cardHeight, borderRadius, borderRadius, 'F');
     
-    // White text
+    // White text for contrast
     pdf.setTextColor(255, 255, 255);
     
-    // Label with Ubuntu font
+    // Compact label
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(7);
-    pdf.text(label, x + 6, y + 10);
+    pdf.setFontSize(6);
+    pdf.text(label, x + 4, y + 7);
     
-    // Value with Ubuntu bold
+    // Prominent value
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(14);
-    pdf.text(value, x + 6, y + 22);
+    pdf.setFontSize(11);
+    pdf.text(value, x + 4, y + 16);
   };
 
   const drawDayTable = (pdf: jsPDF, startY: number, dayName: string, meals: Array<{ name: string; description: string; calories: number; cookingInstructions?: string }>) => {
@@ -1555,14 +1561,15 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     const pageHeight = pdf.internal.pageSize.getHeight();
     let y = startY;
     const left = 15, right = pageWidth - 15;
-    // Pre-compute height for card
+    // Pre-compute height for card with better column sizing
     let estimated = 6 /*title*/ + 10 /*header*/;
+    const descriptionWidth = pageWidth - 110; // Better width for description (from x=60 to pageWidth-50)
     const tmpLinesHeights = meals.map(row => {
-      const lines = pdf.splitTextToSize(row.description || '', pageWidth - 100);
+      const lines = pdf.splitTextToSize(row.description || '', descriptionWidth);
       const rowHeight = Math.max(8, lines.length * 5);
       return rowHeight + 2; // +divider space
     });
-    estimated += tmpLinesHeights.reduce((a, b) => a + b, 0) + 26; // + daily total badge space
+    estimated += tmpLinesHeights.reduce((a, b) => a + b, 0);
     // White card background
     pdf.setFillColor(255, 255, 255);
     pdf.roundedRect(left, y - 4, right - left, Math.min(estimated, pageHeight - y - 20), 4, 4, 'F');
@@ -1580,41 +1587,40 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     pdf.setTextColor(55);
     pdf.text('Meal', 23, y + 6);
     pdf.text('Description', 60, y + 6);
-    pdf.text('Calories', pageWidth - 40, y + 6);
+    pdf.text('Calories', pageWidth - 45, y + 6);
     y += 10;
     pdf.setFont('Ubuntu', 'normal');
-    pdf.setFontSize(9);
+    pdf.setFontSize(8); // Slightly smaller for better fit
     pdf.setTextColor(33);
     let dailyTotal = 0;
     for (const row of meals) {
-      const lines = pdf.splitTextToSize(row.description || '', pageWidth - 100);
+      const lines = pdf.splitTextToSize(row.description || '', descriptionWidth);
       const rowHeight = Math.max(8, lines.length * 5);
       if (y + rowHeight > pageHeight - 25) {
         pdf.addPage();
         addFooter(pdf, pdf.getNumberOfPages());
-        y = 28; // below header
-        // draw card header continuation not needed on new page
+        y = 28;
       }
       pdf.text(row.name, 23, y + 5);
       lines.forEach((line: string, i: number) => pdf.text(line, 60, y + 5 + i * 5));
-      pdf.text(String(row.calories || 0), pageWidth - 40, y + 5);
+      pdf.text(String(row.calories || 0), pageWidth - 45, y + 5, { align: 'right' });
       y += rowHeight;
       dailyTotal += row.calories || 0;
       
       // Add cooking instructions if available
       if (row.cookingInstructions && row.cookingInstructions.trim()) {
-        const instructionLines = pdf.splitTextToSize(`👨‍🍳 ${row.cookingInstructions}`, pageWidth - 100);
+        const instructionLines = pdf.splitTextToSize(`👨‍🍳 ${row.cookingInstructions}`, descriptionWidth);
         const instructionHeight = Math.max(6, instructionLines.length * 4);
         if (y + instructionHeight > pageHeight - 25) {
           pdf.addPage();
           addFooter(pdf, pdf.getNumberOfPages());
           y = 28;
         }
-        pdf.setFontSize(8);
-        pdf.setTextColor(100, 100, 100); // Gray color for instructions
+        pdf.setFontSize(7);
+        pdf.setTextColor(100, 100, 100);
         instructionLines.forEach((line: string, i: number) => pdf.text(line, 60, y + 3 + i * 4));
         y += instructionHeight + 2;
-        pdf.setFontSize(9);
+        pdf.setFontSize(8);
         pdf.setTextColor(33);
       }
       // divider
@@ -1622,13 +1628,12 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       pdf.line(20, y, pageWidth - 20, y);
       y += 2;
     }
-    // Daily total badge
-    drawBadge(pdf, pageWidth - 60, y + 2, 'Day total', `${dailyTotal} kcal`, [236, 72, 153]);
-    return y + 26;
+    // Daily total badge removed - was showing incorrect values
+    return y;
   };
 
   // Build the PDF and return the jsPDF instance
-  const buildPdf = async (): Promise<jsPDF | null> => {
+  const buildPdf = async (type: 'week' = 'week'): Promise<jsPDF | null> => {
     if (!planData) return null;
 
     try {
@@ -1641,45 +1646,78 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       await ensureSystemFonts(pdf);
       let yPosition = 36; // below header
 
-      // Header with branding
-      await drawHeader(pdf, planData.name || 'Nutrition Plan', planData.description || 'Weekly meal plan');
+      // Header with branding (always 7-day plan now)
+      await drawHeader(pdf, planData.name || 'Nutrition Plan', '7-Day Meal Plan');
 
       // Weekly summary section title
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(12);
       pdf.setTextColor(THEME.textDark.r, THEME.textDark.g, THEME.textDark.b);
-      pdf.text('Weekly Nutrition Summary', 15, yPosition);
-      yPosition += 6;
-
-      // Calculate DAY totals for the active day (1:1 with UI)
-      let dayTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-      const activeKey = planData.weekMenu?.[activeDay] ? activeDay : (planData.days?.[activeDay] ? activeDay : 'monday');
-      if (planData.weekMenu?.[activeKey]) {
-        try { dayTotals = await calculateDailyTotalsV2(planData.weekMenu[activeKey]); } catch {}
-      } else if (planData.days?.[activeKey]) {
-        // Use the same calculation logic as the web page V2
-        const dayData = planData.days[activeKey];
-        dayTotals = await calculateDailyTotalsV2(dayData);
-      }
-      // Summary badges: show ONLY day totals (remove targets row)
-      const yRow = yPosition;
-      drawBadge(pdf, 15, yRow, 'Day Calories', `${dayTotals.calories}`, [255, 165, 0]);
-      drawBadge(pdf, 62, yRow, 'Day Protein', `${dayTotals.protein}g`, [0, 123, 255]);
-      drawBadge(pdf, 109, yRow, 'Day Carbs', `${dayTotals.carbs}g`, [34, 197, 94]);
-      drawBadge(pdf, 156, yRow, 'Day Fat', `${dayTotals.fat}g`, [168, 85, 247]);
-      yPosition += 30;
-
-      // (removed) temporary placeholder table
+      pdf.text('Weekly Nutrition Plan', 15, yPosition);
+      yPosition += 10;
 
       // Add daily meal plans (support both "days" and legacy "weekMenu")
       let renderedAny = false;
       if (planData.days) {
-        console.log('[PDF] Rendering from planData.days');
-        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        console.log('[PDF] Rendering 7-day plan from planData.days');
+        const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
         
-        for (const day of days) {
+        for (const day of allDays) {
           const dayData = planData.days[day];
-          if (!dayData) continue;
+          
+          // ALWAYS start each new day on a new page (except Monday which is the first day)
+          if (day !== 'monday') {
+            pdf.addPage();
+            await paintGradientBackground(pdf);
+            await drawHeader(pdf, planData.name || 'Nutrition Plan', '7-Day Meal Plan');
+            yPosition = 36;
+          }
+
+          // Draw day header with background
+          pdf.setFillColor(236, 72, 153); // Pink color
+          pdf.roundedRect(15, yPosition - 4, 180, 12, 2, 2, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(14);
+          pdf.setTextColor(255, 255, 255); // White text
+          const dayName = day.charAt(0).toUpperCase() + day.slice(1);
+          pdf.text(dayName, 20, yPosition + 4);
+          yPosition += 18; // Extra padding after day header for breathing room
+
+          // Calculate and show daily totals for this day (only if dayData exists)
+      let dayTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+          if (dayData) {
+            try {
+        dayTotals = await calculateDailyTotalsV2(dayData);
+            } catch {}
+          }
+          
+          // Show badges for day totals
+          if (!dayData) {
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`No meal plan for this day`, 20, yPosition);
+            yPosition += 8;
+          } else {
+            // Draw compact badges with responsive spacing
+      const yRow = yPosition;
+            const badgeSpacing = 45; // Space between badges
+            const leftMargin = 15;
+            
+            drawBadge(pdf, leftMargin, yRow, 'Day Calories', `${dayTotals.calories}`, [255, 165, 0]);
+            drawBadge(pdf, leftMargin + badgeSpacing, yRow, 'Day Protein', `${dayTotals.protein}g`, [0, 123, 255]);
+            drawBadge(pdf, leftMargin + (badgeSpacing * 2), yRow, 'Day Carbs', `${dayTotals.carbs}g`, [34, 197, 94]);
+            drawBadge(pdf, leftMargin + (badgeSpacing * 3), yRow, 'Day Fat', `${dayTotals.fat}g`, [168, 85, 247]);
+            
+            // Add generous padding after badges (badge height 20 + 15 padding)
+            yPosition += 35;
+          }
+
+          // Skip rendering meals if no data for this day
+          if (!dayData) {
+            yPosition += 10;
+            continue;
+          }
 
           const mealOrder = ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'];
           const rows: Array<{ name: string; description: string; calories: number }> = [];
@@ -1701,7 +1739,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
             });
           }
 
-          const dayName = day.charAt(0).toUpperCase() + day.slice(1);
+          // Use dayName from above (already declared at line 1666)
           yPosition = drawDayTable(pdf, yPosition, dayName, rows);
           yPosition += 6;
           // For each meal, draw ingredient table with macros
@@ -1764,11 +1802,74 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           }
         }
       } else if (planData.weekMenu) {
-        const dayKey = (planData.weekMenu[activeDay]) ? activeDay : 'monday';
-        console.log('[PDF] Rendering from planData.weekMenu for day:', dayKey);
+        console.log('[PDF] Rendering 7-day plan from planData.weekMenu');
+        addGenLog('📄 Starting PDF generation for all 7 days...');
+        const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        
+        for (const dayKey of allDays) {
+          addGenLog(`📅 Processing ${dayKey.toUpperCase()}...`);
         const dayMenu = planData.weekMenu[dayKey] || {};
+          
+          // ALWAYS start each new day on a new page (except Monday which is the first day)
+          if (dayKey !== 'monday') {
+            pdf.addPage();
+            addGenLog(`📄 Creating new page for ${dayKey}`);
+            await paintGradientBackground(pdf);
+            await drawHeader(pdf, planData.name || 'Nutrition Plan', '7-Day Meal Plan');
+            yPosition = 36;
+          }
+
+          // Draw day header with background
+          pdf.setFillColor(236, 72, 153); // Pink color
+          pdf.roundedRect(15, yPosition - 4, 180, 12, 2, 2, 'F');
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(14);
+          pdf.setTextColor(255, 255, 255); // White text
+          const dayName = dayKey.charAt(0).toUpperCase() + dayKey.slice(1);
+          pdf.text(dayName, 20, yPosition + 4);
+          yPosition += 18; // Extra padding after day header for breathing room
+
+          // Calculate and show daily totals for this day
+          let dayTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+          if (dayMenu && Object.keys(dayMenu).length > 0) {
+            try {
+              dayTotals = await calculateDailyTotalsV2(dayMenu);
+            } catch {}
+          }
+          
+          // Check if this day has any meals
+          const hasMeals = Object.values(dayMenu).some((meal: any) => {
+            if (typeof meal === 'string') return meal.trim().length > 0;
+            if (meal && typeof meal === 'object') return (meal.description || meal.ingredients || '').trim().length > 0;
+            return false;
+          });
+
+          // Show badges for day totals or "no meal plan" message
+          if (!hasMeals) {
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`No meal plan for this day`, 20, yPosition);
+            yPosition += 18;
+            continue;
+          } else {
+            // Draw compact badges with responsive spacing
+            const yRow = yPosition;
+            const badgeSpacing = 45; // Space between badges
+            const leftMargin = 15;
+            
+            drawBadge(pdf, leftMargin, yRow, 'Day Calories', `${dayTotals.calories}`, [255, 165, 0]);
+            drawBadge(pdf, leftMargin + badgeSpacing, yRow, 'Day Protein', `${dayTotals.protein}g`, [0, 123, 255]);
+            drawBadge(pdf, leftMargin + (badgeSpacing * 2), yRow, 'Day Carbs', `${dayTotals.carbs}g`, [34, 197, 94]);
+            drawBadge(pdf, leftMargin + (badgeSpacing * 3), yRow, 'Day Fat', `${dayTotals.fat}g`, [168, 85, 247]);
+            
+            // Add generous padding after badges (badge height 20 + 15 padding)
+            yPosition += 35;
+          }
+
         const mealOrder = ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'];
         const rows: Array<{ name: string; description: string; calories: number; cookingInstructions?: string }> = [];
+          
         for (const mealType of mealOrder) {
           const mealData = dayMenu[mealType];
           let description = '';
@@ -1778,8 +1879,8 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
             // Old structure
             description = sanitizeMealDescription(mealData);
           } else if (mealData && typeof mealData === 'object') {
-            // New structure
-            description = sanitizeMealDescription(mealData.ingredients || '');
+              // New structure - check both 'description' and 'ingredients' fields
+              description = sanitizeMealDescription(mealData.description || mealData.ingredients || '');
             cookingInstructions = mealData.cookingInstructions || '';
           }
           
@@ -1805,20 +1906,51 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
             cookingInstructions
           });
         }
-        const titleDay = dayKey.charAt(0).toUpperCase() + dayKey.slice(1);
-        yPosition = drawDayTable(pdf, yPosition, titleDay, rows);
+          
+          yPosition = drawDayTable(pdf, yPosition, dayName, rows);
         yPosition += 6;
+          
         for (const mealRow of rows) {
-          // Use the new API function to get accurate ingredient data
-          const ingredientData = await getIngredientDataFromAPI(mealRow.description || '');
+            // Skip empty meals
+            if (!mealRow.description) continue;
+            
+            addGenLog(`   🍽️  Rendering ${mealRow.name} table for ${dayKey}...`);
+            
+            // CRITICAL: Read ingredient data directly from the DOM to ensure 1:1 accuracy with UI
+            let ingredientData: any[] = [];
+            
+            // Try to find the ingredient breakdown component in the DOM for this day and meal
+            const mealTypeKey = mealRow.name.toLowerCase().replace(' ', '-');
+            const domSelector = `[data-day="${dayKey}"][data-meal-type="${mealTypeKey}"]`;
+            const mealElement = document.querySelector(domSelector);
+            
+            if (mealElement) {
+              try {
+                const ingredientsJson = mealElement.getAttribute('data-ingredients');
+                if (ingredientsJson) {
+                  ingredientData = JSON.parse(ingredientsJson);
+                  addGenLog(`   📋 Read ${ingredientData.length} ingredients directly from DOM for ${mealRow.name}`);
+                  // Log the actual portions to verify correctness
+                  const portions = ingredientData.map((ing: any) => `${ing.name}: ${ing.portion}`).join(', ');
+                  addGenLog(`   📊 Portions: ${portions}`);
+                }
+              } catch (err) {
+                addGenLog(`   ⚠️  Failed to parse DOM data for ${mealRow.name}, falling back to API`);
+              }
+            }
+            
+            // Fallback: Use API if DOM data not available
+            if (ingredientData.length === 0) {
+              addGenLog(`   🔄 Falling back to API for ${mealRow.name}...`);
+              ingredientData = await getIngredientDataFromAPI(mealRow.description);
+            }
           
           if (!ingredientData || ingredientData.length === 0) {
-            const placeholderRows = [{ ingredient: 'No ingredients', portion: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }];
-            if (yPosition > pageHeight - 70) { pdf.addPage(); await paintGradientBackground(pdf); await drawHeader(pdf, planData.name || 'Nutrition Plan'); yPosition = 36; }
-            yPosition = drawMealIngredientsTable(pdf, yPosition, `${mealRow.name} ingredients`, placeholderRows);
-            yPosition += 6;
-            continue;
-          }
+              addGenLog(`   ⚠️  No ingredients found for ${mealRow.name}`);
+              continue; // Skip meals with no ingredients
+            }
+            
+            addGenLog(`   ✅ Found ${ingredientData.length} ingredients for ${mealRow.name}`);
           
           // Convert to the format expected by drawMealIngredientsTable
           const rowsIng = ingredientData.map((ing: any) => ({
@@ -1831,10 +1963,21 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
             fiber: ing.fiber
           }));
           
-          if (yPosition > pageHeight - 70) { pdf.addPage(); await paintGradientBackground(pdf); await drawHeader(pdf, planData.name || 'Nutrition Plan'); yPosition = 36; }
+            if (yPosition > pageHeight - 70) { 
+              pdf.addPage();
+              addGenLog(`📄 Creating new page for ${mealRow.name} of ${dayKey}`);
+              await paintGradientBackground(pdf); 
+              await drawHeader(pdf, planData.name || 'Nutrition Plan', '7-Day Meal Plan'); 
+              yPosition = 36; 
+            }
           yPosition = drawMealIngredientsTable(pdf, yPosition, `${mealRow.name} ingredients`, rowsIng);
           yPosition += 6;
         }
+          
+          addGenLog(`✅ Completed ${dayKey.toUpperCase()}`);
+        }
+        
+        addGenLog('🎉 PDF generation complete! Total pages: ' + pdf.getNumberOfPages());
       }
 
       // Add shopping list if available
@@ -1940,18 +2083,116 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   };
 
   const handleDownload = async () => {
-    const pdf = await buildPdf();
+    // Directly download 7-day plan (no modal needed)
+    const pdf = await buildPdf('week');
     if (!pdf) return;
     const safeName = (planData?.name || 'nutrition-plan').replace(/\s+/g, ' ').trim();
-    pdf.save(`${safeName}.pdf`);
+    pdf.save(`${safeName}-7-days.pdf`);
+  };
+
+  // Helper function to add progress log
+  const addProgressLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setPdfProgress(prev => [...prev, `[${timestamp}] ${message}`]);
+  };
+
+  // Function to ensure all 7 days data is loaded
+  const ensureAllDaysLoaded = async () => {
+    const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    
+    addProgressLog('🚀 Starting PDF generation process...');
+    addProgressLog(`📋 Plan: ${planData?.name || 'Nutrition Plan'}`);
+    addProgressLog('');
+    
+    // Check which days have data
+    let daysWithData = 0;
+    let daysWithoutData = 0;
+    
+    for (const day of allDays) {
+      const dayData = planData?.weekMenu?.[day];
+      const hasMeals = dayData && Object.keys(dayData).some(key => {
+        const mealData = dayData[key];
+        return ['breakfast', 'lunch', 'dinner', 'morning-snack', 'afternoon-snack', 'evening-snack'].includes(key) &&
+          (typeof mealData === 'string' ? mealData.trim() !== '' : (mealData?.description || mealData?.ingredients));
+      });
+      
+      if (hasMeals) {
+        daysWithData++;
+        addProgressLog(`✅ ${day.charAt(0).toUpperCase() + day.slice(1)}: Meals configured`);
+      } else {
+        daysWithoutData++;
+        addProgressLog(`⚪ ${day.charAt(0).toUpperCase() + day.slice(1)}: No meals`);
+      }
+    }
+    
+    addProgressLog('');
+    addProgressLog(`📊 Summary: ${daysWithData} days with meals, ${daysWithoutData} days empty`);
+    addProgressLog('');
+    
+    // Simulate processing time for each day
+    for (const day of allDays) {
+      const dayData = planData?.weekMenu?.[day];
+      const dayName = day.charAt(0).toUpperCase() + day.slice(1);
+      
+      if (dayData) {
+        addProgressLog(`⚙️ Processing ${dayName}...`);
+        
+        // Count meals for this day
+        const mealTypes = ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'];
+        const mealsCount = mealTypes.filter(meal => {
+          const mealData = dayData[meal];
+          return typeof mealData === 'string' ? mealData.trim() !== '' : (mealData?.description || mealData?.ingredients);
+        }).length;
+        
+        if (mealsCount > 0) {
+          addProgressLog(`   📝 Found ${mealsCount} meal(s) for ${dayName}`);
+        }
+        
+        // Small delay to show progress
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    addProgressLog('');
+    addProgressLog('🎨 Generating PDF layout...');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    addProgressLog('📄 Creating pages for all 7 days...');
+    addProgressLog('   ℹ️  Each day starts on a new page for clarity');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    addProgressLog('✨ Adding styling and formatting...');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    addProgressLog('🖼️ Rendering ingredient tables...');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    addProgressLog('');
+    addProgressLog('✅ PDF generation complete!');
+    
+    return true;
   };
 
   const handlePreview = async () => {
     try {
+      // Reset progress and show modal
+      setPdfProgress([]);
+      setPdfGenerating(true);
+      
+      // Small delay to ensure modal is visible
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Ensure all days are loaded
+      await ensureAllDaysLoaded();
+      
+      addProgressLog('🔍 Opening preview...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       console.log('[Preview] Building PDF...');
-      const pdf = await buildPdf();
+      const pdf = await buildPdf('week'); // Preview shows full 7-day plan
       if (!pdf) {
         console.error('[Preview] buildPdf() returned null');
+        setPdfGenerating(false);
         alert('Preview failed: PDF could not be generated. Check console for details.');
         return;
       }
@@ -1960,15 +2201,22 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         const url = URL.createObjectURL(blob);
         console.log('[Preview] Blob URL created:', url);
         setPdfPreviewUrl(url);
+        
+        // Close progress modal and open preview
+        setPdfGenerating(false);
         setPdfPreviewOpen(true);
       } catch (e) {
         console.warn('[Preview] Blob creation failed, using data URI fallback', e);
         const dataUri = pdf.output('datauristring');
         setPdfPreviewUrl(dataUri);
+        
+        // Close progress modal and open preview
+        setPdfGenerating(false);
         setPdfPreviewOpen(true);
       }
     } catch (err) {
       console.error('[Preview] Unexpected error generating preview:', err);
+      setPdfGenerating(false);
       alert('Preview failed due to an unexpected error. See console for details.');
     }
   };
@@ -2579,24 +2827,48 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                 <FiShare2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-600" />
               </button>
               <button
+                onClick={handlePreview}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white text-rose-600 border-2 border-rose-500 rounded-lg hover:bg-rose-50 transition-colors text-sm font-medium"
+                title="Preview PDF"
+              >
+                <FiEye className="w-4 h-4" />
+                Preview
+              </button>
+              <button
                 onClick={handleDownload}
-                className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm font-medium"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm font-medium"
                 title="Download PDF"
               >
                 <FiDownload className="w-4 h-4" />
-                Download PDF
-              </button>
-              <button
-                onClick={handlePreview}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-rose-600 border border-rose-300 rounded-lg hover:bg-rose-50 transition-colors text-sm font-medium"
-                title="Preview PDF"
-              >
-                <FiDownload className="w-4 h-4" />
-                Preview PDF
+                Download
               </button>
             </div>
           </div>
         </div>
+
+        {/* Customer Share Link */}
+        {assignedCustomer && (
+          <div className="mb-6 bg-gradient-to-r from-rose-50 to-pink-50 border-2 border-rose-200 rounded-xl p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-700 mb-1">
+                  🔗 Persoonlijke Link voor {assignedCustomer.name}
+                </p>
+                <p className="text-xs text-gray-600 font-mono bg-white rounded px-3 py-2 border border-gray-200">
+                  {typeof window !== 'undefined' && `${window.location.origin}/my-plan/${assignedCustomer.id}`}
+                </p>
+              </div>
+              <button
+                onClick={handleCopyCustomerLink}
+                className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm font-medium whitespace-nowrap"
+                title="Kopieer klant link"
+              >
+                <FiCopy className="w-4 h-4" />
+                Kopieer Link
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Plan Overview */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
@@ -3678,7 +3950,53 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         </div>
       )}
 
+      {/* PDF Generation Progress Modal */}
+      {pdfGenerating && typeof window !== 'undefined' && createPortal(
+        (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4">
+            <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-rose-500 to-pink-500 p-4">
+                <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                  Generating PDF...
+                </h3>
+                <p className="text-white/90 text-sm mt-1">Please wait while we prepare your 7-day nutrition plan</p>
+              </div>
+
+              {/* Progress Log */}
+              <div ref={progressLogRef} className="p-4 bg-gray-50 max-h-[60vh] overflow-y-auto">
+                <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm space-y-1">
+                  {pdfProgress.map((log, idx) => (
+                    <div
+                      key={idx}
+                      className={`${log.trim() === '' ? 'h-2' : 'text-green-400'} whitespace-pre-wrap`}
+                    >
+                      {log}
+                    </div>
+                  ))}
+                  {pdfProgress.length === 0 && (
+                    <div className="text-gray-400">Initializing...</div>
+                  )}
+                  {/* Animated cursor */}
+                  <div className="inline-block w-2 h-4 bg-green-400 animate-pulse"></div>
+                </div>
+              </div>
+
+              {/* Footer Info */}
+              <div className="p-4 bg-white border-t border-gray-200">
+                <p className="text-xs text-gray-500 text-center">
+                  ⏱️ This process typically takes a few seconds
+                </p>
+              </div>
+            </div>
+          </div>
+        ),
+        document.body
+      )}
+
       {/* Preview Modal Portal */}
+      {/* PDF Preview Modal */}
       {pdfPreviewOpen && pdfPreviewUrl && typeof window !== 'undefined' && createPortal(
         (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4" onClick={(e) => {

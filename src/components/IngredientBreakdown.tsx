@@ -284,7 +284,6 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
         }
         if (latestPlan) {
           addDebugLog('Calling onPlanUpdated with updated plan from API');
-          addDebugLog(`onPlanUpdated is ${onPlanUpdated ? 'defined' : 'undefined'}`);
           if (onPlanUpdated) {
             try {
               addDebugLog('Executing onPlanUpdated callback...');
@@ -518,8 +517,17 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             cleanName = 'cinnamon';
           } else if (cleanName.toLowerCase().includes('greek yogurt')) {
             cleanName = 'Greek yogurt';
+          } else if (cleanName.toLowerCase().includes('strawberr')) {
+            cleanName = 'Strawberries';
+          } else if (cleanName.toLowerCase().includes('blueberr')) {
+            cleanName = 'Blueberries';
+          } else if (cleanName.toLowerCase().includes('raspberr')) {
+            cleanName = 'Raspberries';
+          } else if (cleanName.toLowerCase().includes('blackberr')) {
+            cleanName = 'Blackberries';
           } else if (cleanName.toLowerCase().includes('berries')) {
-            cleanName = 'berries';
+            // Keep as-is if it's already "berries" or another specific berry type
+            cleanName = cleanName;
           }
           
           // Create portion string - use parsed amount and unit from API
@@ -628,34 +636,154 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
 
   return (
     <>
-    <div className="bg-gray-50 rounded-lg p-3 sm:p-4 lg:p-6 mt-3 sm:mt-4">
+    <div 
+      className="bg-gray-50 rounded-lg p-3 sm:p-4 lg:p-6 mt-3 sm:mt-4"
+      data-meal-type={mealTypeKey}
+      data-day={dayKey}
+      data-ingredients={JSON.stringify((() => {
+        const result = ingredientData.map((ing, idx) => {
+          const scaled = scaledMacrosFor(idx);
+          const currentAmount = getCurrentAmount(idx);
+          
+          // Build proper portion string with actual quantities
+          let portionString = '';
+          if (jsonMode) {
+            const unit = jsonIngredients[idx]?.unit || 'g';
+            portionString = `${Math.round(currentAmount)} ${unit}`;
+          } else {
+            const unit = ing.rawUnit || 'g';
+            portionString = `${Math.round(currentAmount)} ${unit}`;
+          }
+          
+          return {
+            name: ing.name,
+            portion: portionString, // Use actual current amount, not base portion
+            calories: scaled.calories,
+            protein: scaled.protein,
+            carbs: scaled.carbs,
+            fat: scaled.fat,
+            fiber: ing.fiber || 0
+          };
+        });
+        
+        // Debug log to verify correct portions
+        if (result.length > 0) {
+          console.log(`[IngredientBreakdown] ${mealType} data-ingredients:`, result.map(r => `${r.portion} ${r.name}`).join(', '));
+        }
+        
+        return result;
+      })())}
+      data-meal-totals={JSON.stringify(totalMacros)}
+    >
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <h4 className="font-bold text-gray-800 flex items-center text-sm sm:text-base lg:text-lg">
           <Utensils className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           {mealType} - Ingredients:
         </h4>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-3 py-1.5 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center"
-        >
-          <span className="mr-1">+</span>
-          Voeg ingrediënt
-        </button>
+        {editable && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-3 py-1.5 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center"
+          >
+            <span className="mr-1">+</span>
+            Voeg ingrediënt
+          </button>
+        )}
       </div>
       
-      {/* Table Header */}
-      <div className="grid grid-cols-11 gap-2 mb-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-        <div className="col-span-5">Ingrediënt</div>
-        <div className="col-span-2 text-center">Hoeveelheid</div>
-        <div className="col-span-1 text-center">Kcal</div>
-        <div className="col-span-1 text-center">Eiwit</div>
-        <div className="col-span-1 text-center">Vet</div>
-        <div className="col-span-1 text-center">Koolh.</div>
-        <div className="col-span-1 text-center">Actie</div>
-      </div>
+      {/* Table Header - only show on desktop for read-only, always show for editable */}
+      {editable ? (
+        <div className="grid grid-cols-11 gap-2 mb-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+          <div className="col-span-5">Ingrediënt</div>
+          <div className="col-span-2 text-center">Hoeveelheid</div>
+          <div className="col-span-1 text-center">Kcal</div>
+          <div className="col-span-1 text-center">Eiwit</div>
+          <div className="col-span-1 text-center">Vet</div>
+          <div className="col-span-1 text-center">Koolh.</div>
+          <div className="col-span-1 text-center">Actie</div>
+        </div>
+      ) : (
+        <div className="hidden sm:grid sm:grid-cols-9 gap-2 mb-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+          <div className="col-span-4">Ingrediënt</div>
+          <div className="col-span-1 text-center">Porție</div>
+          <div className="col-span-1 text-center">Cal</div>
+          <div className="col-span-1 text-center">Proteine</div>
+          <div className="col-span-1 text-center">Carbohidrați</div>
+          <div className="col-span-1 text-center">Grăsimi</div>
+        </div>
+      )}
       
-      <div className="space-y-1">
-        {ingredientData.map((ingredient, index) => (
+      <div className="space-y-2">
+        {ingredientData.map((ingredient, index) => {
+          const scaled = scaledMacrosFor(index);
+          
+          // Read-only mode - mobile-friendly card layout
+          if (!editable) {
+            return (
+              <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
+                {/* Mobile: Vertical card layout */}
+                <div className="block sm:hidden">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start space-x-2 flex-1">
+                      <span className="text-gray-500 text-sm mt-0.5">•</span>
+                      <span className="font-medium text-gray-800 text-sm">
+                        {ingredient.name}
+                      </span>
+                    </div>
+                    <span className="text-gray-600 text-sm font-semibold ml-2 whitespace-nowrap">
+                      {ingredient.portion}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div>
+                      <div className="text-gray-500 text-[10px] mb-0.5">Cal</div>
+                      <div className="text-orange-600 font-bold">{scaled.calories}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 text-[10px] mb-0.5">Prot</div>
+                      <div className="text-blue-600 font-semibold">{scaled.protein}g</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 text-[10px] mb-0.5">Carb</div>
+                      <div className="text-green-600 font-semibold">{scaled.carbs}g</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 text-[10px] mb-0.5">Fat</div>
+                      <div className="text-purple-600 font-semibold">{scaled.fat}g</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Desktop: Table layout */}
+                <div className="hidden sm:grid sm:grid-cols-9 gap-2 items-center">
+                  <div className="col-span-4 flex items-center space-x-2">
+                    <span className="text-gray-500 text-sm">•</span>
+                    <span className="font-medium text-gray-800 text-sm">
+                      {ingredient.name}
+                    </span>
+                  </div>
+                  <div className="col-span-1 text-center">
+                    <span className="text-gray-600 text-sm">{ingredient.portion}</span>
+                  </div>
+                  <div className="col-span-1 text-center">
+                    <span className="text-orange-600 font-bold text-sm">{scaled.calories}</span>
+                  </div>
+                  <div className="col-span-1 text-center">
+                    <span className="text-blue-600 font-semibold text-sm">{scaled.protein}g</span>
+                  </div>
+                  <div className="col-span-1 text-center">
+                    <span className="text-green-600 font-semibold text-sm">{scaled.carbs}g</span>
+                  </div>
+                  <div className="col-span-1 text-center">
+                    <span className="text-purple-600 font-semibold text-sm">{scaled.fat}g</span>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          
+          // Editable mode - full layout with controls
+          return (
           <div key={index} className="grid grid-cols-11 gap-2 items-center bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200">
             <div className="col-span-5 flex items-center space-x-2">
               <span className="text-gray-500 text-sm">•</span>
@@ -786,17 +914,59 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
               </button>
             </div>
           </div>
-        ))}
+          ); // end editable return
+        })}
       </div>
         
         {/* Meal Total */}
-        <div className="bg-gray-100 rounded-lg p-3 sm:p-4 border border-gray-300 mt-3">
-          <div className="grid grid-cols-10 gap-2 items-center">
-            <div className="col-span-5">
+        <div className="bg-rose-50 rounded-lg p-3 sm:p-4 border border-rose-200 mt-3">
+          {/* Mobile: Compact grid */}
+          {!editable && (
+            <div className="block sm:hidden">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-gray-800 text-sm">Total</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                <div>
+                  <div className="text-gray-500 text-[10px] mb-0.5">Cal</div>
+                  <div className={`text-orange-600 font-bold totalcalories-${mealType.toLowerCase()}`}>
+                    {totalMacros.calories}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-500 text-[10px] mb-0.5">Prot</div>
+                  <div className={`text-blue-600 font-bold totalprotein-${mealType.toLowerCase()}`}>
+                    {totalMacros.protein}g
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-500 text-[10px] mb-0.5">Carb</div>
+                  <div className={`text-green-600 font-bold totalcarbs-${mealType.toLowerCase()}`}>
+                    {totalMacros.carbs}g
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-500 text-[10px] mb-0.5">Fat</div>
+                  <div className={`text-purple-600 font-bold totalfat-${mealType.toLowerCase()}`}>
+                    {totalMacros.fat}g
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Desktop: Table layout */}
+          <div className={`${!editable ? 'hidden sm:grid' : 'grid'} ${editable ? 'grid-cols-10' : 'grid-cols-9'} gap-2 items-center`}>
+            <div className={editable ? "col-span-5" : "col-span-4"}>
               <span className="font-bold text-gray-800 text-sm sm:text-base">
-                Maaltijd totaal:
+                Total
               </span>
             </div>
+            {!editable && (
+              <div className="col-span-1 text-center">
+                <span className="text-gray-600 font-semibold text-sm">—</span>
+              </div>
+            )}
             <div className="col-span-1 text-center">
               <span className={`text-orange-600 font-bold text-sm totalcalories-${mealType.toLowerCase()}`}>
                 {totalMacros.calories}
@@ -808,20 +978,22 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
               </span>
             </div>
             <div className="col-span-1 text-center">
-              <span className={`text-purple-600 font-bold text-sm totalfat-${mealType.toLowerCase()}`}>
-                {totalMacros.fat}g
-              </span>
-            </div>
-            <div className="col-span-1 text-center">
               <span className={`text-green-600 font-bold text-sm totalcarbs-${mealType.toLowerCase()}`}>
                 {totalMacros.carbs}g
               </span>
             </div>
             <div className="col-span-1 text-center">
-              <span className="text-gray-500 text-xs">
-                Totaal
+              <span className={`text-purple-600 font-bold text-sm totalfat-${mealType.toLowerCase()}`}>
+                {totalMacros.fat}g
               </span>
             </div>
+            {editable && (
+              <div className="col-span-1 text-center">
+                <span className="text-gray-500 text-xs">
+                  Totaal
+                </span>
+              </div>
+            )}
           </div>
         </div>
     </div>

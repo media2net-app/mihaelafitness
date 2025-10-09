@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { calculateDailyTotalsV2 } from '@/utils/dailyTotalsV2';
 
 interface TemplateElement {
   id: string;
@@ -105,7 +106,18 @@ function DraggableElement({
           />
         );
       case 'image':
-        return (
+        return element.content && element.content.startsWith('/') ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img 
+            src={element.content} 
+            alt="Image"
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'contain' 
+            }}
+          />
+        ) : (
           <div
             style={{
               width: '100%',
@@ -173,7 +185,8 @@ function Canvas({
   onUpdate, 
   onDelete,
   selectedElement,
-  onSelectElement 
+  onSelectElement,
+  zoom 
 }: {
   elements: TemplateElement[];
   onDrop: (x: number, y: number) => void;
@@ -181,18 +194,18 @@ function Canvas({
   onDelete: (id: string) => void;
   selectedElement: string | null;
   onSelectElement: (id: string) => void;
+  zoom: number;
 }) {
   const [, drop] = useDrop(() => ({
     accept: ElementTypes.ELEMENT,
     drop: (item: TemplateElement, monitor) => {
       const delta = monitor.getDifferenceFromInitialOffset();
       if (delta) {
-        // Account for the scale factor (0.7)
-        const scaleFactor = 0.7;
-        const newX = Math.max(0, Math.round(item.x + (delta.x / scaleFactor)));
-        const newY = Math.max(0, Math.round(item.y + (delta.y / scaleFactor)));
+        // Account for the zoom scale factor
+        const newX = Math.max(0, Math.round(item.x + (delta.x / zoom)));
+        const newY = Math.max(0, Math.round(item.y + (delta.y / zoom)));
         
-        console.log('Drop update:', { id: item.id, oldX: item.x, oldY: item.y, newX, newY, delta });
+        console.log('Drop update:', { id: item.id, oldX: item.x, oldY: item.y, newX, newY, delta, zoom });
         onUpdate(item.id, { x: newX, y: newY });
       }
     },
@@ -209,7 +222,7 @@ function Canvas({
       style={{
         width: '210mm', // A4 width
         height: '297mm', // A4 height
-        transform: 'scale(0.7)',
+        transform: `scale(${zoom})`,
         transformOrigin: 'top left',
         border: '1px solid #e5e7eb',
       }}
@@ -240,6 +253,8 @@ export default function PDFTemplateEditorPage() {
   const [nutritionPlans, setNutritionPlans] = useState<any[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [previewData, setPreviewData] = useState<any>(null);
+  const [zoom, setZoom] = useState(0.7); // Zoom level (0.25 to 1.5)
+  const [previewZoom, setPreviewZoom] = useState(0.5); // Preview zoom level
 
   useEffect(() => {
     // Load template data
@@ -275,6 +290,7 @@ export default function PDFTemplateEditorPage() {
             y: 15,
             width: 150,
             height: 68,
+            content: '/logo-mihaela.svg', // Load actual logo
           },
           // Header title
           {
@@ -671,52 +687,198 @@ export default function PDFTemplateEditorPage() {
 
   const generatePreviewData = async (plan: any) => {
     try {
+      console.log('🔍 Generating preview for plan:', plan.id);
+      
       // Fetch detailed plan data
       const response = await fetch(`/api/nutrition-plans/${plan.id}`);
-      if (response.ok) {
+      if (!response.ok) {
+        throw new Error('Failed to fetch plan data');
+      }
+      
         const planData = await response.json();
-        
-        // Calculate daily totals for the first day
-        let dayTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-        if (planData.days?.monday) {
-          // This would normally use the calculateDailyTotalsV2 function
-          // For now, we'll use mock data
-          dayTotals = { calories: 1850, protein: 120, carbs: 180, fat: 65 };
-        }
+      console.log('📊 Plan data loaded:', planData);
 
-        // Generate preview data based on template elements
-        const previewElements = elements.map(element => {
-          switch (element.id) {
-            case 'header-title':
-              return { ...element, content: planData.name || 'Nutrition Plan' };
-            case 'header-subtitle':
-              return { ...element, content: planData.description || 'Weekly meal plan' };
-            case 'cal-badge-value':
-              return { ...element, content: dayTotals.calories.toString() };
-            case 'protein-badge-value':
-              return { ...element, content: `${dayTotals.protein}g` };
-            case 'carbs-badge-value':
-              return { ...element, content: `${dayTotals.carbs}g` };
-            case 'fat-badge-value':
-              return { ...element, content: `${dayTotals.fat}g` };
-            case 'day-title':
-              return { ...element, content: 'Monday' };
-            case 'meal-1-name':
-              return { ...element, content: 'Breakfast' };
-            case 'meal-1-desc':
-              return { ...element, content: 'Oatmeal with berries and honey' };
-            case 'meal-1-cal':
-              return { ...element, content: '350' };
-            default:
-              return element;
-          }
+      // Get customer info if plan is assigned
+      let customerName = '';
+      let customerGoal = '';
+      if (planData.assignedCustomers && planData.assignedCustomers.length > 0) {
+        const firstCustomer = planData.assignedCustomers[0];
+        customerName = firstCustomer.customer?.name || '';
+        customerGoal = planData.goal || '';
+      }
+
+      // Calculate daily totals for Monday (first day)
+        let dayTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      let mondayData = null;
+      
+      if (planData.weekMenu?.days?.monday) {
+        mondayData = planData.weekMenu.days.monday;
+        console.log('📅 Monday data:', mondayData);
+        
+        // Use V2 calculator for accurate totals
+        dayTotals = await calculateDailyTotalsV2(mondayData);
+        console.log('✅ Calculated totals:', dayTotals);
+      }
+
+      // Parse Monday meals to display in table
+      const meals = [
+        { name: 'Breakfast', content: mondayData?.breakfast || '' },
+        { name: 'Morning Snack', content: mondayData?.['morning-snack'] || '' },
+        { name: 'Lunch', content: mondayData?.lunch || '' },
+        { name: 'Afternoon Snack', content: mondayData?.['afternoon-snack'] || '' },
+        { name: 'Dinner', content: mondayData?.dinner || '' },
+        { name: 'Evening Snack', content: mondayData?.['evening-snack'] || '' },
+      ].filter(meal => meal.content.trim() !== ''); // Only show non-empty meals
+
+      // Calculate individual meal calories (simplified - could be more accurate)
+      const mealCalories = Math.round(dayTotals.calories / meals.length);
+
+      // Clean meal descriptions (remove IDs)
+      const cleanMealDescription = (desc: string) => {
+        return desc.replace(/[a-z0-9]{26}\|/g, '').trim();
+      };
+
+      // Build subtitle
+      let subtitle = 'Personalized nutrition plan for ';
+      if (customerName) {
+        subtitle += `${customerName} based on calculation. `;
+      }
+      if (customerGoal) {
+        subtitle += `Goal: ${customerGoal}`;
+      }
+      
+      // Get macro percentages
+      const totalMacros = dayTotals.protein + dayTotals.carbs + dayTotals.fat;
+      const proteinPercent = totalMacros > 0 ? Math.round((dayTotals.protein * 100) / totalMacros) : 0;
+      const carbsPercent = totalMacros > 0 ? Math.round((dayTotals.carbs * 100) / totalMacros) : 0;
+      const fatPercent = totalMacros > 0 ? Math.round((dayTotals.fat * 100) / totalMacros) : 0;
+      
+      if (totalMacros > 0) {
+        subtitle += ` (${carbsPercent}% carbs, ${proteinPercent}% protein, ${fatPercent}% fat).`;
+      }
+
+      // Generate preview elements with real data
+      const previewElements = [...elements];
+      
+      // Update header elements
+      const headerTitleIdx = previewElements.findIndex(el => el.id === 'header-title');
+      if (headerTitleIdx >= 0) {
+        previewElements[headerTitleIdx] = { 
+          ...previewElements[headerTitleIdx], 
+          content: `${customerName || 'Customer'} - ${planData.goal || 'Nutrition Plan'}` 
+        };
+      }
+
+      const headerSubtitleIdx = previewElements.findIndex(el => el.id === 'header-subtitle');
+      if (headerSubtitleIdx >= 0) {
+        previewElements[headerSubtitleIdx] = { 
+          ...previewElements[headerSubtitleIdx], 
+          content: subtitle
+        };
+      }
+
+      // Update badge values
+      const calBadgeIdx = previewElements.findIndex(el => el.id === 'cal-badge-value');
+      if (calBadgeIdx >= 0) {
+        previewElements[calBadgeIdx] = { ...previewElements[calBadgeIdx], content: dayTotals.calories.toString() };
+      }
+
+      const proteinBadgeIdx = previewElements.findIndex(el => el.id === 'protein-badge-value');
+      if (proteinBadgeIdx >= 0) {
+        previewElements[proteinBadgeIdx] = { ...previewElements[proteinBadgeIdx], content: `${dayTotals.protein}g` };
+      }
+
+      const carbsBadgeIdx = previewElements.findIndex(el => el.id === 'carbs-badge-value');
+      if (carbsBadgeIdx >= 0) {
+        previewElements[carbsBadgeIdx] = { ...previewElements[carbsBadgeIdx], content: `${dayTotals.carbs}g` };
+      }
+
+      const fatBadgeIdx = previewElements.findIndex(el => el.id === 'fat-badge-value');
+      if (fatBadgeIdx >= 0) {
+        previewElements[fatBadgeIdx] = { ...previewElements[fatBadgeIdx], content: `${dayTotals.fat}g` };
+      }
+
+      // Update logo to show actual logo instead of placeholder
+      const logoIdx = previewElements.findIndex(el => el.id === 'logo');
+      if (logoIdx >= 0) {
+        previewElements[logoIdx] = { 
+          ...previewElements[logoIdx], 
+          content: '/logo-mihaela.svg' // Set logo path
+        };
+      }
+
+      // Remove existing meal elements
+      const filteredElements = previewElements.filter(el => 
+        !el.id.startsWith('meal-') && !el.id.startsWith('divider-')
+      );
+
+      // Add real meal elements dynamically
+      let currentY = 386; // Starting Y position for meals
+      const rowHeight = 30;
+      
+      meals.forEach((meal, index) => {
+        // Meal name
+        filteredElements.push({
+          id: `meal-${index}-name`,
+          type: 'text',
+          x: 87,
+          y: currentY,
+          width: 150,
+          height: 25,
+          content: meal.name,
+          fontSize: 10,
+          color: '#212121',
         });
 
-        setPreviewData({ elements: previewElements, planData });
-        setSelectedPlan(plan);
-      }
+        // Meal description (cleaned)
+        filteredElements.push({
+          id: `meal-${index}-desc`,
+          type: 'text',
+          x: 227,
+          y: currentY,
+          width: 380,
+          height: 25,
+          content: cleanMealDescription(meal.content),
+          fontSize: 10,
+          color: '#212121',
+        });
+
+        // Meal calories (estimated)
+        filteredElements.push({
+          id: `meal-${index}-cal`,
+          type: 'text',
+          x: 640,
+          y: currentY,
+          width: 100,
+          height: 25,
+          content: mealCalories.toString(),
+          fontSize: 10,
+          color: '#212121',
+        });
+
+        currentY += rowHeight;
+
+        // Add divider
+        if (index < meals.length - 1) {
+          filteredElements.push({
+            id: `divider-${index}`,
+            type: 'line',
+            x: 76,
+            y: currentY - 5,
+            width: 680,
+            height: 2,
+            borderColor: '#f0f0f0',
+            borderWidth: 1,
+          });
+        }
+      });
+
+      setPreviewData({ elements: filteredElements, planData, customerName, meals });
+      setSelectedPlan(plan);
+      console.log('✅ Preview generated successfully');
     } catch (error) {
-      console.error('Error generating preview data:', error);
+      console.error('❌ Error generating preview data:', error);
+      alert('Failed to generate preview. Please try again.');
     }
   };
 
@@ -920,6 +1082,45 @@ export default function PDFTemplateEditorPage() {
 
           {/* Center - Canvas */}
           <div className="flex-1 p-8 overflow-auto bg-gray-100">
+            {/* Zoom Controls */}
+            <div className="flex justify-center mb-4">
+              <div className="bg-white rounded-lg shadow-md px-4 py-2 flex items-center gap-3">
+                <button
+                  onClick={() => setZoom(Math.max(0.25, zoom - 0.1))}
+                  className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-medium transition-colors"
+                >
+                  −
+                </button>
+                <div className="flex items-center gap-2 min-w-[120px]">
+                  <input
+                    type="range"
+                    min="0.25"
+                    max="1.5"
+                    step="0.05"
+                    value={zoom}
+                    onChange={(e) => setZoom(parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                  <span className="text-sm font-medium text-gray-700 min-w-[45px]">
+                    {Math.round(zoom * 100)}%
+                  </span>
+                </div>
+                <button
+                  onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
+                  className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-medium transition-colors"
+                >
+                  +
+                </button>
+                <div className="h-4 w-px bg-gray-300 mx-1" />
+                <button
+                  onClick={() => setZoom(0.7)}
+                  className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 text-sm font-medium transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+            
             <div className="flex justify-center">
               <div className="relative">
                 <Canvas
@@ -929,6 +1130,7 @@ export default function PDFTemplateEditorPage() {
                   onDelete={handleDeleteElement}
                   selectedElement={selectedElement}
                   onSelectElement={setSelectedElement}
+                  zoom={zoom}
                 />
               </div>
             </div>
@@ -1030,8 +1232,47 @@ export default function PDFTemplateEditorPage() {
                       </button>
                     </div>
                     
+                    {/* Preview Zoom Controls */}
+                    <div className="flex justify-center mb-4">
+                      <div className="bg-white rounded-lg shadow-md px-4 py-2 flex items-center gap-3">
+                        <button
+                          onClick={() => setPreviewZoom(Math.max(0.25, previewZoom - 0.1))}
+                          className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-medium transition-colors"
+                        >
+                          −
+                        </button>
+                        <div className="flex items-center gap-2 min-w-[120px]">
+                          <input
+                            type="range"
+                            min="0.25"
+                            max="1.5"
+                            step="0.05"
+                            value={previewZoom}
+                            onChange={(e) => setPreviewZoom(parseFloat(e.target.value))}
+                            className="w-full"
+                          />
+                          <span className="text-sm font-medium text-gray-700 min-w-[45px]">
+                            {Math.round(previewZoom * 100)}%
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setPreviewZoom(Math.min(1.5, previewZoom + 0.1))}
+                          className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-medium transition-colors"
+                        >
+                          +
+                        </button>
+                        <div className="h-4 w-px bg-gray-300 mx-1" />
+                        <button
+                          onClick={() => setPreviewZoom(0.5)}
+                          className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 text-sm font-medium transition-colors"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                    
                     {/* Preview Canvas */}
-                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 overflow-auto max-h-[60vh]">
                       <div className="flex justify-center">
                         <div className="relative">
                           <div
@@ -1039,7 +1280,7 @@ export default function PDFTemplateEditorPage() {
                             style={{
                               width: '210mm',
                               height: '297mm',
-                              transform: 'scale(0.5)',
+                              transform: `scale(${previewZoom})`,
                               transformOrigin: 'top left',
                               border: '1px solid #e5e7eb',
                             }}
@@ -1068,9 +1309,22 @@ export default function PDFTemplateEditorPage() {
                                 }}
                               >
                                 {element.type === 'image' ? (
+                                  element.content && element.content.startsWith('/') ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img 
+                                      src={element.content} 
+                                      alt="Logo"
+                                      style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        objectFit: 'contain' 
+                                      }}
+                                    />
+                                  ) : (
                                   <div className="w-full h-full bg-gray-200 flex items-center justify-center border-2 border-dashed border-gray-300">
                                     <ImageIcon className="w-8 h-8 text-gray-400" />
                                   </div>
+                                  )
                                 ) : element.type === 'line' ? (
                                   <div
                                     style={{
