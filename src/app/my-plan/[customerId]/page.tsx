@@ -14,6 +14,7 @@ interface NutritionPlan {
   carbs: number;
   fat: number;
   weekMenu: any;
+  _ingredientTranslations?: { [key: string]: string };
 }
 
 interface Customer {
@@ -32,7 +33,6 @@ export default function MyPlanPage() {
   const [activeDay, setActiveDay] = useState<string>('monday');
   const [activeView, setActiveView] = useState<'plan' | 'shopping'>('plan');
   const [checkedItems, setCheckedItems] = useState<{ [key: string]: boolean }>({});
-  const [ingredientTranslations, setIngredientTranslations] = useState<{ [id: string]: { nameRo: string; nameEn: string } }>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -259,51 +259,10 @@ export default function MyPlanPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [nutritionPlan, days]);
 
-  // Fetch Romanian translations for shopping list ingredients
-  useEffect(() => {
-    const fetchTranslations = async () => {
-      if (shoppingList.length === 0) {
-        console.log('📝 Shopping list is empty, skipping translation fetch');
-        return;
-      }
-      
-      const uniqueIds = [...new Set(shoppingList.map(item => item.ingredientId))];
-      console.log('🔍 Fetching translations for', uniqueIds.length, 'ingredients');
-      
-      try {
-        const translationsMap: { [id: string]: { nameRo: string; nameEn: string } } = {};
-        
-        // Fetch each ingredient to get its Romanian name
-        const results = await Promise.allSettled(
-          uniqueIds.map(async (id) => {
-            try {
-              console.log('🌐 Fetching ingredient:', id);
-              const response = await fetch(`/api/ingredients/${id}`);
-              if (response.ok) {
-                const ingredient = await response.json();
-                console.log('✅ Got translation:', ingredient.name, '->', ingredient.nameRo || 'NO TRANSLATION');
-                translationsMap[id] = {
-                  nameRo: ingredient.nameRo || ingredient.name,
-                  nameEn: ingredient.name
-                };
-              } else {
-                console.error('❌ Failed to fetch ingredient', id, '- Status:', response.status);
-              }
-            } catch (error) {
-              console.error(`❌ Error fetching ingredient ${id}:`, error);
-            }
-          })
-        );
-        
-        console.log('📊 Translation results:', Object.keys(translationsMap).length, 'translations loaded');
-        setIngredientTranslations(translationsMap);
-      } catch (error) {
-        console.error('💥 Error fetching ingredient translations:', error);
-      }
-    };
-    
-    fetchTranslations();
-  }, [shoppingList]);
+  // Get Romanian translations from the nutrition plan data (already loaded)
+  const ingredientTranslationsMap = useMemo(() => {
+    return nutritionPlan?._ingredientTranslations || {};
+  }, [nutritionPlan]);
 
   if (loading) {
     return (
@@ -491,6 +450,7 @@ export default function MyPlanPage() {
                       dayKey={activeDay}
                       mealTypeKey={meal}
                       editable={false}
+                      ingredientTranslations={ingredientTranslationsMap}
                     />
                   </div>
                 </div>
@@ -547,7 +507,7 @@ export default function MyPlanPage() {
                       </button>
                       <div className="flex-1">
                         <span className={`font-medium ${isChecked ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
-                          {ingredientTranslations[item.ingredientId]?.nameRo || item.name}
+                          {ingredientTranslationsMap[item.name] || item.name}
                         </span>
                       </div>
                       <div className="flex-shrink-0">

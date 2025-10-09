@@ -23,7 +23,53 @@ export async function GET(
       return NextResponse.json({ error: 'Nutrition plan not found' }, { status: 404 });
     }
 
-    return NextResponse.json(nutritionPlan);
+    // Get all unique ingredient names from the weekMenu
+    const ingredientNames = new Set<string>();
+    if (nutritionPlan.weekMenu && typeof nutritionPlan.weekMenu === 'object') {
+      const weekMenu = nutritionPlan.weekMenu as any;
+      Object.values(weekMenu).forEach((day: any) => {
+        Object.values(day || {}).forEach((meal: any) => {
+          if (Array.isArray(meal)) {
+            meal.forEach(item => {
+              if (typeof item === 'string') {
+                // Extract ingredient name from strings like "200g Banana" or "1 Egg"
+                const match = item.match(/^[\d.]+\s*(?:g|kg|ml|l|piece|pieces|stuk|stuks|slice|slices|tbsp|tsp|cup|lgă|lgţ|buc|felie|felii)?\s*(.+)$/i);
+                if (match && match[1]) {
+                  ingredientNames.add(match[1].trim());
+                }
+              }
+            });
+          }
+        });
+      });
+    }
+
+    // Fetch all ingredient translations in one query
+    const ingredients = await prisma.ingredient.findMany({
+      where: {
+        name: {
+          in: Array.from(ingredientNames)
+        }
+      },
+      select: {
+        name: true,
+        nameRo: true
+      }
+    });
+
+    // Create a translation map
+    const translationMap: { [key: string]: string } = {};
+    ingredients.forEach(ing => {
+      if (ing.nameRo) {
+        translationMap[ing.name] = ing.nameRo;
+      }
+    });
+
+    // Return the plan with translations embedded
+    return NextResponse.json({
+      ...nutritionPlan,
+      _ingredientTranslations: translationMap
+    });
   } catch (error) {
     console.error('[API] Error fetching nutrition plan:', error);
     return NextResponse.json({ error: 'Failed to fetch nutrition plan' }, { status: 500 });
