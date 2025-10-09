@@ -500,49 +500,8 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             .replace(/\)$/, '') // Remove trailing )
             .trim();
 
-          // Handle special cases - be more specific
-          if (cleanName.toLowerCase().includes('egg') && !cleanName.toLowerCase().includes('white')) {
-            cleanName = 'eggs';
-          } else if (cleanName.toLowerCase().includes('egg whites') || cleanName.toLowerCase().includes('whites')) {
-            cleanName = 'egg whites';
-          } else if (cleanName.toLowerCase().includes('banana')) {
-            cleanName = 'banana';
-          } else if (cleanName.toLowerCase().includes('rice') && cleanName.toLowerCase().includes('cooked')) {
-            cleanName = 'rice cooked';
-          } else if (cleanName.toLowerCase().includes('rice') && cleanName.toLowerCase().includes('100g')) {
-            cleanName = 'rice 100g cooked';
-          } else if (cleanName.toLowerCase().includes('rice')) {
-            cleanName = 'rice';
-          } else if (cleanName.toLowerCase().includes('whole-grain bread') || cleanName.toLowerCase().includes('whole grain bread')) {
-            cleanName = 'whole-grain bread';
-          } else if (cleanName.toLowerCase().includes('grilled chicken')) {
-            cleanName = 'grilled chicken';
-          } else if (cleanName.toLowerCase().includes('baked sweet potato')) {
-            cleanName = 'baked sweet potato';
-          } else if (cleanName.toLowerCase().includes('almond milk')) {
-            cleanName = 'almond milk';
-          } else if (cleanName.toLowerCase().includes('peanut butter')) {
-            cleanName = 'peanut butter';
-          } else if (cleanName.toLowerCase().includes('avocado')) {
-            cleanName = 'avocado';
-          } else if (cleanName.toLowerCase().includes('oats')) {
-            cleanName = 'oats';
-          } else if (cleanName.toLowerCase().includes('cinnamon')) {
-            cleanName = 'cinnamon';
-          } else if (cleanName.toLowerCase().includes('greek yogurt')) {
-            cleanName = 'Greek yogurt';
-          } else if (cleanName.toLowerCase().includes('strawberr')) {
-            cleanName = 'Strawberries';
-          } else if (cleanName.toLowerCase().includes('blueberr')) {
-            cleanName = 'Blueberries';
-          } else if (cleanName.toLowerCase().includes('raspberr')) {
-            cleanName = 'Raspberries';
-          } else if (cleanName.toLowerCase().includes('blackberr')) {
-            cleanName = 'Blackberries';
-          } else if (cleanName.toLowerCase().includes('berries')) {
-            // Keep as-is if it's already "berries" or another specific berry type
-            cleanName = cleanName;
-          }
+          // Keep original clean name - no normalization
+          // This ensures exact match with database ingredient names
           
           // Create portion string - use parsed amount and unit from API
           let portion = '';
