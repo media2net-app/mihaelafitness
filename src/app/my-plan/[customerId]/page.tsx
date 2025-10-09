@@ -416,13 +416,13 @@ export default function MyPlanPage() {
 
         {/* Day Selector - only show when on plan view */}
         {activeView === 'plan' && (
-          <div className="bg-white rounded-2xl shadow-xl p-4 mb-6 overflow-x-auto">
-            <div className="flex gap-2 min-w-max">
+          <div className="bg-white rounded-2xl shadow-xl p-4 mb-6 overflow-x-auto scrollbar-mobile">
+            <div className="flex gap-2 min-w-max day-scroll-container">
               {days.map((day) => (
                 <button
                   key={day}
                   onClick={() => setActiveDay(day)}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all ${
+                  className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
                     activeDay === day
                       ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg scale-105'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'

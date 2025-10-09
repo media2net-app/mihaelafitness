@@ -67,6 +67,44 @@ button, a, input, select, textarea {
   display: none;
 }
 
+/* Mobile horizontal scrollbar - visible on iOS */
+.scrollbar-mobile {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #f43f5e #f1f5f9;
+}
+
+.scrollbar-mobile::-webkit-scrollbar {
+  height: 8px;
+  -webkit-appearance: none;
+}
+
+.scrollbar-mobile::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+  margin: 0 16px;
+}
+
+.scrollbar-mobile::-webkit-scrollbar-thumb {
+  background: #f43f5e;
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+}
+
+.scrollbar-mobile::-webkit-scrollbar-thumb:hover {
+  background: #e11d48;
+}
+
+/* Scroll snap for better mobile UX */
+.day-scroll-container {
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 16px;
+}
+
+.day-scroll-container button {
+  scroll-snap-align: start;
+}
+
 /* Mobile-specific improvements */
 @media (max-width: 640px) {
   .container {
