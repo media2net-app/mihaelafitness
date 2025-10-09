@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 interface Ingredient {
   id: string;
   name: string;
+  nameRo?: string;
   calories: number;
   protein: number;
   carbs: number;
@@ -57,6 +58,8 @@ export default function IngredientenPage() {
     per: '100g'
   });
   const [updating, setUpdating] = useState(false);
+  const [editingNameRo, setEditingNameRo] = useState<{ [key: string]: string }>({});
+  const [savingNameRo, setSavingNameRo] = useState<{ [key: string]: boolean }>({});
 
   // Fetch ingredients from database
   useEffect(() => {
@@ -76,6 +79,39 @@ export default function IngredientenPage() {
 
     fetchIngredients();
   }, []);
+
+  // Update Romanian translation
+  const handleUpdateNameRo = async (ingredientId: string, nameRo: string) => {
+    setSavingNameRo(prev => ({ ...prev, [ingredientId]: true }));
+    try {
+      const response = await fetch(`/api/ingredients/${ingredientId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ nameRo }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setIngredients(prev => 
+          prev.map(ing => ing.id === ingredientId ? { ...ing, nameRo } : ing)
+        );
+        // Clear editing state
+        setEditingNameRo(prev => {
+          const { [ingredientId]: _, ...rest } = prev;
+          return rest;
+        });
+      } else {
+        alert('Failed to update translation');
+      }
+    } catch (error) {
+      console.error('Error updating translation:', error);
+      alert('Error updating translation');
+    } finally {
+      setSavingNameRo(prev => ({ ...prev, [ingredientId]: false }));
+    }
+  };
 
   const handleAddIngredient = async () => {
     if (!newIngredient.name || !newIngredient.calories || !newIngredient.protein || !newIngredient.carbs || !newIngredient.fat) {
@@ -600,7 +636,10 @@ export default function IngredientenPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Naam
+                      Naam (EN)
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Vertaling (RO)
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Per
@@ -646,6 +685,63 @@ export default function IngredientenPage() {
                     <tr key={index} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{cleanName}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          {editingNameRo[ingredient.id] !== undefined ? (
+                            <>
+                              <input
+                                type="text"
+                                value={editingNameRo[ingredient.id]}
+                                onChange={(e) => setEditingNameRo(prev => ({ ...prev, [ingredient.id]: e.target.value }))}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleUpdateNameRo(ingredient.id, editingNameRo[ingredient.id]);
+                                  } else if (e.key === 'Escape') {
+                                    setEditingNameRo(prev => {
+                                      const { [ingredient.id]: _, ...rest } = prev;
+                                      return rest;
+                                    });
+                                  }
+                                }}
+                                className="flex-1 text-sm border border-rose-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                placeholder="Romanian translation"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleUpdateNameRo(ingredient.id, editingNameRo[ingredient.id])}
+                                disabled={savingNameRo[ingredient.id]}
+                                className="px-2 py-1 bg-rose-500 text-white text-xs rounded hover:bg-rose-600 disabled:opacity-50"
+                              >
+                                {savingNameRo[ingredient.id] ? '...' : '✓'}
+                              </button>
+                              <button
+                                onClick={() => setEditingNameRo(prev => {
+                                  const { [ingredient.id]: _, ...rest } = prev;
+                                  return rest;
+                                })}
+                                className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                              >
+                                ✕
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <div 
+                                className={`text-sm flex-1 ${ingredient.nameRo ? 'text-gray-900 font-medium' : 'text-gray-400 italic'}`}
+                                onClick={() => setEditingNameRo(prev => ({ ...prev, [ingredient.id]: ingredient.nameRo || '' }))}
+                              >
+                                {ingredient.nameRo || 'Click to add translation'}
+                              </div>
+                              <button
+                                onClick={() => setEditingNameRo(prev => ({ ...prev, [ingredient.id]: ingredient.nameRo || '' }))}
+                                className="text-rose-500 hover:text-rose-700"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-600">{per}</div>

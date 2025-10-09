@@ -14,7 +14,6 @@ interface IngredientBreakdownProps {
   onPlanUpdated?: (updatedPlan: any) => void; // parent can refresh macros & totals
   onMacrosUpdated?: () => void; // New callback for when macros change
   ingredientTranslations?: { [key: string]: string }; // EN -> RO translations
-  currentLanguage?: 'ro' | 'en'; // Current language selection
 }
 
 // Improved parsing function for meal descriptions
@@ -124,13 +123,7 @@ function parseMealDescription(mealDescription: string): string[] {
   return ingredients;
 }
 
-export default function IngredientBreakdown({ mealDescription, mealType, planId, dayKey, mealTypeKey, editable = false, onPlanUpdated, onMacrosUpdated, ingredientTranslations = {}, currentLanguage = 'ro' }: IngredientBreakdownProps) {
-  console.log(`🔍 [IngredientBreakdown] Received props:`, {
-    mealType,
-    currentLanguage,
-    translationsCount: Object.keys(ingredientTranslations).length,
-    sampleTranslations: Object.entries(ingredientTranslations).slice(0, 3)
-  });
+export default function IngredientBreakdown({ mealDescription, mealType, planId, dayKey, mealTypeKey, editable = false, onPlanUpdated, onMacrosUpdated, ingredientTranslations = {} }: IngredientBreakdownProps) {
   const [ingredientData, setIngredientData] = useState<any[]>([]);
   const [totalMacros, setTotalMacros] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [loading, setLoading] = useState(true);
@@ -593,19 +586,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             // extra data for editing in string mode
             rawAmount,
             rawUnit,
-            displayName: (() => {
-              if (currentLanguage === 'en') {
-                console.log(`  🇬🇧 [Display] "${cleanName}" -> EN: "${cleanName}"`);
-                return cleanName;
-              }
-              const translation = ingredientTranslations[cleanName] || result.nameRo || cleanName;
-              if (translation !== cleanName) {
-                console.log(`  ✅ [Display] "${cleanName}" -> RO: "${translation}"`);
-              } else {
-                console.log(`  ⚠️ [Display] "${cleanName}" -> NO TRANSLATION (using EN)`);
-              }
-              return translation;
-            })(),
+            displayName: ingredientTranslations[cleanName] || result.nameRo || cleanName,
             displayNameEn: result.nameEn || cleanName, // Keep English for reference
           };
         });

@@ -33,7 +33,6 @@ export default function MyPlanPage() {
   const [activeDay, setActiveDay] = useState<string>('monday');
   const [activeView, setActiveView] = useState<'plan' | 'shopping'>('plan');
   const [checkedItems, setCheckedItems] = useState<{ [key: string]: boolean }>({});
-  const [language, setLanguage] = useState<'ro' | 'en'>('ro'); // Default Romanian
 
   useEffect(() => {
     const fetchData = async () => {
@@ -56,9 +55,6 @@ export default function MyPlanPage() {
         if (!planResponse.ok) throw new Error('Failed to fetch plan details');
         
         const planData = await planResponse.json();
-        console.log('📥 [Data Loaded] Nutrition plan received');
-        console.log('🔍 [Data Loaded] Has _ingredientTranslations?', !!planData._ingredientTranslations);
-        console.log('📊 [Data Loaded] Translation keys:', Object.keys(planData._ingredientTranslations || {}));
         setNutritionPlan(planData);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -259,48 +255,48 @@ export default function MyPlanPage() {
     });
 
       // Convert map to sorted array
-    const list = Array.from(ingredientMap.values())
+    return Array.from(ingredientMap.values())
       .sort((a, b) => a.name.localeCompare(b.name));
-    
-    console.log('🛒 [Shopping List Generated] Total items:', list.length);
-    list.forEach((item, idx) => {
-      if (idx < 10) { // Only log first 10 to avoid spam
-        console.log(`  📝 [Shopping List] Item ${idx + 1}: "${item.name}" (${item.quantity}${item.unit})`);
-      }
-    });
-    
-    return list;
   }, [nutritionPlan, days]);
 
   // Get Romanian translations from the nutrition plan data (already loaded)
   const ingredientTranslationsMap = useMemo(() => {
-    const translations = nutritionPlan?._ingredientTranslations || {};
-    console.log('🔍 [Frontend Translation Debug] Received translations:', translations);
-    console.log('📊 [Frontend Translation Debug] Translation count:', Object.keys(translations).length);
-    if (Object.keys(translations).length === 0) {
-      console.error('⚠️ [Frontend Translation Debug] NO TRANSLATIONS RECEIVED! This means the API did not send _ingredientTranslations');
+    if (!nutritionPlan) {
+      return {};
     }
-    Object.entries(translations).forEach(([en, ro]) => {
-      console.log(`  🔤 [Frontend Translation Debug] "${en}" -> "${ro}"`);
-    });
-    return translations;
+    return nutritionPlan._ingredientTranslations || {};
   }, [nutritionPlan]);
 
-  // Helper function to get ingredient name in current language
+  // Helper function to get Romanian ingredient name from translation map
   const getIngredientName = (englishName: string): string => {
-    if (language === 'en') {
-      console.log(`🇬🇧 [Get Name] Language is EN, returning: "${englishName}"`);
-      return englishName;
-    }
-    // Return Romanian translation or fallback to English
-    const translation = ingredientTranslationsMap[englishName];
+    // Try exact match first
+    let translation = ingredientTranslationsMap[englishName];
     if (translation) {
-      console.log(`✅ [Get Name] Found translation for "${englishName}" -> "${translation}"`);
       return translation;
-    } else {
-      console.warn(`❌ [Get Name] NO translation found for "${englishName}", available keys:`, Object.keys(ingredientTranslationsMap).slice(0, 5));
-      return englishName;
     }
+    
+    // Try with "1 " prefix (for items like "Egg" -> try "1 Egg")
+    translation = ingredientTranslationsMap[`1 ${englishName}`];
+    if (translation) {
+      return translation;
+    }
+    
+    // Try without number prefix (for items like "2 Egg" -> try "Egg")
+    const withoutNumber = englishName.replace(/^\d+(?:\.\d+)?\s+/, '');
+    if (withoutNumber !== englishName) {
+      translation = ingredientTranslationsMap[withoutNumber];
+      if (translation) {
+        return translation;
+      }
+      // Also try "1 " prefix on the base name
+      translation = ingredientTranslationsMap[`1 ${withoutNumber}`];
+      if (translation) {
+        return translation;
+      }
+    }
+    
+    // If no translation found, return original English name
+    return englishName;
   };
 
   if (loading) {
@@ -336,24 +332,16 @@ export default function MyPlanPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {/* Mobile Layout: Logo + Name on top, subtitle below */}
           <div className="sm:hidden">
-            {/* Top row: Logo and Customer name */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center">
-                <img src="/logo-mihaela.svg" alt="Mihaela Fitness" className="h-12 w-auto" />
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setLanguage(lang => lang === 'ro' ? 'en' : 'ro')}
-                  className="bg-white/10 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium hover:bg-white/20 transition-colors"
-                >
-                  {language === 'ro' ? '🇷🇴 RO' : '🇬🇧 EN'}
-                </button>
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
-                  <User className="w-4 h-4" />
-                  <span className="font-medium text-sm">{customer.name}</span>
-                </div>
-              </div>
-            </div>
+                  {/* Top row: Logo and Customer name */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center">
+                      <img src="/logo-mihaela.svg" alt="Mihaela Fitness" className="h-12 w-auto" />
+                    </div>
+                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
+                      <User className="w-4 h-4" />
+                      <span className="font-medium text-sm">{customer.name}</span>
+                    </div>
+                  </div>
             {/* Bottom row: Subtitle */}
             <p className="text-sm text-rose-100">Planul Tău Nutrițional Personalizat</p>
           </div>
@@ -366,17 +354,9 @@ export default function MyPlanPage() {
                 <p className="text-sm text-rose-100">Planul Tău Nutrițional Personalizat</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setLanguage(lang => lang === 'ro' ? 'en' : 'ro')}
-                className="bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg text-sm font-medium hover:bg-white/20 transition-colors"
-              >
-                {language === 'ro' ? '🇷🇴 Română' : '🇬🇧 English'}
-              </button>
-              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
-                <User className="w-5 h-5" />
-                <span className="font-medium">{customer.name}</span>
-              </div>
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
+              <User className="w-5 h-5" />
+              <span className="font-medium">{customer.name}</span>
             </div>
           </div>
         </div>
@@ -506,7 +486,6 @@ export default function MyPlanPage() {
                       mealTypeKey={meal}
                       editable={false}
                       ingredientTranslations={ingredientTranslationsMap}
-                      currentLanguage={language}
                     />
                   </div>
                 </div>
