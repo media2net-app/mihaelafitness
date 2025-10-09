@@ -340,12 +340,8 @@ export default function MyPlanPage() {
           <div className="sm:hidden">
             {/* Top row: Logo and Customer name */}
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <img src="/logo-mihaela.svg" alt="Mihaela Fitness" className="h-8 w-auto" />
-                <div>
-                  <h1 className="text-lg font-bold tracking-tight">MIHAELA</h1>
-                  <p className="text-xs font-semibold -mt-1">FITNESS</p>
-                </div>
+              <div className="flex items-center">
+                <img src="/logo-mihaela.svg" alt="Mihaela Fitness" className="h-12 w-auto" />
               </div>
               <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
                 <User className="w-4 h-4" />
