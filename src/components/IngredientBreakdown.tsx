@@ -393,14 +393,18 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                   fiber: Math.round((ingredient.fiber || 0) * multiplier)
                 };
                 
-                // Create portion string
+                // Create portion string (Romanian units)
                 let portion = '';
                 if (ingredient.unit === 'g' || ingredient.unit === 'ml') {
                   portion = `${quantity} ${ingredient.unit}`;
-                } else if (ingredient.unit === 'tsp' || ingredient.unit === 'tbsp') {
-                  portion = `${quantity} ${ingredient.unit}`;
+                } else if (ingredient.unit === 'tsp') {
+                  portion = `${quantity} lgț`; // linguriță
+                } else if (ingredient.unit === 'tbsp') {
+                  portion = `${quantity} lgă`; // lingură
                 } else if (ingredient.unit === 'slice') {
-                  portion = `${quantity} slice${quantity !== 1 ? 's' : ''}`;
+                  portion = `${quantity} ${quantity === 1 ? 'felie' : 'felii'}`; // slice(s)
+                } else if (ingredient.unit === 'piece' || ingredient.unit === 'pieces') {
+                  portion = `${quantity} buc`; // bucăți
                 } else {
                   portion = `${quantity} ${ingredient.unit}`;
                 }
@@ -540,29 +544,29 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             // For ml-based ingredients, show ml
             portion = `${Math.round(result.amount)} ml`;
           } else if (result.unit === 'tsp' && result.amount) {
-            // For tsp-based ingredients, show tsp
-            portion = `${result.amount} tsp`;
+            // For tsp-based ingredients, show tsp (Romanian: linguriță = lgț)
+            portion = `${result.amount} lgț`;
           } else if (result.unit === 'tbsp' && result.amount) {
-            // For tbsp-based ingredients, show tbsp
-            portion = `${result.amount} tbsp`;
+            // For tbsp-based ingredients, show tbsp (Romanian: lingură = lgă)
+            portion = `${result.amount} lgă`;
           } else if (result.unit === 'piece' && result.pieces) {
-            // For piece-based ingredients, show pieces
+            // For piece-based ingredients, show pieces (Romanian: bucăți = buc)
             if (result.pieces === 0.5) {
-              portion = '1/2 piece';
+              portion = '1/2 buc';
             } else if (result.pieces === 0.25) {
-              portion = '1/4 piece';
+              portion = '1/4 buc';
             } else if (result.pieces === 0.33) {
-              portion = '1/3 piece';
+              portion = '1/3 buc';
             } else if (result.pieces === 1) {
-              portion = '1 piece';
+              portion = '1 buc';
             } else {
-              portion = `${result.pieces} pieces`;
+              portion = `${result.pieces} buc`;
             }
           } else if (result.amount) {
             // Fallback: show amount with unit
             portion = `${Math.round(result.amount)} ${result.unit || 'g'}`;
           } else {
-            portion = '1 piece';
+            portion = '1 buc';
           }
           
           // Derive amount/unit from API response
