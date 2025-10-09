@@ -219,7 +219,9 @@ export async function POST(request: NextRequest) {
           macros,
           amount: parsed.amount,
           unit: parsed.unit,
-          pieces: parsed.pieces || 1
+          pieces: parsed.pieces || 1,
+          nameRo: ingredient.nameRo || ingredient.name, // Include Romanian translation
+          nameEn: ingredient.name
         });
       } catch (error) {
         console.error(`Error processing ingredient ${ingredientString}:`, error);

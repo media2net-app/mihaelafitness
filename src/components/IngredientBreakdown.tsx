@@ -581,7 +581,8 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             // extra data for editing in string mode
             rawAmount,
             rawUnit,
-            displayName: cleanName,
+            displayName: result.nameRo || cleanName, // Use Romanian name if available
+            displayNameEn: result.nameEn || cleanName, // Keep English for reference
           };
         });
 
@@ -727,7 +728,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                     <div className="flex items-start space-x-2 flex-1">
                       <span className="text-gray-500 text-sm mt-0.5">•</span>
                       <span className="font-medium text-gray-800 text-sm">
-                        {ingredient.name}
+                        {ingredient.displayName || ingredient.name}
                       </span>
                     </div>
                     <span className="text-gray-600 text-sm font-semibold ml-2 whitespace-nowrap">
@@ -759,7 +760,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                   <div className="col-span-4 flex items-center space-x-2">
                     <span className="text-gray-500 text-sm">•</span>
                     <span className="font-medium text-gray-800 text-sm">
-                      {ingredient.name}
+                      {ingredient.displayName || ingredient.name}
                     </span>
                   </div>
                   <div className="col-span-1 text-center">
@@ -788,7 +789,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             <div className="col-span-5 flex items-center space-x-2">
               <span className="text-gray-500 text-sm">•</span>
               <span className="font-medium text-gray-800 text-sm sm:text-base truncate">
-                {ingredient.portion} {ingredient.name}
+                {ingredient.portion} {ingredient.displayName || ingredient.name}
               </span>
             </div>
             <div className="col-span-2 text-center">
@@ -1023,7 +1024,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                   <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-2 border border-gray-200">
                     <div className="flex-1">
                       <div className="font-medium text-gray-800 text-sm">
-                        {ingredient.portion} {ingredient.name}
+                        {ingredient.portion} {ingredient.displayName || ingredient.name}
                       </div>
                       <div className="text-xs text-gray-600">
                         {ingredient.protein}P {ingredient.fat}F {ingredient.carbs}C → {ingredient.calories} kcal

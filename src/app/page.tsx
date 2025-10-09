@@ -310,7 +310,7 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Error submitting online coaching registration:', error);
-      alert('Er is een fout opgetreden. Probeer het later opnieuw.');
+      alert('Ne pare rău, a apărut o eroare. Vă rugăm încercați din nou mai târziu.');
     }
   };
 

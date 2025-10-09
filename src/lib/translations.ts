@@ -488,23 +488,23 @@ export const translations = {
         success: 'Mulțumim! Vă vom contacta în curând pentru a programa consultația gratuită.'
       },
       notifyForm: {
-        button: 'Hou mij op de hoogte van de lancering',
-        title: 'Blijf op de hoogte van onze lancering',
-        subtitle: 'Vul onderstaande gegevens in en wij houden je op de hoogte zodra het platform live gaat',
-        name: 'Naam',
-        email: 'E-mail',
-        interests: 'Ik heb interesse in:',
+        button: 'Ține-mă la curent despre lansare',
+        title: 'Rămâi la curent despre lansarea noastră',
+        subtitle: 'Completează datele de mai jos și te vom ține la curent imediat ce platforma va fi lansată',
+        name: 'Nume',
+        email: 'Email',
+        interests: 'Sunt interesat(ă) de:',
         interestOptions: {
-          nutritionPlans: 'Voedingsplannen',
-          trainingSchedules: 'Trainingsschemas',
-          onlineCommunity: 'Online community',
-          recipes: 'Recepten',
-          mindset: 'Mindset/Discipline/Motivatie',
-          habits: 'Habits'
+          nutritionPlans: 'Planuri Nutriționale',
+          trainingSchedules: 'Programe de Antrenament',
+          onlineCommunity: 'Comunitate Online',
+          recipes: 'Rețete',
+          mindset: 'Mentalitate/Disciplină/Motivație',
+          habits: 'Obiceiuri'
         },
-        submit: 'Hou mij op de hoogte',
-        back: 'Terug',
-        success: 'Bedankt! We houden je op de hoogte van onze lancering.'
+        submit: 'Ține-mă la curent',
+        back: 'Înapoi',
+        success: 'Mulțumesc! Te vom ține la curent despre lansarea noastră.'
       },
       coaching: {
         '1:1': {

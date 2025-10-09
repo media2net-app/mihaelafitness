@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
-
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
-    
+
     const ingredient = await prisma.ingredient.findUnique({
       where: { id }
     });
@@ -25,41 +26,27 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       { error: 'Failed to fetch ingredient' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, calories, protein, carbs, fat, fiber, sugar, category, per } = body;
+    const { name, nameRo, calories, protein, carbs, fat, fiber, sugar, category, per, aliases, isActive } = body;
 
-    if (!name || !calories || !protein || !carbs || !fat) {
-      return NextResponse.json(
-        { error: 'Missing required fields: name, calories, protein, carbs, fat' },
-        { status: 400 }
-      );
-    }
-
-    // Check if ingredient with this name already exists (excluding current ingredient)
-    const existingIngredient = await prisma.ingredient.findFirst({
-      where: {
-        name: {
-          equals: name,
-          mode: 'insensitive'
-        },
-        NOT: {
-          id: id
-        }
-      }
+    // Check if ingredient exists
+    const existingIngredient = await prisma.ingredient.findUnique({
+      where: { id }
     });
 
-    if (existingIngredient) {
+    if (!existingIngredient) {
       return NextResponse.json(
-        { error: 'Ingredient with this name already exists' },
-        { status: 409 }
+        { error: 'Ingredient not found' },
+        { status: 404 }
       );
     }
 
@@ -67,43 +54,61 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const updatedIngredient = await prisma.ingredient.update({
       where: { id },
       data: {
-        name,
-        calories: parseFloat(calories),
-        protein: parseFloat(protein),
-        carbs: parseFloat(carbs),
-        fat: parseFloat(fat),
-        fiber: fiber ? parseFloat(fiber) : 0,
-        sugar: sugar ? parseFloat(sugar) : 0,
-        category: category || 'other',
-        per: per || '100g',
-        aliases: [`Pure:${name}`],
-        isActive: true
+        ...(name !== undefined && { name }),
+        ...(nameRo !== undefined && { nameRo }),
+        ...(calories !== undefined && { calories: parseFloat(calories) }),
+        ...(protein !== undefined && { protein: parseFloat(protein) }),
+        ...(carbs !== undefined && { carbs: parseFloat(carbs) }),
+        ...(fat !== undefined && { fat: parseFloat(fat) }),
+        ...(fiber !== undefined && { fiber: parseFloat(fiber) }),
+        ...(sugar !== undefined && { sugar: parseFloat(sugar) }),
+        ...(category !== undefined && { category }),
+        ...(per !== undefined && { per }),
+        ...(aliases !== undefined && { aliases }),
+        ...(isActive !== undefined && { isActive })
       }
     });
 
-    return NextResponse.json({ ingredient: updatedIngredient });
+    return NextResponse.json(updatedIngredient);
   } catch (error) {
     console.error('Error updating ingredient:', error);
     return NextResponse.json(
       { error: 'Failed to update ingredient' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { id } = await params;
+
+    // Check if ingredient exists
+    const existingIngredient = await prisma.ingredient.findUnique({
+      where: { id }
+    });
+
+    if (!existingIngredient) {
+      return NextResponse.json(
+        { error: 'Ingredient not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete ingredient
     await prisma.ingredient.delete({
       where: { id }
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ message: 'Ingredient deleted successfully' });
   } catch (error) {
     console.error('Error deleting ingredient:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to delete ingredient' },
+      { status: 500 }
+    );
   }
 }
-

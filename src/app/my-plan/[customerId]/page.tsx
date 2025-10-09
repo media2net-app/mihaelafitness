@@ -32,6 +32,7 @@ export default function MyPlanPage() {
   const [activeDay, setActiveDay] = useState<string>('monday');
   const [activeView, setActiveView] = useState<'plan' | 'shopping'>('plan');
   const [checkedItems, setCheckedItems] = useState<{ [key: string]: boolean }>({});
+  const [ingredientTranslations, setIngredientTranslations] = useState<{ [id: string]: { nameRo: string; nameEn: string } }>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -129,11 +130,43 @@ export default function MyPlanPage() {
     'evening-snack': 'Gustare Seară'
   };
 
-  // Generate shopping list from all week's ingredients
+  // Unit translations to Romanian
+  const translateUnit = (unit: string): string => {
+    const unitTranslations: { [key: string]: string } = {
+      'g': 'g',
+      'gram': 'g',
+      'grams': 'g',
+      'kg': 'kg',
+      'ml': 'ml',
+      'l': 'l',
+      'stuks': 'buc', // bucăți (pieces)
+      'piece': 'buc',
+      'pieces': 'buc',
+      'stuk': 'buc',
+      'slice': 'felie',
+      'slices': 'felii',
+      'tbsp': 'lgă', // lingură (tablespoon)
+      'tablespoon': 'lingură',
+      'tsp': 'lgţ', // linguriță (teaspoon)
+      'teaspoon': 'linguriță',
+      'cup': 'ceașcă',
+      'cups': 'cești'
+    };
+    return unitTranslations[unit.toLowerCase()] || unit;
+  };
+
+  // Generate shopping list from all week's ingredients - with smart grouping
   const shoppingList = useMemo(() => {
     if (!nutritionPlan?.weekMenu) return [];
 
-    const ingredientMap = new Map<string, { quantity: number; unit: string; name: string }>();
+    const ingredientMap = new Map<string, { 
+      quantity: number; 
+      unit: string; 
+      name: string; 
+      ingredientId: string;
+      isPiece: boolean;
+      gramEquivalent?: number; // For piece-based items, track gram equivalent
+    }>();
     const meals = ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'];
 
     days.forEach(day => {
@@ -161,49 +194,116 @@ export default function MyPlanPage() {
           const match = ingredientStr.match(/^([\d.]+)\s+([a-z0-9]+)\|(.+)$/i);
           if (!match) return;
 
-          const [, quantityStr, , ingredientName] = match;
+          const [, quantityStr, ingredientId, ingredientName] = match;
           const quantity = parseFloat(quantityStr);
           
           // Clean the ingredient name - remove leading numbers and quantities
           let cleanName = ingredientName.split('|').pop()?.trim() || ingredientName;
           
+          // Check if this is a piece-based ingredient (starts with "1 ")
+          const isPiece = /^1\s+/.test(cleanName);
+          
           // Remove patterns like "1 ", "2 ", "1.5 " from the start of the name
-          cleanName = cleanName.replace(/^\d+(?:\.\d+)?\s+/, '');
+          const baseCleanName = cleanName.replace(/^\d+(?:\.\d+)?\s+/, '');
           
-          // Determine unit - check if name suggests pieces/items or grams
-          let unit = 'g';
-          const lowerName = cleanName.toLowerCase();
+          // Create a smart grouping key based on base name (without "1 " prefix)
+          // This way "Banana" and "1 Banana" will have the same base key
+          const baseKey = baseCleanName.toLowerCase().trim();
           
-          // Items that should be counted as pieces, not grams
-          if (lowerName.includes('egg') || 
-              lowerName.includes('apple') || 
-              lowerName.includes('banana') ||
-              lowerName.includes('orange') ||
-              lowerName.includes('carrot') ||
-              lowerName.includes('cucumber') ||
-              lowerName.includes('onion') ||
-              lowerName.includes('slice') ||
-              lowerName.includes('tablespoon') ||
-              lowerName.includes('teaspoon')) {
-            unit = 'stuks';
+          // Find if we already have this ingredient (by base name)
+          let existingKey: string | null = null;
+          for (const [key, value] of ingredientMap.entries()) {
+            const existingBaseName = value.name.replace(/^\d+(?:\.\d+)?\s+/, '').toLowerCase().trim();
+            if (existingBaseName === baseKey) {
+              existingKey = key;
+              break;
+            }
           }
-          
-          const key = `${cleanName.toLowerCase()}-${unit}`;
 
-          if (ingredientMap.has(key)) {
-            const existing = ingredientMap.get(key)!;
-            existing.quantity += quantity;
+          if (existingKey) {
+            const existing = ingredientMap.get(existingKey)!;
+            
+            // Smart aggregation: if mixing pieces and grams, convert to grams
+            if (isPiece && !existing.isPiece) {
+              // Adding pieces to grams - convert pieces to grams (rough estimate: 1 piece ≈ 100g for fruits/veg)
+              const gramsPerPiece = 100;
+              existing.quantity += quantity * gramsPerPiece;
+              existing.unit = 'g';
+            } else if (!isPiece && existing.isPiece) {
+              // Adding grams to pieces - convert existing pieces to grams first
+              const gramsPerPiece = 100;
+              existing.quantity = (existing.quantity * gramsPerPiece) + quantity;
+              existing.unit = 'g';
+              existing.isPiece = false;
+            } else {
+              // Same unit type, just add
+              existing.quantity += quantity;
+            }
           } else {
-            ingredientMap.set(key, { quantity, unit, name: cleanName });
+            // New ingredient
+            const key = `${ingredientId}-${baseKey}`;
+            ingredientMap.set(key, { 
+              quantity, 
+              unit: isPiece ? 'stuks' : 'g', 
+              name: baseCleanName, 
+              ingredientId,
+              isPiece
+            });
           }
         });
       });
     });
 
-    // Convert map to sorted array
+      // Convert map to sorted array
     return Array.from(ingredientMap.values())
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [nutritionPlan, days]);
+
+  // Fetch Romanian translations for shopping list ingredients
+  useEffect(() => {
+    const fetchTranslations = async () => {
+      if (shoppingList.length === 0) {
+        console.log('📝 Shopping list is empty, skipping translation fetch');
+        return;
+      }
+      
+      const uniqueIds = [...new Set(shoppingList.map(item => item.ingredientId))];
+      console.log('🔍 Fetching translations for', uniqueIds.length, 'ingredients');
+      
+      try {
+        const translationsMap: { [id: string]: { nameRo: string; nameEn: string } } = {};
+        
+        // Fetch each ingredient to get its Romanian name
+        const results = await Promise.allSettled(
+          uniqueIds.map(async (id) => {
+            try {
+              console.log('🌐 Fetching ingredient:', id);
+              const response = await fetch(`/api/ingredients/${id}`);
+              if (response.ok) {
+                const ingredient = await response.json();
+                console.log('✅ Got translation:', ingredient.name, '->', ingredient.nameRo || 'NO TRANSLATION');
+                translationsMap[id] = {
+                  nameRo: ingredient.nameRo || ingredient.name,
+                  nameEn: ingredient.name
+                };
+              } else {
+                console.error('❌ Failed to fetch ingredient', id, '- Status:', response.status);
+              }
+            } catch (error) {
+              console.error(`❌ Error fetching ingredient ${id}:`, error);
+            }
+          })
+        );
+        
+        console.log('📊 Translation results:', Object.keys(translationsMap).length, 'translations loaded');
+        setIngredientTranslations(translationsMap);
+      } catch (error) {
+        console.error('💥 Error fetching ingredient translations:', error);
+      }
+    };
+    
+    fetchTranslations();
+  }, [shoppingList]);
 
   if (loading) {
     return (
@@ -430,12 +530,12 @@ export default function MyPlanPage() {
                       </button>
                       <div className="flex-1">
                         <span className={`font-medium ${isChecked ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
-                          {item.name}
+                          {ingredientTranslations[item.ingredientId]?.nameRo || item.name}
                         </span>
                       </div>
                       <div className="flex-shrink-0">
                         <span className={`font-semibold ${isChecked ? 'text-gray-400' : 'text-rose-600'}`}>
-                          {Math.round(item.quantity)}{item.unit}
+                          {Math.round(item.quantity)} {translateUnit(item.unit)}
                         </span>
                       </div>
                     </div>
@@ -444,9 +544,9 @@ export default function MyPlanPage() {
               </div>
             )}
 
-            {/* Summary */}
+            {/* Summary - Sticky on mobile */}
             {shoppingList.length > 0 && (
-              <div className="mt-6 p-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-lg border-2 border-rose-200">
+              <div className="mt-6 p-4 bg-gradient-to-r from-rose-50 to-pink-50 rounded-lg border-2 border-rose-200 sticky bottom-0 left-0 right-0 z-10 shadow-lg backdrop-blur-sm bg-opacity-95">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-gray-700">Progres:</span>
                   <span className="text-lg font-bold text-rose-600">

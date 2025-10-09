@@ -318,7 +318,9 @@ model CustomerScheduleAssignment {
 model Ingredient {
   id        String   @id @default(cuid())
   name      String   @unique
+  nameRo    String?  // Romanian translation
   per       String?  // Per 100g, per stuk, etc.
+  perRo     String?  // Romanian translation for 'per' field
   calories  Float
   protein   Float
   carbs     Float
