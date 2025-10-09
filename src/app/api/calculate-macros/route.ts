@@ -233,7 +233,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ results });
+    const response = NextResponse.json({ results });
+    
+    // Add cache control headers to prevent stale data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     console.error('Error calculating macros:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

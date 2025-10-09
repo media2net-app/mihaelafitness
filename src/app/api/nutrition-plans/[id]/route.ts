@@ -95,10 +95,17 @@ export async function GET(
     console.log(`✨ [Translation Debug] Sending ${Object.keys(translationMap).length} translations to frontend`);
 
     // Return the plan with translations embedded
-    return NextResponse.json({
+    const response = NextResponse.json({
       ...nutritionPlan,
       _ingredientTranslations: translationMap
     });
+    
+    // Add cache control headers to prevent stale data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     console.error('[API] Error fetching nutrition plan:', error);
     return NextResponse.json({ error: 'Failed to fetch nutrition plan' }, { status: 500 });
