@@ -470,10 +470,16 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
         console.log('🔍 [API Response] calculate-macros:', {
           totalResults: data.results?.length,
           sample: data.results?.slice(0, 2).map((r: any) => ({
-            name: r.ingredient,
+            ingredient: r.ingredient,
+            nameEn: r.nameEn,
+            nameRo: r.nameRo,
+            amount: r.amount,
+            unit: r.unit,
+            pieces: r.pieces,
             calories: r.macros?.calories,
             protein: r.macros?.protein,
-            nameRo: r.nameRo
+            carbs: r.macros?.carbs,
+            fat: r.macros?.fat
           }))
         });
         const results = data.results;
