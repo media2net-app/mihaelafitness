@@ -34,20 +34,23 @@ export async function GET(
       Object.entries(weekMenu).forEach(([dayKey, day]: [string, any]) => {
         console.log(`📅 [Translation Debug] Processing day: ${dayKey}`);
         Object.entries(day || {}).forEach(([mealKey, meal]: [string, any]) => {
-          if (Array.isArray(meal)) {
-            console.log(`🍽️ [Translation Debug] Processing meal: ${mealKey}, items:`, meal.length);
-            meal.forEach((item, idx) => {
-              if (typeof item === 'string') {
-                console.log(`  📝 [Translation Debug] Item ${idx}: "${item}"`);
-                // Extract ingredient name from strings like "200g Banana" or "1 Egg"
-                const match = item.match(/^[\d.]+\s*(?:g|kg|ml|l|piece|pieces|stuk|stuks|slice|slices|tbsp|tsp|cup|lgă|lgţ|buc|felie|felii)?\s*(.+)$/i);
-                if (match && match[1]) {
-                  const cleanName = match[1].trim();
-                  ingredientNames.add(cleanName);
-                  console.log(`  ✅ [Translation Debug] Extracted ingredient: "${cleanName}"`);
-                } else {
-                  console.log(`  ❌ [Translation Debug] Failed to extract ingredient from: "${item}"`);
-                }
+          // Meals are stored as strings in format: "100 id|Name, 200 id|Name, ..."
+          if (typeof meal === 'string' && meal.trim()) {
+            console.log(`🍽️ [Translation Debug] Processing meal: ${mealKey}, content: "${meal.substring(0, 100)}..."`);
+            // Split by comma to get individual ingredients
+            const ingredientItems = meal.split(',');
+            console.log(`  📝 [Translation Debug] Split into ${ingredientItems.length} items`);
+            
+            ingredientItems.forEach((item, idx) => {
+              // Format: "100 id|Ingredient Name"
+              // Extract the name after the pipe
+              const pipeMatch = item.match(/\|(.+)$/);
+              if (pipeMatch && pipeMatch[1]) {
+                const ingredientName = pipeMatch[1].trim();
+                ingredientNames.add(ingredientName);
+                console.log(`  ✅ [Translation Debug] Item ${idx}: Extracted "${ingredientName}"`);
+              } else {
+                console.log(`  ❌ [Translation Debug] Item ${idx}: Failed to extract from "${item}"`);
               }
             });
           }
