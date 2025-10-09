@@ -480,28 +480,18 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
 
         // Process results with portion information from API
         const ingredientResults = results.map((result: any) => {
-          // Extract clean ingredient name (remove quantities and IDs)
-          let cleanName = result.ingredient;
+          // The API already returns the correct ingredient name
+          // Just extract it from the result object
+          let cleanName = result.nameEn || result.ingredient;
           
-          // Remove DB id pipes if present FIRST (e.g., "cmg123|Milk" -> "Milk")
+          // Remove DB id pipes if present (e.g., "cmg123|1 Egg" -> "1 Egg")
           if (cleanName.includes('|')) {
             const parts = cleanName.split('|');
             cleanName = parts[parts.length - 1].trim();
           }
           
-          // Remove common quantity patterns but be more careful
-          cleanName = cleanName
-            .replace(/^\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|slice|slices)\s*/i, '')
-            .replace(/^\d+(?:\.\d+)?\s*(?:piece|pieces)\s*/i, '')
-            .replace(/^\d+(?:\.\d+)?\s*/i, '')
-            .replace(/^(\d+\/\d+|\d+)\s*/i, '')
-            .replace(/^\([^)]*\)\s*/g, '')
-            .replace(/^[^a-zA-Z]*/, '')
-            .replace(/\)$/, '') // Remove trailing )
-            .trim();
-
-          // Keep original clean name - no normalization
-          // This ensures exact match with database ingredient names
+          // Keep the name as-is - no further cleaning
+          // Names like "1 Egg", "Avocado", "Whole Wheat Bread" stay intact
           
           // Create portion string - use parsed amount and unit from API
           let portion = '';
