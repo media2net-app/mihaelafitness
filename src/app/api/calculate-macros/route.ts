@@ -219,10 +219,14 @@ export async function POST(request: NextRequest) {
         // Log for debugging
         console.log(`[calculate-macros] ${ingredientString} -> amount: ${parsed.amount}, unit: ${parsed.unit}, pieces: ${parsed.pieces || 1}, multiplier: ${multiplier}`);
         
+        // For piece-based items, use pieces as amount (not pieces*50)
+        // This ensures IngredientBreakdown correctly initializes editAmounts
+        const finalAmount = parsed.unit === 'piece' ? (parsed.pieces || 1) : parsed.amount;
+        
         results.push({
           ingredient: ingredientString,
           macros,
-          amount: parsed.amount,
+          amount: finalAmount,
           unit: parsed.unit,
           pieces: parsed.pieces || 1,
           nameRo: ingredient.nameRo || ingredient.name, // Include Romanian translation
