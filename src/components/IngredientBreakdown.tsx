@@ -721,9 +721,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
       
       <div className="space-y-2">
         {ingredientData.map((ingredient, index) => {
-          const scaled = scaledMacrosFor(index);
-          
-          // Read-only mode - mobile-friendly card layout
+          // Read-only mode - mobile-friendly card layout - uses ingredient.calories directly
           if (!editable) {
             return (
               <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
@@ -743,19 +741,19 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                   <div className="grid grid-cols-4 gap-2 text-center text-xs">
                     <div>
                       <div className="text-gray-500 text-[10px] mb-0.5">Cal</div>
-                      <div className="text-orange-600 font-bold">{scaled.calories}</div>
+                      <div className="text-orange-600 font-bold">{ingredient.calories}</div>
                     </div>
                     <div>
                       <div className="text-gray-500 text-[10px] mb-0.5">Prot</div>
-                      <div className="text-blue-600 font-semibold">{scaled.protein}g</div>
+                      <div className="text-blue-600 font-semibold">{ingredient.protein}g</div>
                     </div>
                     <div>
                       <div className="text-gray-500 text-[10px] mb-0.5">Carb</div>
-                      <div className="text-green-600 font-semibold">{scaled.carbs}g</div>
+                      <div className="text-green-600 font-semibold">{ingredient.carbs}g</div>
                     </div>
                     <div>
                       <div className="text-gray-500 text-[10px] mb-0.5">Fat</div>
-                      <div className="text-purple-600 font-semibold">{scaled.fat}g</div>
+                      <div className="text-purple-600 font-semibold">{ingredient.fat}g</div>
                     </div>
                   </div>
                 </div>
@@ -772,16 +770,16 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                     <span className="text-gray-600 text-sm">{ingredient.portion}</span>
                   </div>
                   <div className="col-span-1 text-center">
-                    <span className="text-orange-600 font-bold text-sm">{scaled.calories}</span>
+                    <span className="text-orange-600 font-bold text-sm">{ingredient.calories}</span>
                   </div>
                   <div className="col-span-1 text-center">
-                    <span className="text-blue-600 font-semibold text-sm">{scaled.protein}g</span>
+                    <span className="text-blue-600 font-semibold text-sm">{ingredient.protein}g</span>
                   </div>
                   <div className="col-span-1 text-center">
-                    <span className="text-green-600 font-semibold text-sm">{scaled.carbs}g</span>
+                    <span className="text-green-600 font-semibold text-sm">{ingredient.carbs}g</span>
                   </div>
                   <div className="col-span-1 text-center">
-                    <span className="text-purple-600 font-semibold text-sm">{scaled.fat}g</span>
+                    <span className="text-purple-600 font-semibold text-sm">{ingredient.fat}g</span>
                   </div>
                 </div>
               </div>
