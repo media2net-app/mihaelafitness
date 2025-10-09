@@ -467,6 +467,15 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
         }
 
         const data = await response.json();
+        console.log('🔍 [API Response] calculate-macros:', {
+          totalResults: data.results?.length,
+          sample: data.results?.slice(0, 2).map((r: any) => ({
+            name: r.ingredient,
+            calories: r.macros?.calories,
+            protein: r.macros?.protein,
+            nameRo: r.nameRo
+          }))
+        });
         const results = data.results;
 
         // Process results with portion information from API
@@ -607,6 +616,16 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
           fat: Math.round(total.fat)
         };
 
+        console.log('📊 [Processed Data] Setting ingredientData:', {
+          count: ingredientResults.length,
+          sample: ingredientResults.slice(0, 2).map((i: any) => ({
+            name: i.name,
+            displayName: i.displayName,
+            calories: i.calories,
+            protein: i.protein,
+            portion: i.portion
+          }))
+        });
         setIngredientData(ingredientResults);
         setTotalMacros(roundedTotal);
         
