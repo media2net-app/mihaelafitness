@@ -1,15 +1,22 @@
 import { PrismaClient } from '@prisma/client'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+// Prisma Client singleton for Supabase
+declare global {
+  // eslint-disable-next-line no-var
+  var prisma: PrismaClient | undefined
 }
 
-// Initialize Prisma Client with proper singleton pattern for Vercel
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
-})
+// Create Prisma Client optimized for Supabase + Vercel
+const createPrismaClient = () => {
+  return new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+  })
+}
 
-// Store singleton in global to prevent multiple instances (in all environments)
-if (!globalForPrisma.prisma) {
-  globalForPrisma.prisma = prisma
+// Use global singleton pattern to prevent connection exhaustion
+export const prisma = global.prisma ?? createPrismaClient()
+
+// Store in global for hot module replacement in development
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma
 }
