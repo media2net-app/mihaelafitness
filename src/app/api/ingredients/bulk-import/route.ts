@@ -62,22 +62,31 @@ export async function POST(request: NextRequest) {
         if (existingIngredient) {
           if (mode === 'update-existing' || mode === 'upsert') {
             // Update existing ingredient
+            // Build data object with only available fields
+            const updateData: any = {
+              per: ingredient.per || existingIngredient.per,
+              calories: parseFloat(ingredient.calories),
+              protein: parseFloat(ingredient.protein),
+              carbs: parseFloat(ingredient.carbs),
+              fat: parseFloat(ingredient.fat),
+              fiber: ingredient.fiber !== undefined ? parseFloat(ingredient.fiber) : existingIngredient.fiber,
+              sugar: ingredient.sugar !== undefined ? parseFloat(ingredient.sugar) : existingIngredient.sugar,
+              category: ingredient.category || existingIngredient.category,
+              aliases: ingredient.aliases || existingIngredient.aliases,
+              isActive: ingredient.isActive !== undefined ? ingredient.isActive : existingIngredient.isActive
+            };
+            
+            // Only include optional fields if they exist in the schema
+            if (ingredient.nameRo !== undefined) {
+              updateData.nameRo = ingredient.nameRo || existingIngredient.nameRo;
+            }
+            if (ingredient.perRo !== undefined) {
+              updateData.perRo = ingredient.perRo || existingIngredient.perRo;
+            }
+            
             await prisma.ingredient.update({
               where: { id: existingIngredient.id },
-              data: {
-                nameRo: ingredient.nameRo || existingIngredient.nameRo,
-                per: ingredient.per || existingIngredient.per,
-                perRo: ingredient.perRo || existingIngredient.perRo,
-                calories: parseFloat(ingredient.calories),
-                protein: parseFloat(ingredient.protein),
-                carbs: parseFloat(ingredient.carbs),
-                fat: parseFloat(ingredient.fat),
-                fiber: ingredient.fiber !== undefined ? parseFloat(ingredient.fiber) : existingIngredient.fiber,
-                sugar: ingredient.sugar !== undefined ? parseFloat(ingredient.sugar) : existingIngredient.sugar,
-                category: ingredient.category || existingIngredient.category,
-                aliases: ingredient.aliases || existingIngredient.aliases,
-                isActive: ingredient.isActive !== undefined ? ingredient.isActive : existingIngredient.isActive
-              }
+              data: updateData
             });
             results.updated++;
             console.log(`✏️  Updated: ${ingredient.name}`);
@@ -88,23 +97,32 @@ export async function POST(request: NextRequest) {
           }
         } else {
           // Create new ingredient
+          // Build data object with only available fields
+          const createData: any = {
+            id: ingredient.id, // Use provided ID if available for consistency
+            name: ingredient.name,
+            per: ingredient.per || '100g',
+            calories: parseFloat(ingredient.calories),
+            protein: parseFloat(ingredient.protein),
+            carbs: parseFloat(ingredient.carbs),
+            fat: parseFloat(ingredient.fat),
+            fiber: ingredient.fiber !== undefined ? parseFloat(ingredient.fiber) : 0,
+            sugar: ingredient.sugar !== undefined ? parseFloat(ingredient.sugar) : 0,
+            category: ingredient.category || 'other',
+            aliases: ingredient.aliases || [`Pure:${ingredient.name}`],
+            isActive: ingredient.isActive !== undefined ? ingredient.isActive : true
+          };
+          
+          // Only include optional fields if they are provided
+          if (ingredient.nameRo !== undefined) {
+            createData.nameRo = ingredient.nameRo || null;
+          }
+          if (ingredient.perRo !== undefined) {
+            createData.perRo = ingredient.perRo || null;
+          }
+          
           const newIngredient = await prisma.ingredient.create({
-            data: {
-              id: ingredient.id, // Use provided ID if available for consistency
-              name: ingredient.name,
-              nameRo: ingredient.nameRo || null,
-              per: ingredient.per || '100g',
-              perRo: ingredient.perRo || null,
-              calories: parseFloat(ingredient.calories),
-              protein: parseFloat(ingredient.protein),
-              carbs: parseFloat(ingredient.carbs),
-              fat: parseFloat(ingredient.fat),
-              fiber: ingredient.fiber !== undefined ? parseFloat(ingredient.fiber) : 0,
-              sugar: ingredient.sugar !== undefined ? parseFloat(ingredient.sugar) : 0,
-              category: ingredient.category || 'other',
-              aliases: ingredient.aliases || [`Pure:${ingredient.name}`],
-              isActive: ingredient.isActive !== undefined ? ingredient.isActive : true
-            }
+            data: createData
           });
           results.created++;
           console.log(`✅ Created: ${ingredient.name}`);
