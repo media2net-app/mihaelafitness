@@ -978,21 +978,22 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
 
     {/* Add Ingredient Modal */}
     {showAddModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+          <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800">
               Voeg ingrediënt toe - {mealType}
             </h3>
             <button
               onClick={() => setShowAddModal(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 p-1"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
           
-          <div className="flex h-[70vh]">
+          {/* Desktop Layout */}
+          <div className="hidden lg:flex h-[70vh]">
             {/* Left Column - Current Ingredients */}
             <div className="w-1/2 p-4 border-r border-gray-200">
               <h4 className="font-semibold text-gray-800 mb-3">Huidige ingrediënten</h4>
@@ -1012,7 +1013,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                         const updated = ingredientData.filter((_, i) => i !== index);
                         setIngredientData(updated);
                       }}
-                      className="text-red-500 hover:text-red-700 text-sm"
+                      className="text-red-500 hover:text-red-700 text-sm p-1"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1089,12 +1090,111 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
               </div>
             </div>
           </div>
+
+          {/* Mobile Layout */}
+          <div className="lg:hidden">
+            {/* Search Section */}
+            <div className="p-3 sm:p-4 border-b border-gray-200">
+              <h4 className="font-semibold text-gray-800 mb-3">Database ingrediënten</h4>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Zoek ingrediënt..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+            </div>
+
+            {/* Ingredients List */}
+            <div className="max-h-[50vh] overflow-y-auto">
+              {loadingIngredients ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full mx-auto"></div>
+                  <p className="text-sm text-gray-500 mt-2">Laden...</p>
+                </div>
+              ) : (
+                <div className="p-3 sm:p-4 space-y-3">
+                  {filteredIngredients.map((ingredient) => (
+                    <div key={ingredient.id} className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-800 text-sm sm:text-base mb-1">
+                            {ingredient.name}
+                          </div>
+                          <div className="text-xs sm:text-sm text-gray-600 mb-3">
+                            {ingredient.calories} kcal | {ingredient.protein}g P | {ingredient.carbs}g C | {ingredient.fat}g F
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            // Add ingredient to current meal
+                            const newIngredient = {
+                              name: ingredient.name,
+                              portion: `100g`,
+                              calories: ingredient.calories,
+                              protein: ingredient.protein,
+                              fat: ingredient.fat,
+                              carbs: ingredient.carbs
+                            };
+                            setIngredientData([...ingredientData, newIngredient]);
+                          }}
+                          className="bg-green-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-600 flex items-center gap-1 flex-shrink-0"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span className="hidden sm:inline">Toevoegen</span>
+                          <span className="sm:hidden">+</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {!loadingIngredients && filteredIngredients.length === 0 && (
+                    <div className="text-center text-gray-500 py-8">
+                      Geen ingrediënten gevonden
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Current Ingredients Section */}
+            {ingredientData.length > 0 && (
+              <div className="p-3 sm:p-4 border-t border-gray-200">
+                <h4 className="font-semibold text-gray-800 mb-3">Huidige ingrediënten</h4>
+                <div className="space-y-2 max-h-[30vh] overflow-y-auto">
+                  {ingredientData.map((ingredient, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-800 text-sm sm:text-base">
+                          {ingredient.portion} {ingredient.displayName || ingredient.name}
+                        </div>
+                        <div className="text-xs sm:text-sm text-gray-600">
+                          {ingredient.protein}P {ingredient.fat}F {ingredient.carbs}C → {ingredient.calories} kcal
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const updated = ingredientData.filter((_, i) => i !== index);
+                          setIngredientData(updated);
+                        }}
+                        className="text-red-500 hover:text-red-700 p-2 flex-shrink-0"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           
           {/* Modal Footer */}
-          <div className="flex justify-end space-x-3 p-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-3 sm:p-4 border-t border-gray-200">
             <button
               onClick={() => setShowAddModal(false)}
-              className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+              className="w-full sm:w-auto px-4 py-2 sm:py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm sm:text-base font-medium"
             >
               Sluiten
             </button>
@@ -1103,7 +1203,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                 // Here you would save the updated ingredients to the meal
                 setShowAddModal(false);
               }}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+              className="w-full sm:w-auto px-4 py-2 sm:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm sm:text-base font-medium"
             >
               Opslaan
             </button>
