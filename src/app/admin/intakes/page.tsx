@@ -135,7 +135,7 @@ export default function IntakesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-4 lg:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -149,52 +149,52 @@ export default function IntakesPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+          <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Intakes</p>
-                <p className="text-2xl font-bold text-gray-900">{intakes.length}</p>
+                <p className="text-xs lg:text-sm font-medium text-gray-600">Total Intakes</p>
+                <p className="text-xl lg:text-2xl font-bold text-gray-900">{intakes.length}</p>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <UserPlus className="w-6 h-6 text-yellow-600" />
+              <div className="p-2 lg:p-3 bg-yellow-100 rounded-lg">
+                <UserPlus className="w-5 h-5 lg:w-6 lg:h-6 text-yellow-600" />
               </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Intakes</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-xs lg:text-sm font-medium text-gray-600">Active Intakes</p>
+                <p className="text-xl lg:text-2xl font-bold text-green-600">
                   {intakes.filter(i => i.status.toLowerCase() === 'active').length}
                 </p>
               </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <UserPlus className="w-6 h-6 text-green-600" />
+              <div className="p-2 lg:p-3 bg-green-100 rounded-lg">
+                <UserPlus className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
               </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">
+                <p className="text-xs lg:text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-xl lg:text-2xl font-bold text-yellow-600">
                   {intakes.filter(i => i.status.toLowerCase() === 'pending' || i.status.toLowerCase() === 'intake').length}
                 </p>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <UserPlus className="w-6 h-6 text-yellow-600" />
+              <div className="p-2 lg:p-3 bg-yellow-100 rounded-lg">
+                <UserPlus className="w-5 h-5 lg:w-6 lg:h-6 text-yellow-600" />
               </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">This Month</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-xs lg:text-sm font-medium text-gray-600">This Month</p>
+                <p className="text-xl lg:text-2xl font-bold text-blue-600">
                   {intakes.filter(i => {
                     const intakeDate = new Date(i.createdAt);
                     const now = new Date();
@@ -203,35 +203,35 @@ export default function IntakesPage() {
                   }).length}
                 </p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Calendar className="w-6 h-6 text-blue-600" />
+              <div className="p-2 lg:p-3 bg-blue-100 rounded-lg">
+                <Calendar className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
+        <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200 mb-6">
+          <div className="flex flex-col gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 lg:w-5 lg:h-5" />
                 <input
                   type="text"
                   placeholder="Search by name, email, or phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  className="w-full pl-10 pr-4 py-2 lg:py-3 text-sm lg:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
                 />
               </div>
             </div>
-            <div className="md:w-48">
+            <div className="w-full lg:w-48">
               <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 lg:w-5 lg:h-5" />
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 appearance-none"
+                  className="w-full pl-10 pr-4 py-2 lg:py-3 text-sm lg:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 appearance-none"
                 >
                   <option value="all">All Status</option>
                   <option value="intake">Intake</option>
@@ -244,8 +244,8 @@ export default function IntakesPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Desktop Table */}
+        <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -381,6 +381,114 @@ export default function IntakesPage() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="lg:hidden space-y-4">
+          {filteredIntakes.length === 0 ? (
+            <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-200">
+              <UserPlus className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-lg font-medium text-gray-500">No intake clients found</p>
+              <p className="text-sm text-gray-400">Try adjusting your search or filter criteria</p>
+            </div>
+          ) : (
+            filteredIntakes.map((intake) => (
+              <div key={intake.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+                {/* Client Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                      <span className="text-sm font-medium text-yellow-800">
+                        {intake.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{intake.name}</div>
+                      <div className="text-xs text-gray-500">ID: {intake.id.slice(-8)}</div>
+                    </div>
+                  </div>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(intake.status)}`}>
+                    {intake.status}
+                  </span>
+                </div>
+
+                {/* Contact Info */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-900">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <span className="truncate">{intake.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                    <span>{intake.phone}</span>
+                  </div>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider">Plan</div>
+                    <div className="font-medium text-gray-900">{intake.plan}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider">Sessions</div>
+                    <div className="font-medium text-gray-900">{intake.totalSessions}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider">Join Date</div>
+                    <div className="font-medium text-gray-900">{formatDate(intake.joinDate)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider">Intake Session</div>
+                    <div className="font-medium text-gray-900">
+                      {intake.intakeSession ? (
+                        <span className="text-xs">
+                          {formatDateTime(intake.intakeSession.date, intake.intakeSession.startTime)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">No session</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Intake Session Notes */}
+                {intake.intakeSession?.notes && (
+                  <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <div className="text-xs text-gray-600">
+                      <span className="font-semibold">Bericht: </span>
+                      {intake.intakeSession.notes}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                  <button 
+                    onClick={() => handleViewClient(intake.id)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-rose-600 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors"
+                  >
+                    <Eye className="w-3 h-3" />
+                    View
+                  </button>
+                  <button 
+                    onClick={() => handleEditClient(intake.id)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Edit className="w-3 h-3" />
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteClient(intake.id, intake.name)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
