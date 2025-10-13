@@ -671,9 +671,9 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
         )}
       </div>
       
-      {/* Table Header - only show on desktop for read-only, always show for editable */}
+      {/* Table Header - hide on mobile for editable mode, show on desktop only for read-only */}
       {editable ? (
-        <div className="grid grid-cols-11 gap-2 mb-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+        <div className="hidden sm:grid sm:grid-cols-11 gap-2 mb-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
           <div className="col-span-5">Ingrediënt</div>
           <div className="col-span-2 text-center">Hoeveelheid</div>
           <div className="col-span-1 text-center">Kcal</div>
@@ -760,136 +760,267 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             );
           }
           
-          // Editable mode - full layout with controls
+          // Editable mode - responsive layout with controls
           return (
-          <div key={index} className="grid grid-cols-11 gap-2 items-center bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200">
-            <div className="col-span-5 flex items-center space-x-2">
-              <span className="text-gray-500 text-sm">•</span>
-              <span className="font-medium text-gray-800 text-sm sm:text-base truncate">
-                {ingredient.portion} {ingredient.displayName || ingredient.name}
-              </span>
-            </div>
-            <div className="col-span-2 text-center">
-              {editable && jsonMode ? (
-                <div className="flex items-center justify-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    step="1"
-                    value={jsonIngredients[index]?.quantity ?? 0}
-                    onChange={(e) => {
-                      const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
-                      setJsonIngredients(prev => prev.map((ing, i) => i===index ? { ...ing, quantity: val === '' ? 0 : Number(val) } : ing));
-                    }}
-                    className="w-20 px-2 py-1 border rounded text-sm"
-                  />
-                  <span className="text-xs text-gray-600">{jsonIngredients[index]?.unit || 'g'}</span>
-                  {/* autosave active, no per-row button */}
-                  <div className="text-[10px] text-gray-400 leading-tight mt-1">
-                    dbg: qty={jsonIngredients[index]?.quantity ?? 0} unit={jsonIngredients[index]?.unit || 'g'} jsonMode={String(jsonMode)} portion="{ingredient.portion}" name="{ingredient.name}"
-                  </div>
+          <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+            {/* Mobile Layout */}
+            <div className="block sm:hidden">
+              {/* Ingredient name and remove button */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start space-x-2 flex-1 min-w-0">
+                  <span className="text-gray-500 text-sm mt-0.5">•</span>
+                  <span className="font-medium text-gray-800 text-sm truncate">
+                    {ingredient.displayName || ingredient.name}
+                  </span>
                 </div>
-              ) : editable && !jsonMode ? (
-                <div className="flex items-center justify-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    step="1"
-                    value={
-                      (editAmounts[index] !== undefined)
-                        ? editAmounts[index]
-                        : (() => { const m = String(ingredient.portion || '').match(/^(\d+(?:\.\d+)?)/); return m ? Number(m[1]) : 0; })()
-                    }
-                    onChange={(e) => {
-                      const val = Math.max(0, Number(e.target.value || 0));
-                      addDebugLog(`Ingredient changed: name=${ingredient.displayName}, oldValue=${editAmounts[index]}, newValue=${val}`);
-                      setEditAmounts((prev) => {
-                        const next = prev && prev.length ? [...prev] : Array.from({ length: ingredientData.length }, (_, i) => {
-                          const m = String(ingredientData[i]?.portion || '').match(/^(\d+(?:\.[0-9]+)?)/);
-                          return m ? Number(m[1]) : Number(ingredientData[i]?.rawAmount || 0) || 0;
-                        });
-                        next[index] = val;
-                        return next;
+                <button
+                  onClick={async () => {
+                    try {
+                      // Optimistic UI removal
+                      const updatedLocal = ingredientData.filter((_, i) => i !== index);
+                      setIngredientData(updatedLocal);
+
+                      if (!planId || !dayKey || !mealTypeKey) return; // no server save possible
+
+                      // Build new meal string from remaining rows
+                      let tokens: string[] = [];
+                      if (jsonMode) {
+                        const updatedJson = jsonIngredients.filter((_, i) => i !== index);
+                        tokens = updatedJson.map((ing: any) => {
+                          const q = Math.round(Number(ing?.quantity || 0));
+                          const u = String(ing?.unit || 'g');
+                          const n = String(ing?.name || '').trim();
+                          return `${q} ${u} ${n}`.trim();
+                        }).filter(Boolean);
+                      } else {
+                        tokens = updatedLocal.map((row: any, idx: number) => {
+                          const amt = Math.round(getCurrentAmount(idx));
+                          const unit = String(row?.rawUnit || 'g');
+                          const name = String(row?.displayName || row?.name || '').trim();
+                          return `${amt} ${unit} ${name}`.trim();
+                        }).filter(Boolean);
+                      }
+
+                      const mealText = tokens.join(', ');
+                      const res = await fetch(`/api/nutrition-plans/${planId}/set-meal`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ dayKey, mealType: mealTypeKey, mealText })
                       });
-                    }}
-                    className="w-20 px-2 py-1 border rounded text-sm"
-                  />
-                  <span className="text-xs text-gray-600">{ingredient.rawUnit || 'g'}</span>
-                  {/* autosave active, no per-row button */}
-                  <div className="text-[10px] text-gray-400 leading-tight mt-1">
-                    dbg: amt={editAmounts[index] ?? 0} unit={ingredient.rawUnit || 'g'} jsonMode={String(jsonMode)} portion="{ingredient.portion}" name="{ingredient.name}"
+                      if (!res.ok) {
+                        console.warn('set-meal save failed, keeping local state');
+                        return;
+                      }
+                      const data = await res.json();
+                      if (data?.plan && onPlanUpdated) onPlanUpdated(data.plan);
+                    } catch (e) {
+                      console.error('Delete via set-meal failed', e);
+                    }
+                  }}
+                  className="text-red-500 hover:text-red-700 p-1 flex-shrink-0"
+                  title="Verwijder ingrediënt"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Quantity input */}
+              <div className="mb-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-600 font-medium">Hoeveelheid:</label>
+                  {editable && jsonMode ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step="1"
+                        value={jsonIngredients[index]?.quantity ?? 0}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                          setJsonIngredients(prev => prev.map((ing, i) => i===index ? { ...ing, quantity: val === '' ? 0 : Number(val) } : ing));
+                        }}
+                        className="w-20 px-2 py-1 border rounded text-sm"
+                      />
+                      <span className="text-xs text-gray-600">{jsonIngredients[index]?.unit || 'g'}</span>
+                    </div>
+                  ) : editable && !jsonMode ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step="1"
+                        value={
+                          (editAmounts[index] !== undefined)
+                            ? editAmounts[index]
+                            : (() => { const m = String(ingredient.portion || '').match(/^(\d+(?:\.\d+)?)/); return m ? Number(m[1]) : 0; })()
+                        }
+                        onChange={(e) => {
+                          const val = Math.max(0, Number(e.target.value || 0));
+                          addDebugLog(`Ingredient changed: name=${ingredient.displayName}, oldValue=${editAmounts[index]}, newValue=${val}`);
+                          setEditAmounts((prev) => {
+                            const next = prev && prev.length ? [...prev] : Array.from({ length: ingredientData.length }, (_, i) => {
+                              const m = String(ingredientData[i]?.portion || '').match(/^(\d+(?:\.[0-9]+)?)/);
+                              return m ? Number(m[1]) : Number(ingredientData[i]?.rawAmount || 0) || 0;
+                            });
+                            next[index] = val;
+                            return next;
+                          });
+                        }}
+                        className="w-20 px-2 py-1 border rounded text-sm"
+                      />
+                      <span className="text-xs text-gray-600">{ingredient.rawUnit || 'g'}</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-600 text-sm">{ingredient.portion}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Nutrition values */}
+              {(() => { const s = scaledMacrosFor(index); return (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Calorieën</span>
+                    <span className="text-orange-600 font-bold text-sm">{s.calories}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Eiwit</span>
+                    <span className="text-blue-600 font-semibold text-sm">{s.protein}g</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Vet</span>
+                    <span className="text-purple-600 font-semibold text-sm">{s.fat}g</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Koolhydraten</span>
+                    <span className="text-green-600 font-semibold text-sm">{s.carbs}g</span>
                   </div>
                 </div>
-              ) : (
-                <span className="text-gray-600 text-sm">—</span>
-              )}
+              ); })()}
             </div>
-            {(() => { const s = scaledMacrosFor(index); return (
-              <>
-                <div className="col-span-1 text-center">
-                  <span className="text-orange-600 font-bold text-sm">{s.calories}</span>
-                </div>
-                <div className="col-span-1 text-center">
-                  <span className="text-blue-600 font-semibold text-sm">{s.protein}g</span>
-                </div>
-                <div className="col-span-1 text-center">
-                  <span className="text-purple-600 font-semibold text-sm">{s.fat}g</span>
-                </div>
-                <div className="col-span-1 text-center">
-                  <span className="text-green-600 font-semibold text-sm">{s.carbs}g</span>
-                </div>
-              </>
-            ); })()}
-            <div className="col-span-1 text-center">
-              <button
-                onClick={async () => {
-                  try {
-                    // Optimistic UI removal
-                    const updatedLocal = ingredientData.filter((_, i) => i !== index);
-                    setIngredientData(updatedLocal);
 
-                    if (!planId || !dayKey || !mealTypeKey) return; // no server save possible
+            {/* Desktop Layout */}
+            <div className="hidden sm:grid sm:grid-cols-11 gap-2 items-center">
+              <div className="col-span-5 flex items-center space-x-2">
+                <span className="text-gray-500 text-sm">•</span>
+                <span className="font-medium text-gray-800 text-sm sm:text-base truncate">
+                  {ingredient.portion} {ingredient.displayName || ingredient.name}
+                </span>
+              </div>
+              <div className="col-span-2 text-center">
+                {editable && jsonMode ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step="1"
+                      value={jsonIngredients[index]?.quantity ?? 0}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                        setJsonIngredients(prev => prev.map((ing, i) => i===index ? { ...ing, quantity: val === '' ? 0 : Number(val) } : ing));
+                      }}
+                      className="w-20 px-2 py-1 border rounded text-sm"
+                    />
+                    <span className="text-xs text-gray-600">{jsonIngredients[index]?.unit || 'g'}</span>
+                  </div>
+                ) : editable && !jsonMode ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step="1"
+                      value={
+                        (editAmounts[index] !== undefined)
+                          ? editAmounts[index]
+                          : (() => { const m = String(ingredient.portion || '').match(/^(\d+(?:\.\d+)?)/); return m ? Number(m[1]) : 0; })()
+                      }
+                      onChange={(e) => {
+                        const val = Math.max(0, Number(e.target.value || 0));
+                        addDebugLog(`Ingredient changed: name=${ingredient.displayName}, oldValue=${editAmounts[index]}, newValue=${val}`);
+                        setEditAmounts((prev) => {
+                          const next = prev && prev.length ? [...prev] : Array.from({ length: ingredientData.length }, (_, i) => {
+                            const m = String(ingredientData[i]?.portion || '').match(/^(\d+(?:\.[0-9]+)?)/);
+                            return m ? Number(m[1]) : Number(ingredientData[i]?.rawAmount || 0) || 0;
+                          });
+                          next[index] = val;
+                          return next;
+                        });
+                      }}
+                      className="w-20 px-2 py-1 border rounded text-sm"
+                    />
+                    <span className="text-xs text-gray-600">{ingredient.rawUnit || 'g'}</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-600 text-sm">—</span>
+                )}
+              </div>
+              {(() => { const s = scaledMacrosFor(index); return (
+                <>
+                  <div className="col-span-1 text-center">
+                    <span className="text-orange-600 font-bold text-sm">{s.calories}</span>
+                  </div>
+                  <div className="col-span-1 text-center">
+                    <span className="text-blue-600 font-semibold text-sm">{s.protein}g</span>
+                  </div>
+                  <div className="col-span-1 text-center">
+                    <span className="text-purple-600 font-semibold text-sm">{s.fat}g</span>
+                  </div>
+                  <div className="col-span-1 text-center">
+                    <span className="text-green-600 font-semibold text-sm">{s.carbs}g</span>
+                  </div>
+                </>
+              ); })()}
+              <div className="col-span-1 text-center">
+                <button
+                  onClick={async () => {
+                    try {
+                      // Optimistic UI removal
+                      const updatedLocal = ingredientData.filter((_, i) => i !== index);
+                      setIngredientData(updatedLocal);
 
-                    // Build new meal string from remaining rows
-                    let tokens: string[] = [];
-                    if (jsonMode) {
-                      const updatedJson = jsonIngredients.filter((_, i) => i !== index);
-                      tokens = updatedJson.map((ing: any) => {
-                        const q = Math.round(Number(ing?.quantity || 0));
-                        const u = String(ing?.unit || 'g');
-                        const n = String(ing?.name || '').trim();
-                        return `${q} ${u} ${n}`.trim();
-                      }).filter(Boolean);
-                    } else {
-                      tokens = updatedLocal.map((row: any, idx: number) => {
-                        const amt = Math.round(getCurrentAmount(idx));
-                        const unit = String(row?.rawUnit || 'g');
-                        const name = String(row?.displayName || row?.name || '').trim();
-                        return `${amt} ${unit} ${name}`.trim();
-                      }).filter(Boolean);
+                      if (!planId || !dayKey || !mealTypeKey) return; // no server save possible
+
+                      // Build new meal string from remaining rows
+                      let tokens: string[] = [];
+                      if (jsonMode) {
+                        const updatedJson = jsonIngredients.filter((_, i) => i !== index);
+                        tokens = updatedJson.map((ing: any) => {
+                          const q = Math.round(Number(ing?.quantity || 0));
+                          const u = String(ing?.unit || 'g');
+                          const n = String(ing?.name || '').trim();
+                          return `${q} ${u} ${n}`.trim();
+                        }).filter(Boolean);
+                      } else {
+                        tokens = updatedLocal.map((row: any, idx: number) => {
+                          const amt = Math.round(getCurrentAmount(idx));
+                          const unit = String(row?.rawUnit || 'g');
+                          const name = String(row?.displayName || row?.name || '').trim();
+                          return `${amt} ${unit} ${name}`.trim();
+                        }).filter(Boolean);
+                      }
+
+                      const mealText = tokens.join(', ');
+                      const res = await fetch(`/api/nutrition-plans/${planId}/set-meal`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ dayKey, mealType: mealTypeKey, mealText })
+                      });
+                      if (!res.ok) {
+                        console.warn('set-meal save failed, keeping local state');
+                        return;
+                      }
+                      const data = await res.json();
+                      if (data?.plan && onPlanUpdated) onPlanUpdated(data.plan);
+                    } catch (e) {
+                      console.error('Delete via set-meal failed', e);
                     }
-
-                    const mealText = tokens.join(', ');
-                    const res = await fetch(`/api/nutrition-plans/${planId}/set-meal`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ dayKey, mealType: mealTypeKey, mealText })
-                    });
-                    if (!res.ok) {
-                      console.warn('set-meal save failed, keeping local state');
-                      return;
-                    }
-                    const data = await res.json();
-                    if (data?.plan && onPlanUpdated) onPlanUpdated(data.plan);
-                  } catch (e) {
-                    console.error('Delete via set-meal failed', e);
-                  }
-                }}
-                className="text-red-500 hover:text-red-700 text-sm"
-                title="Verwijder ingrediënt"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                  }}
+                  className="text-red-500 hover:text-red-700 text-sm p-1"
+                  title="Verwijder ingrediënt"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
           ); // end editable return
