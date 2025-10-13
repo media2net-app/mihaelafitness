@@ -10,8 +10,6 @@ import { useRouter } from 'next/navigation';
 import IngredientBreakdown from '@/components/IngredientBreakdown';
 import IngredientSelector from '@/components/IngredientSelector';
 import CookingInstructions from '@/components/CookingInstructions';
-import TextConverterModal from '@/components/TextConverterModal';
-import ProductMappingModal from '@/components/ProductMappingModal';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -68,8 +66,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   const [loadingIngredients, setLoadingIngredients] = useState(false);
 
   // ChatGPT input modal state
-  const [textConverterOpen, setTextConverterOpen] = useState(false);
-  const [productMappingOpen, setProductMappingOpen] = useState(false);
 
   const overviewRef = useRef<HTMLDivElement | null>(null);
   const progressLogRef = useRef<HTMLDivElement | null>(null);
@@ -3029,19 +3025,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         </button>
       ))}
     </div>
-              <div className="flex items-center gap-2">
-        <button
-          onClick={() => setTextConverterOpen(true)}
-          className="ml-2 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-orange-500 text-white hover:bg-orange-600 whitespace-nowrap"
-        >
-          Text Converter
-        </button>
-        <button
-          onClick={() => setProductMappingOpen(true)}
-          className="ml-2 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-green-500 text-white hover:bg-green-600 whitespace-nowrap"
-        >
-          Product Mapping
-        </button>
                 <button
                   onClick={() => setPrefsOpen(true)}
                   className="ml-2 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-rose-500 text-white hover:bg-rose-600 whitespace-nowrap"
@@ -4036,34 +4019,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       )}
 
 
-      {/* Text Converter Modal */}
-      <TextConverterModal
-        isOpen={textConverterOpen}
-        onClose={() => setTextConverterOpen(false)}
-        onConvert={(parsedData) => {
-          // Refresh the plan data after conversion
-          console.log('[NutritionPlanDetailClient] onConvert called with:', parsedData);
-          if (planId) {
-            console.log('[NutritionPlanDetailClient] Refreshing plan data for ID:', planId);
-            fetchPlanData(planId);
-          }
-        }}
-        planId={planId}
-      />
-
-      <ProductMappingModal
-        isOpen={productMappingOpen}
-        onClose={() => setProductMappingOpen(false)}
-        onConvert={(parsedData) => {
-          // Refresh the plan data after conversion
-          console.log('[NutritionPlanDetailClient] Product mapping onConvert called with:', parsedData);
-          if (planId) {
-            console.log('[NutritionPlanDetailClient] Refreshing plan data for ID:', planId);
-            fetchPlanData(planId);
-          }
-        }}
-        planId={planId}
-      />
 
       </div>
     </div>
