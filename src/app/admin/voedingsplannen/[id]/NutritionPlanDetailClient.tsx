@@ -2811,59 +2811,63 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                 <p className="text-xs sm:text-sm lg:text-base text-gray-600 mt-1 break-words">{planData.description}</p>
               </div>
             </div>
-            <div className="flex gap-1 sm:gap-2">
-              <button
-                onClick={handleCopy}
-                className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Copy Plan Data"
-              >
-                <FiCopy className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-600" />
-              </button>
-              <button
-                onClick={handleShare}
-                className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Share Plan"
-              >
-                <FiShare2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-600" />
-              </button>
-              <button
-                onClick={handlePreview}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white text-rose-600 border-2 border-rose-500 rounded-lg hover:bg-rose-50 transition-colors text-sm font-medium"
-                title="Preview PDF"
-              >
-                <FiEye className="w-4 h-4" />
-                Preview
-              </button>
-              <button
-                onClick={handleDownload}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm font-medium"
-                title="Download PDF"
-              >
-                <FiDownload className="w-4 h-4" />
-                Download
-              </button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex gap-1 sm:gap-2">
+                <button
+                  onClick={handleCopy}
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Copy Plan Data"
+                >
+                  <FiCopy className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-600" />
+                </button>
+                <button
+                  onClick={handleShare}
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Share Plan"
+                >
+                  <FiShare2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-600" />
+                </button>
+              </div>
+              <div className="flex gap-1 sm:gap-2">
+                <button
+                  onClick={handlePreview}
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-white text-rose-600 border-2 border-rose-500 rounded-lg hover:bg-rose-50 transition-colors text-xs sm:text-sm font-medium"
+                  title="Preview PDF"
+                >
+                  <FiEye className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Preview</span>
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-xs sm:text-sm font-medium"
+                  title="Download PDF"
+                >
+                  <FiDownload className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Download</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Customer Share Link */}
         {assignedCustomer && (
-          <div className="mb-6 bg-gradient-to-r from-rose-50 to-pink-50 border-2 border-rose-200 rounded-xl p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-gray-700 mb-1">
+          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-rose-50 to-pink-50 border-2 border-rose-200 rounded-xl p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">
                   🔗 Persoonlijke Link voor {assignedCustomer.name}
                 </p>
-                <p className="text-xs text-gray-600 font-mono bg-white rounded px-3 py-2 border border-gray-200">
+                <p className="text-xs text-gray-600 font-mono bg-white rounded px-2 sm:px-3 py-2 border border-gray-200 break-all">
                   {typeof window !== 'undefined' && `${window.location.origin}/my-plan/${assignedCustomer.id}`}
                 </p>
               </div>
               <button
                 onClick={handleCopyCustomerLink}
-                className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm font-medium whitespace-nowrap"
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
                 title="Kopieer klant link"
               >
-                <FiCopy className="w-4 h-4" />
+                <FiCopy className="w-3 h-3 sm:w-4 sm:h-4" />
                 Kopieer Link
               </button>
             </div>
@@ -2927,10 +2931,10 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
             <h2 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800">Weekly Menu Schedule</h2>
             
             {/* Main Tabs */}
-            <div className="flex gap-1 mt-2 sm:mt-0">
+            <div className="flex gap-1 mt-2 sm:mt-0 overflow-x-auto pb-1">
               <button
                 onClick={() => setActiveTab('menu')}
-                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeTab === 'menu'
                     ? 'bg-rose-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -2945,7 +2949,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                     fetchIngredientsAnalysis();
                   }
                 }}
-                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeTab === 'ingredients'
                     ? 'bg-rose-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -2960,7 +2964,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                     generateShoppingList();
                   }
                 }}
-                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeTab === 'shopping'
                     ? 'bg-rose-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
