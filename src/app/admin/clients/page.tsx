@@ -20,6 +20,7 @@ export default function ClientsPage() {
     goal?: string;
     joinDate: string;
     status: string;
+    plan?: string;
     trainingFrequency?: number;
     lastWorkout?: string;
     totalSessions: number;
@@ -27,6 +28,8 @@ export default function ClientsPage() {
     completedSessions: number;
     rating?: number;
     subscriptionDuration?: number; // in weeks
+    photosCount?: number;
+    measurementsCount?: number;
     groupSubscriptions?: Array<{
       id: string;
       service: string;
@@ -391,6 +394,16 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-2 ml-6">
                     <span>{client.completedSessions} / {client.totalSessions} voltooid</span>
                   </div>
+                  {(client.measurementsCount !== undefined) && (
+                    <div className="flex items-center gap-2 ml-6">
+                      <span>Measurements: {client.measurementsCount}</span>
+                    </div>
+                  )}
+                  {(client.photosCount !== undefined) && (
+                    <div className="flex items-center gap-2 ml-6">
+                      <span>Photos: {client.photosCount}</span>
+                    </div>
+                  )}
                 </div>
                 {client.rating && (
                   <div className="flex items-center gap-2 text-sm text-gray-600">

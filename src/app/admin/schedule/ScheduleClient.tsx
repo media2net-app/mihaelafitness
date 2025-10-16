@@ -82,6 +82,7 @@ export default function ScheduleClient({
   const [currentWeek, setCurrentWeek] = useState(new Date(initialCurrentWeek));
   const [sessions, setSessions] = useState<TrainingSession[]>(initialSessions);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [loading, setLoading] = useState(true);
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -1051,6 +1052,16 @@ export default function ScheduleClient({
                     className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!selectedSession) return;
+                      setShowSessionDetailsModal(false);
+                      router.push(`/admin/workouts/start?sessionId=${selectedSession.id}&customerId=${selectedSession.customerId}&date=${selectedSession.date}`);
+                    }}
+                    className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                  >
+                    Start workout
                   </button>
                   <button
                     onClick={() => {

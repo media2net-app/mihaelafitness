@@ -1670,6 +1670,16 @@ export default function MobileScheduleClient({
                   </button>
                   <button
                     onClick={() => {
+                      if (!selectedSession) return;
+                      setShowSessionDetailsModal(false);
+                      router.push(`/admin/workouts/start?sessionId=${selectedSession.id}&customerId=${selectedSession.customerId}&date=${selectedSession.date}`);
+                    }}
+                    className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                  >
+                    Start workout
+                  </button>
+                  <button
+                    onClick={() => {
                       setShowSessionDetailsModal(false);
                       setShowEditModal(true);
                     }}

@@ -3055,10 +3055,9 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                     }
                   }}
                   className="px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-300 whitespace-nowrap"
-                >
-                  Leeg plan
-                </button>
-              </div>
+              >
+                Leeg plan
+              </button>
             </div>
           </div>
 

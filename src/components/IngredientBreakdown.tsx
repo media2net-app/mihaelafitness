@@ -429,7 +429,80 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                 carbs: acc.carbs + (ingredient.carbs || 0),
                 fat: acc.fat + (ingredient.fat || 0)
               }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
-              
+
+              // Fallback: if JSON had no macro data (all zeros), compute via API like live
+              const allZero = ingredientResults.length > 0 && ingredientResults.every((r: any) => (r.calories || 0) === 0 && (r.protein || 0) === 0 && (r.carbs || 0) === 0 && (r.fat || 0) === 0);
+              if (allZero) {
+                try {
+                  const ingredientStrings = jsonIngredients.map((ing: any) => `${ing.quantity} ${ing.unit} ${ing.name}`);
+                  const resp = await fetch('/api/calculate-macros', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ingredients: ingredientStrings }),
+                  });
+                  if (resp.ok) {
+                    const data = await resp.json();
+                    const apiResults = (data.results || []).map((result: any) => {
+                      let portion = '';
+                      if (result.unit === 'g' && result.amount) {
+                        portion = `${Math.round(result.amount)} g`;
+                      } else if (result.unit === 'ml' && result.amount) {
+                        portion = `${Math.round(result.amount)} ml`;
+                      } else if (result.unit === 'tsp' && result.amount) {
+                        portion = `${result.amount} lgț`;
+                      } else if (result.unit === 'tbsp' && result.amount) {
+                        portion = `${result.amount} lgă`;
+                      } else if (result.unit === 'piece' && result.pieces) {
+                        portion = result.pieces === 1 ? '1 buc' : `${result.pieces} buc`;
+                      } else if (result.amount) {
+                        portion = `${Math.round(result.amount)} ${result.unit || 'g'}`;
+                      } else {
+                        portion = '1 buc';
+                      }
+                      const cleanName = result.nameRo || result.nameEn || result.ingredient;
+                      return {
+                        name: cleanName,
+                        displayName: cleanName,
+                        portion,
+                        calories: Math.round(result.macros.calories),
+                        protein: Math.round(result.macros.protein),
+                        carbs: Math.round(result.macros.carbs),
+                        fat: Math.round(result.macros.fat),
+                        fiber: Math.round(result.macros.fiber || 0),
+                        error: result.error,
+                        rawAmount: Math.round(result.amount || (result.pieces || 0)),
+                        rawUnit: (result.unit || '').toLowerCase() || 'g',
+                      };
+                    });
+                    const apiTotal = apiResults.reduce((acc: any, ingredient: any) => ({
+                      calories: acc.calories + (ingredient.calories || 0),
+                      protein: acc.protein + (ingredient.protein || 0),
+                      carbs: acc.carbs + (ingredient.carbs || 0),
+                      fat: acc.fat + (ingredient.fat || 0)
+                    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+                    setIngredientData(apiResults);
+                    setTotalMacros({
+                      calories: Math.round(apiTotal.calories),
+                      protein: Math.round(apiTotal.protein),
+                      carbs: Math.round(apiTotal.carbs),
+                      fat: Math.round(apiTotal.fat)
+                    });
+                    setLoading(false);
+                    const seeded = apiResults.map((ingredient: any) => {
+                      const m = String(ingredient.portion || '').match(/^(\d+(?:\.[0-9]+)?)/);
+                      return m ? Number(m[1]) : 0;
+                    });
+                    setEditAmounts(seeded);
+                    lastSaved.current = [...seeded];
+                    initialized.current = true;
+                    addDebugLog('JSON mode fallback via API executed');
+                    return;
+                  }
+                } catch (e) {
+                  console.warn('JSON mode fallback via API failed', e);
+                }
+              }
+
               setIngredientData(ingredientResults);
               setTotalMacros(total);
               setLoading(false);
@@ -658,7 +731,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <h4 className="font-bold text-gray-800 flex items-center text-sm sm:text-base lg:text-lg">
           <Utensils className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-          {mealType} - Ingredients:
+          {mealType} - Ingrediente:
         </h4>
         {editable && (
           <button
@@ -666,7 +739,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             className="px-3 py-1.5 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center"
           >
             <span className="mr-1">+</span>
-            Voeg ingrediënt
+            Adaugă ingredient
           </button>
         )}
       </div>
@@ -674,17 +747,17 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
       {/* Table Header - hide on mobile for editable mode, show on desktop only for read-only */}
       {editable ? (
         <div className="hidden sm:grid sm:grid-cols-11 gap-2 mb-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-          <div className="col-span-5">Ingrediënt</div>
-          <div className="col-span-2 text-center">Hoeveelheid</div>
+          <div className="col-span-5">Ingredient</div>
+          <div className="col-span-2 text-center">Cantitate</div>
           <div className="col-span-1 text-center">Kcal</div>
-          <div className="col-span-1 text-center">Eiwit</div>
-          <div className="col-span-1 text-center">Vet</div>
-          <div className="col-span-1 text-center">Koolh.</div>
-          <div className="col-span-1 text-center">Actie</div>
+          <div className="col-span-1 text-center">Proteine</div>
+          <div className="col-span-1 text-center">Grăsimi</div>
+          <div className="col-span-1 text-center">Carbohidrați</div>
+          <div className="col-span-1 text-center">Acțiune</div>
         </div>
       ) : (
         <div className="hidden sm:grid sm:grid-cols-9 gap-2 mb-2 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-          <div className="col-span-4">Ingrediënt</div>
+          <div className="col-span-4">Ingredient</div>
           <div className="col-span-1 text-center">Porție</div>
           <div className="col-span-1 text-center">Cal</div>
           <div className="col-span-1 text-center">Proteine</div>
