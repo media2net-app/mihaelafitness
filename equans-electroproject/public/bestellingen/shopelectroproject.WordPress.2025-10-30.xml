@@ -33193,6 +33193,26 @@ Welke Vacon serie is de vervanger hiervoor?";}s:11:"customer_id";i:0;s:11:"raq_c
 		<wp:meta_value><![CDATA[          ]]></wp:meta_value>
 		</wp:postmeta>
 							<wp:postmeta>
+		<wp:meta_key><![CDATA[_billing_first_name]]></wp:meta_key>
+		<wp:meta_value><![CDATA[Bob]]></wp:meta_value>
+		</wp:postmeta>
+							<wp:postmeta>
+		<wp:meta_key><![CDATA[_billing_last_name]]></wp:meta_key>
+		<wp:meta_value><![CDATA[Hillebrand]]></wp:meta_value>
+		</wp:postmeta>
+							<wp:postmeta>
+		<wp:meta_key><![CDATA[_billing_email]]></wp:meta_key>
+		<wp:meta_value><![CDATA[bob@hillebrandelektro.nl]]></wp:meta_value>
+		</wp:postmeta>
+							<wp:postmeta>
+		<wp:meta_key><![CDATA[_billing_phone]]></wp:meta_key>
+		<wp:meta_value><![CDATA[0622895655]]></wp:meta_value>
+		</wp:postmeta>
+							<wp:postmeta>
+		<wp:meta_key><![CDATA[_billing_company]]></wp:meta_key>
+		<wp:meta_value><![CDATA[Bob Hillebrand Elektrotechniek]]></wp:meta_value>
+		</wp:postmeta>
+							<wp:postmeta>
 		<wp:meta_key><![CDATA[_shipping_address_index]]></wp:meta_key>
 		<wp:meta_value><![CDATA[         ]]></wp:meta_value>
 		</wp:postmeta>
