@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
+
+
 
 // GET - Load recipe by ID
 export async function GET(
@@ -38,18 +39,41 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { ingredients, totalCalories, totalProtein, totalCarbs, totalFat } = body;
+    const { 
+      name, 
+      description, 
+      prepTime, 
+      servings, 
+      instructions,
+      ingredients, 
+      totalCalories, 
+      totalProtein, 
+      totalCarbs, 
+      totalFat,
+      labels
+    } = body;
+
+    // Build update data object
+    const updateData: any = {
+      updatedAt: new Date()
+    };
+
+    // Only include fields that are provided
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (prepTime !== undefined) updateData.prepTime = prepTime;
+    if (servings !== undefined) updateData.servings = servings;
+    if (instructions !== undefined) updateData.instructions = typeof instructions === 'string' ? instructions : JSON.stringify(instructions);
+    if (totalCalories !== undefined) updateData.totalCalories = totalCalories;
+    if (totalProtein !== undefined) updateData.totalProtein = totalProtein;
+    if (totalCarbs !== undefined) updateData.totalCarbs = totalCarbs;
+    if (totalFat !== undefined) updateData.totalFat = totalFat;
+    if (labels !== undefined) updateData.labels = labels;
 
     // Update recipe
     const updatedRecipe = await prisma.recipe.update({
       where: { id },
-      data: {
-        totalCalories,
-        totalProtein,
-        totalCarbs,
-        totalFat,
-        updatedAt: new Date()
-      }
+      data: updateData
     });
 
     // Update ingredients
@@ -144,5 +168,31 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating recipe:', error);
     return NextResponse.json({ error: 'Failed to create recipe' }, { status: 500 });
+  }
+}
+
+// DELETE - Delete recipe
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    
+    // Delete recipe (ingredients will be deleted automatically due to cascade)
+    await prisma.recipe.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Recipe deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting recipe:', error);
+    return NextResponse.json({ 
+      error: 'Failed to delete recipe', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }

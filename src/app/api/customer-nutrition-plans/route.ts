@@ -62,6 +62,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate that customer exists
+    const customer = await prisma.user.findUnique({
+      where: { id: customerId },
+      select: { id: true, name: true, email: true }
+    })
+
+    if (!customer) {
+      return NextResponse.json(
+        { error: `Customer with ID ${customerId} not found` },
+        { status: 404 }
+      )
+    }
+
+    // Validate that nutrition plan exists
+    const nutritionPlan = await prisma.nutritionPlan.findUnique({
+      where: { id: nutritionPlanId },
+      select: { id: true, name: true, goal: true }
+    })
+
+    if (!nutritionPlan) {
+      return NextResponse.json(
+        { error: `Nutrition plan with ID ${nutritionPlanId} not found` },
+        { status: 404 }
+      )
+    }
+
     // Check if assignment already exists
     const existingAssignment = await prisma.customerNutritionPlan.findUnique({
       where: {
@@ -84,7 +110,8 @@ export async function POST(request: NextRequest) {
         customerId,
         nutritionPlanId,
         status,
-        notes
+        notes,
+        assignedAt: new Date()
       },
       include: {
         customer: {
@@ -107,10 +134,24 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(assignment, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating customer nutrition plan assignment:', error)
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta,
+      customerId,
+      nutritionPlanId
+    })
+    
+    // Return more detailed error message
+    const errorMessage = error?.message || 'Failed to create customer nutrition plan assignment'
     return NextResponse.json(
-      { error: 'Failed to create customer nutrition plan assignment' },
+      { 
+        error: errorMessage,
+        details: error?.code === 'P2002' ? 'A unique constraint violation occurred. This assignment may already exist.' : error?.message,
+        code: error?.code
+      },
       { status: 500 }
     )
   }

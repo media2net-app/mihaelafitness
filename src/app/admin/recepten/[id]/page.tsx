@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, ChefHat, Clock, Users, Utensils, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChefHat, Clock, Users, Utensils, Edit, Trash2, X, AlertTriangle } from 'lucide-react';
 
 interface Ingredient {
   id: string;
@@ -44,6 +44,14 @@ export default function RecipeDetailPage() {
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingName, setEditingName] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [editingInstructions, setEditingInstructions] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editInstructions, setEditInstructions] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Function to extract correct unit from ingredient per value
   const getCorrectUnit = (ingredient: RecipeIngredient) => {
@@ -81,6 +89,44 @@ export default function RecipeDetailPage() {
     
     // Default to stored unit
     return ingredient.unit;
+  };
+
+  // Function to format quantity and unit for display (converts grams to scoops if applicable)
+  const formatIngredientQuantity = (ingredient: RecipeIngredient): { quantity: number | string, unit: string } => {
+    if (!ingredient.exists || !ingredient.ingredient) {
+      return { quantity: ingredient.quantity, unit: ingredient.unit };
+    }
+
+    const per = ingredient.ingredient.per || '100g';
+    
+    // Handle scoop-based ingredients (e.g., "1 scoop (15g)")
+    if (per.includes('scoop')) {
+      // Extract scoop size in grams from per field (e.g., "1 scoop (15g)" -> 15)
+      const scoopGramsMatch = per.match(/\((\d+(?:\.\d+)?)\s*g\)/);
+      if (scoopGramsMatch) {
+        const scoopGrams = parseFloat(scoopGramsMatch[1]);
+        // If quantity is in grams and matches scoop size exactly, convert to 1 scoop
+        if (ingredient.unit === 'g' && ingredient.quantity && Math.abs(ingredient.quantity - scoopGrams) < 0.1) {
+          return { quantity: 1, unit: 'scoop' };
+        }
+        // If quantity is a multiple of scoop size, convert to scoops
+        if (ingredient.unit === 'g' && ingredient.quantity && ingredient.quantity > 0) {
+          const scoops = ingredient.quantity / scoopGrams;
+          // Only convert if it's close to a whole number of scoops (within 0.1)
+          if (Math.abs(scoops - Math.round(scoops)) < 0.1) {
+            const roundedScoops = Math.round(scoops);
+            return { quantity: roundedScoops, unit: roundedScoops === 1 ? 'scoop' : 'scoops' };
+          }
+        }
+      }
+      // If already in scoop unit, return as is but fix plural
+      if (ingredient.unit === 'scoop' || ingredient.unit === 'scoops') {
+        return { quantity: ingredient.quantity, unit: ingredient.quantity === 1 ? 'scoop' : 'scoops' };
+      }
+    }
+    
+    // For other units, use getCorrectUnit
+    return { quantity: ingredient.quantity, unit: getCorrectUnit(ingredient) };
   };
 
   // Function to get default quantity and unit from ingredient per value
@@ -246,14 +292,29 @@ export default function RecipeDetailPage() {
           if (recipeResponse.ok) {
             const recipeData = await recipeResponse.json();
             
+            // Parse instructions if it's a JSON string
+            let instructionsParsed = recipeData.instructions || '';
+            if (typeof instructionsParsed === 'string') {
+              try {
+                // Try to parse as JSON first
+                const parsed = JSON.parse(instructionsParsed);
+                if (Array.isArray(parsed)) {
+                  instructionsParsed = parsed.join('\n');
+                }
+              } catch {
+                // If not JSON, use as is
+                instructionsParsed = instructionsParsed;
+              }
+            }
+            
             // Convert database recipe to frontend format
             const updatedRecipe = {
               id: recipeData.id,
               name: recipeData.name,
-              description: recipeData.description,
+              description: recipeData.description || '',
               prepTime: recipeData.prepTime,
               servings: recipeData.servings,
-              instructions: recipeData.instructions || '',
+              instructions: instructionsParsed,
               totalCalories: recipeData.totalCalories,
               totalProtein: recipeData.totalProtein,
               totalCarbs: recipeData.totalCarbs,
@@ -304,6 +365,96 @@ export default function RecipeDetailPage() {
 
     loadData();
   }, [params.id]);
+
+  // Functions to handle editing name, description, and instructions
+  const handleStartEditName = () => {
+    if (recipe) {
+      setEditName(recipe.name);
+      setEditingName(true);
+    }
+  };
+
+  const handleSaveName = async () => {
+    if (!recipe || !editName.trim()) return;
+    
+    const updatedRecipe = { ...recipe, name: editName.trim() };
+    setRecipe(updatedRecipe);
+    setEditingName(false);
+    await saveRecipeWithData(updatedRecipe, 'Recipe name updated', true);
+  };
+
+  const handleCancelEditName = () => {
+    setEditingName(false);
+    if (recipe) setEditName(recipe.name);
+  };
+
+  const handleStartEditDescription = () => {
+    if (recipe) {
+      setEditDescription(recipe.description || '');
+      setEditingDescription(true);
+    }
+  };
+
+  const handleSaveDescription = async () => {
+    if (!recipe) return;
+    
+    const updatedRecipe = { ...recipe, description: editDescription.trim() };
+    setRecipe(updatedRecipe);
+    setEditingDescription(false);
+    await saveRecipeWithData(updatedRecipe, 'Recipe description updated', false, true);
+  };
+
+  const handleCancelEditDescription = () => {
+    setEditingDescription(false);
+    if (recipe) setEditDescription(recipe.description || '');
+  };
+
+  const handleStartEditInstructions = () => {
+    if (recipe) {
+      setEditInstructions(recipe.instructions || '');
+      setEditingInstructions(true);
+    }
+  };
+
+  const handleSaveInstructions = async () => {
+    if (!recipe) return;
+    
+    const updatedRecipe = { ...recipe, instructions: editInstructions };
+    setRecipe(updatedRecipe);
+    setEditingInstructions(false);
+    await saveRecipeWithData(updatedRecipe, 'Recipe instructions updated', false, false, true);
+  };
+
+  const handleCancelEditInstructions = () => {
+    setEditingInstructions(false);
+    if (recipe) setEditInstructions(recipe.instructions || '');
+  };
+
+  const handleDeleteRecipe = async () => {
+    if (!recipe) return;
+    
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/recipes/${recipe.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Navigate back to recipes list
+        router.push('/admin/recepten');
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to delete recipe: ${errorData.error || 'Unknown error'}`);
+        setDeleting(false);
+        setShowDeleteModal(false);
+      }
+    } catch (error) {
+      console.error('Error deleting recipe:', error);
+      alert('Failed to delete recipe');
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
 
   const checkIngredientInApi = async (ingredientName: string): Promise<{ available: boolean; results: any[]; bestMatch?: any }> => {
     try {
@@ -835,9 +986,9 @@ export default function RecipeDetailPage() {
     saveRecipeWithData(updatedRecipe, `Ingredient "${ingredientToRemove.name}" removed from recipe`);
   };
 
-  const saveRecipeWithData = async (recipeData: any, message: string) => {
+  const saveRecipeWithData = async (recipeData: any, message: string, includeName?: boolean, includeDescription?: boolean, includeInstructions?: boolean) => {
     try {
-      const payload = {
+      const payload: any = {
         ingredients: recipeData.ingredients.map((ing: any) => ({
           name: ing.name,
           quantity: ing.quantity,
@@ -851,7 +1002,17 @@ export default function RecipeDetailPage() {
         totalCarbs: recipeData.totalCarbs,
         totalFat: recipeData.totalFat
       };
-      
+
+      // Include name, description, and instructions if requested
+      if (includeName) payload.name = recipeData.name;
+      if (includeDescription) payload.description = recipeData.description;
+      if (includeInstructions) {
+        // Convert instructions string to array if needed
+        const instructionsArray = typeof recipeData.instructions === 'string' 
+          ? recipeData.instructions.split('\n').filter((line: string) => line.trim())
+          : recipeData.instructions;
+        payload.instructions = instructionsArray;
+      }
       
       const response = await fetch(`/api/recipes/${recipeData.id}`, {
         method: 'PUT',
@@ -923,11 +1084,82 @@ export default function RecipeDetailPage() {
         
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2 flex items-center">
-              <ChefHat className="w-8 h-8 mr-3 text-indigo-500" />
-              {recipe.name}
-            </h1>
-            <p className="text-gray-600 text-lg mb-4">{recipe.description}</p>
+            {editingName ? (
+              <div className="mb-2">
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="text-3xl font-bold text-gray-800 w-full px-3 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveName();
+                    if (e.key === 'Escape') handleCancelEditName();
+                  }}
+                  autoFocus
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={handleSaveName}
+                    className="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEditName}
+                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <h1 
+                className="text-3xl font-bold text-gray-800 mb-2 flex items-center cursor-pointer hover:text-indigo-500 transition-colors group"
+                onClick={handleStartEditName}
+                title="Click to edit name"
+              >
+                <ChefHat className="w-8 h-8 mr-3 text-indigo-500" />
+                {recipe.name}
+                <Edit className="w-5 h-5 ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400" />
+              </h1>
+            )}
+            {editingDescription ? (
+              <div className="mb-4">
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="text-gray-600 text-lg w-full px-3 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  rows={2}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') handleCancelEditDescription();
+                  }}
+                  autoFocus
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={handleSaveDescription}
+                    className="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEditDescription}
+                    className="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p 
+                className="text-gray-600 text-lg mb-4 cursor-pointer hover:text-indigo-500 transition-colors group"
+                onClick={handleStartEditDescription}
+                title="Click to edit description"
+              >
+                {recipe.description || <span className="text-gray-400 italic">Click to add description</span>}
+                <Edit className="w-4 h-4 ml-2 inline opacity-0 group-hover:opacity-100 transition-opacity text-gray-400" />
+              </p>
+            )}
             
             {/* Recipe Info */}
             <div className="flex items-center gap-6 text-gray-500 mb-6">
@@ -959,10 +1191,22 @@ export default function RecipeDetailPage() {
               </svg>
               Add Ingredient
             </button>
-            <button className="p-3 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors">
+            <button 
+              onClick={() => {
+                // Scroll to top or focus on name field to edit
+                handleStartEditName();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="p-3 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+              title="Edit recipe"
+            >
               <Edit className="w-5 h-5" />
             </button>
-            <button className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+            <button 
+              onClick={() => setShowDeleteModal(true)}
+              className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete recipe"
+            >
               <Trash2 className="w-5 h-5" />
             </button>
           </div>
@@ -996,13 +1240,35 @@ export default function RecipeDetailPage() {
                 >
                   <div className="flex-1">
                     <div className="font-medium">
-                      {ingredient.quantity} {getCorrectUnit(ingredient)} {ingredient.name}
+                      {(() => {
+                        const formatted = formatIngredientQuantity(ingredient);
+                        return `${formatted.quantity} ${formatted.unit} ${ingredient.name}`;
+                      })()}
                     </div>
-                    {ingredient.exists && ingredient.ingredient && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {Math.round(ingredient.ingredient.calories * (ingredient.quantity / (ingredient.ingredient.per === '1' || ingredient.ingredient.per.includes('scoop') ? 1 : 100)))} kcal
-                      </div>
-                    )}
+                    {ingredient.exists && ingredient.ingredient && (() => {
+                      const per = ingredient.ingredient.per || '100g';
+                      let multiplier = 0;
+                      
+                      if (per.includes('scoop')) {
+                        const scoopGramsMatch = per.match(/\((\d+(?:\.\d+)?)\s*g\)/);
+                        if (scoopGramsMatch) {
+                          const scoopGrams = parseFloat(scoopGramsMatch[1]);
+                          multiplier = ingredient.unit === 'g' ? ingredient.quantity / scoopGrams : ingredient.quantity;
+                        } else {
+                          multiplier = ingredient.unit === 'scoop' || ingredient.unit === 'scoops' ? ingredient.quantity : 1;
+                        }
+                      } else if (per === '1' || per.match(/^\d+(\.\d+)?$/)) {
+                        multiplier = ingredient.quantity;
+                      } else {
+                        multiplier = ingredient.quantity / 100;
+                      }
+                      
+                      return (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {Math.round(ingredient.ingredient.calories * multiplier)} kcal
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-2">
                     {!ingredient.exists && (
@@ -1092,12 +1358,47 @@ export default function RecipeDetailPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {recipe.ingredients.map((ingredient, index) => {
+                      // Calculate multiplier for nutrition values
+                      const calculateMultiplier = () => {
+                        if (!ingredient.exists || !ingredient.ingredient) return 0;
+                        
+                        const per = ingredient.ingredient.per || '100g';
+                        
+                        // Handle scoop-based ingredients
+                        if (per.includes('scoop')) {
+                          const scoopGramsMatch = per.match(/\((\d+(?:\.\d+)?)\s*g\)/);
+                          if (scoopGramsMatch) {
+                            const scoopGrams = parseFloat(scoopGramsMatch[1]);
+                            // If quantity is in grams, convert to number of scoops
+                            if (ingredient.unit === 'g') {
+                              return ingredient.quantity / scoopGrams;
+                            }
+                            // If already in scoop unit, use quantity directly
+                            if (ingredient.unit === 'scoop' || ingredient.unit === 'scoops') {
+                              return ingredient.quantity;
+                            }
+                          }
+                          // Fallback: assume 1 scoop per unit
+                          return ingredient.unit === 'scoop' || ingredient.unit === 'scoops' ? ingredient.quantity : 1;
+                        }
+                        
+                        // Handle piece-based ingredients
+                        if (per === '1' || per.match(/^\d+(\.\d+)?$/)) {
+                          return ingredient.quantity;
+                        }
+                        
+                        // Default: divide by 100 (for 100g based ingredients)
+                        return ingredient.quantity / 100;
+                      };
+                      
+                      const multiplier = calculateMultiplier();
+                      
                       const nutrition = ingredient.exists && ingredient.ingredient ? {
-                        calories: Math.round(ingredient.ingredient.calories * (ingredient.quantity / (ingredient.ingredient.per === '1' || ingredient.ingredient.per.includes('scoop') ? 1 : 100))),
-                        protein: Math.round((ingredient.ingredient.protein * (ingredient.quantity / (ingredient.ingredient.per === '1' || ingredient.ingredient.per.includes('scoop') ? 1 : 100))) * 10) / 10,
-                        carbs: Math.round((ingredient.ingredient.carbs * (ingredient.quantity / (ingredient.ingredient.per === '1' || ingredient.ingredient.per.includes('scoop') ? 1 : 100))) * 10) / 10,
-                        fat: Math.round((ingredient.ingredient.fat * (ingredient.quantity / (ingredient.ingredient.per === '1' || ingredient.ingredient.per.includes('scoop') ? 1 : 100))) * 10) / 10,
-                        fiber: Math.round((ingredient.ingredient.fiber || 0) * (ingredient.quantity / (ingredient.ingredient.per === '1' || ingredient.ingredient.per.includes('scoop') ? 1 : 100)) * 10) / 10
+                        calories: Math.round(ingredient.ingredient.calories * multiplier),
+                        protein: Math.round(ingredient.ingredient.protein * multiplier * 10) / 10,
+                        carbs: Math.round(ingredient.ingredient.carbs * multiplier * 10) / 10,
+                        fat: Math.round(ingredient.ingredient.fat * multiplier * 10) / 10,
+                        fiber: Math.round((ingredient.ingredient.fiber || 0) * multiplier * 10) / 10
                       } : {
                         calories: 0,
                         protein: 0,
@@ -1126,7 +1427,10 @@ export default function RecipeDetailPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-center text-sm text-gray-900">
-                            {ingredient.quantity} {getCorrectUnit(ingredient)}
+                            {(() => {
+                              const formatted = formatIngredientQuantity(ingredient);
+                              return `${formatted.quantity} ${formatted.unit}`;
+                            })()}
                           </td>
                           <td className="px-4 py-3 text-center text-sm font-medium text-orange-600">
                             {nutrition.calories}
@@ -1181,19 +1485,68 @@ export default function RecipeDetailPage() {
 
           {/* Instructions */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Instructions</h2>
-            <div className="space-y-4">
-              {recipe.instructions.split('\n').map((instruction, index) => (
-                <div key={index} className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-indigo-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 pt-1">
-                    <p className="text-gray-700 leading-relaxed">{instruction.trim()}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Instructions</h2>
+              {!editingInstructions && (
+                <button
+                  onClick={handleStartEditInstructions}
+                  className="px-3 py-1 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
             </div>
+            {editingInstructions ? (
+              <div>
+                <textarea
+                  value={editInstructions}
+                  onChange={(e) => setEditInstructions(e.target.value)}
+                  className="w-full px-4 py-3 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[300px] font-mono text-sm"
+                  placeholder="Enter instructions, one per line..."
+                  autoFocus
+                />
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={handleSaveInstructions}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                  >
+                    Save Instructions
+                  </button>
+                  <button
+                    onClick={handleCancelEditInstructions}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recipe.instructions && recipe.instructions.trim() ? (
+                  recipe.instructions.split('\n').filter(line => line.trim()).map((instruction, index) => (
+                    <div key={index} className="flex gap-4">
+                      <div className="flex-shrink-0 w-8 h-8 bg-indigo-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 pt-1">
+                        <p className="text-gray-700 leading-relaxed">{instruction.trim()}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="mb-2">No instructions added yet</p>
+                    <button
+                      onClick={handleStartEditInstructions}
+                      className="text-indigo-500 hover:text-indigo-600 underline"
+                    >
+                      Click to add instructions
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1765,6 +2118,66 @@ export default function RecipeDetailPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             <span className="font-medium">{saveMessage}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-800">Delete Recipe</h2>
+                <p className="text-gray-600 text-sm mt-1">This action cannot be undone</p>
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                disabled={deleting}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700">
+                Are you sure you want to delete <strong>"{recipe?.name}"</strong>?
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                All recipe data, including ingredients and instructions, will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRecipe}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Recipe
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

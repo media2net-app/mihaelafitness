@@ -237,8 +237,15 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
           const prev = lastSaved.current[idx] ?? getBaseAmount(idx);
           if (Number(current) === Number(prev)) continue;
           const unit = jsonMode ? (jsonIngredients[idx]?.unit || 'g') : (ingredientData[idx]?.rawUnit || 'g');
-          const name = String(ingredientData[idx]?.displayName || ingredientData[idx]?.name || '').trim();
-          addDebugLog(`Making API call: name=${name}, newAmount=${current}, unit=${unit}, mealTypeKey=${mealTypeKey}, dayKey=${dayKey}`);
+          // Use original name (English) for API matching, not displayName (translated)
+          // Priority: displayNameEn > name > displayName
+          const name = String(
+            ingredientData[idx]?.displayNameEn || 
+            ingredientData[idx]?.name || 
+            ingredientData[idx]?.displayName || 
+            ''
+          ).trim();
+          addDebugLog(`Making API call: name=${name}, displayName=${ingredientData[idx]?.displayName}, displayNameEn=${ingredientData[idx]?.displayNameEn}, newAmount=${current}, unit=${unit}, mealTypeKey=${mealTypeKey}, dayKey=${dayKey}`);
           updates.push(
             fetch(`/api/nutrition-plans/${planId}/update-ingredient`, {
               method: 'POST',
@@ -470,8 +477,8 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                         fat: Math.round(result.macros.fat),
                         fiber: Math.round(result.macros.fiber || 0),
                         error: result.error,
-                        rawAmount: Math.round(result.amount || (result.pieces || 0)),
-                        rawUnit: (result.unit || '').toLowerCase() || 'g',
+                        rawAmount: result.unit === 'piece' && result.pieces ? result.pieces : Math.round(result.amount || 0),
+                        rawUnit: result.unit === 'piece' ? 'piece' : ((result.unit || '').toLowerCase() || 'g'),
                       };
                     });
                     const apiTotal = apiResults.reduce((acc: any, ingredient: any) => ({
@@ -608,8 +615,23 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
           }
           
           // Derive amount/unit from API response
-          const rawAmount = Math.round(result.amount || (result.pieces || 0));
-          const rawUnit = (result.unit || '').toLowerCase() || 'g';
+          // For piece-based ingredients, use pieces as amount and 'piece' as unit
+          let rawAmount: number;
+          let rawUnit: string;
+          
+          if (result.unit === 'piece' && result.pieces && result.pieces > 0) {
+            // Piece-based ingredient: use pieces as the amount
+            rawAmount = result.pieces;
+            rawUnit = 'piece';
+          } else if (result.amount) {
+            // Gram/ml-based ingredient: use amount
+            rawAmount = Math.round(result.amount);
+            rawUnit = (result.unit || '').toLowerCase() || 'g';
+          } else {
+            // Fallback
+            rawAmount = Math.round(result.amount || (result.pieces || 0));
+            rawUnit = (result.unit || '').toLowerCase() || 'g';
+          }
 
           return {
             name: cleanName,
@@ -843,7 +865,11 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                 <div className="flex items-start space-x-2 flex-1 min-w-0">
                   <span className="text-gray-500 text-sm mt-0.5">•</span>
                   <span className="font-medium text-gray-800 text-sm truncate">
-                    {ingredient.displayName || ingredient.name}
+                    {(() => {
+                      const currentAmount = getCurrentAmount(index);
+                      const unit = jsonMode ? (jsonIngredients[index]?.unit || 'g') : (ingredient.rawUnit || 'g');
+                      return `${Math.round(currentAmount)} ${unit} ${ingredient.displayName || ingredient.name}`;
+                    })()}
                   </span>
                 </div>
                 <button
@@ -977,7 +1003,11 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
               <div className="col-span-5 flex items-center space-x-2">
                 <span className="text-gray-500 text-sm">•</span>
                 <span className="font-medium text-gray-800 text-sm sm:text-base truncate">
-                  {ingredient.portion} {ingredient.displayName || ingredient.name}
+                  {(() => {
+                    const currentAmount = getCurrentAmount(index);
+                    const unit = jsonMode ? (jsonIngredients[index]?.unit || 'g') : (ingredient.rawUnit || 'g');
+                    return `${Math.round(currentAmount)} ${unit} ${ingredient.displayName || ingredient.name}`;
+                  })()}
                 </span>
               </div>
               <div className="col-span-2 text-center">
@@ -1202,14 +1232,20 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             <div className="w-1/2 p-4 border-r border-gray-200">
               <h4 className="font-semibold text-gray-800 mb-3">Huidige ingrediënten</h4>
               <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-                {ingredientData.map((ingredient, index) => (
+                {ingredientData.map((ingredient, index) => {
+                  const currentAmount = getCurrentAmount(index);
+                  const unit = jsonMode ? (jsonIngredients[index]?.unit || 'g') : (ingredient.rawUnit || 'g');
+                  return (
                   <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-2 border border-gray-200">
                     <div className="flex-1">
                       <div className="font-medium text-gray-800 text-sm">
-                        {ingredient.portion} {ingredient.displayName || ingredient.name}
+                        {Math.round(currentAmount)} {unit} {ingredient.displayName || ingredient.name}
                       </div>
                       <div className="text-xs text-gray-600">
-                        {ingredient.protein}P {ingredient.fat}F {ingredient.carbs}C → {ingredient.calories} kcal
+                        {(() => {
+                          const s = scaledMacrosFor(index);
+                          return `${s.protein}P ${s.fat}F ${s.carbs}C → ${s.calories} kcal`;
+                        })()}
                       </div>
                     </div>
                     <button
@@ -1222,7 +1258,8 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
                 {ingredientData.length === 0 && (
                   <div className="text-center text-gray-500 py-8">
                     Geen ingrediënten toegevoegd
@@ -1368,14 +1405,20 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
               <div className="p-3 sm:p-4 border-t border-gray-200">
                 <h4 className="font-semibold text-gray-800 mb-3">Huidige ingrediënten</h4>
                 <div className="space-y-2 max-h-[30vh] overflow-y-auto">
-                  {ingredientData.map((ingredient, index) => (
+                  {ingredientData.map((ingredient, index) => {
+                    const currentAmount = getCurrentAmount(index);
+                    const unit = jsonMode ? (jsonIngredients[index]?.unit || 'g') : (ingredient.rawUnit || 'g');
+                    return (
                     <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200">
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-gray-800 text-sm sm:text-base">
-                          {ingredient.portion} {ingredient.displayName || ingredient.name}
+                          {Math.round(currentAmount)} {unit} {ingredient.displayName || ingredient.name}
                         </div>
                         <div className="text-xs sm:text-sm text-gray-600">
-                          {ingredient.protein}P {ingredient.fat}F {ingredient.carbs}C → {ingredient.calories} kcal
+                          {(() => {
+                            const s = scaledMacrosFor(index);
+                            return `${s.protein}P ${s.fat}F ${s.carbs}C → ${s.calories} kcal`;
+                          })()}
                         </div>
                       </div>
                       <button
@@ -1388,7 +1431,8 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                         <X className="w-5 h-5" />
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

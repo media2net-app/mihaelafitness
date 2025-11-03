@@ -161,6 +161,28 @@ button, a, input, select, textarea {
   }
 }
 
+/* Sidebar fallback styles for Windows Chrome compatibility */
+aside.sidebar-admin {
+  background: linear-gradient(to bottom, #f43f5e, #db2777) !important;
+  background-color: #f43f5e !important; /* Fallback */
+  color: #ffffff !important;
+}
+
+aside.sidebar-admin button {
+  color: rgba(255, 255, 255, 0.8) !important;
+  background-color: transparent !important;
+}
+
+aside.sidebar-admin button:hover {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+aside.sidebar-admin button[data-active="true"] {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
 /* Homepage specific styles */
 .homepage-container {
   font-family: 'Ubuntu', sans-serif;

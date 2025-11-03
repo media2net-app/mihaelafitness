@@ -66,17 +66,52 @@ export async function POST(request: NextRequest) {
           // First try exact match
           let candidates = await prisma.ingredient.findMany({
             where: {
-              name: { equals: needle }
+              OR: [
+                { name: { equals: needle } },
+                { nameRo: { equals: needle } }
+              ]
             }
           });
           
-          // If no exact match, try contains match
+          // If no exact match, try contains match (but avoid partial word matches like "Egg" matching "Eggplant")
           if (candidates.length === 0) {
+            // First try word boundary matches (e.g., "Egg" should match "Egg" but not "Eggplant")
+            const wordBoundaryPattern = new RegExp(`\\b${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
             candidates = await prisma.ingredient.findMany({
               where: {
-                name: { contains: needle }
+                OR: [
+                  { name: { contains: needle } },
+                  { nameRo: { contains: needle } }
+                ]
               }
             });
+            
+            // Filter to prefer word boundary matches and avoid partial matches
+            if (candidates.length > 1) {
+              candidates.sort((a, b) => {
+                const aName = (a.name || '').toLowerCase();
+                const bName = (b.name || '').toLowerCase();
+                const needleLower = needle.toLowerCase();
+                
+                // Exact match first
+                if (aName === needleLower && bName !== needleLower) return -1;
+                if (bName === needleLower && aName !== needleLower) return 1;
+                
+                // Word boundary match (starts with needle + space or exact match)
+                const aWordBoundary = aName === needleLower || aName.startsWith(needleLower + ' ');
+                const bWordBoundary = bName === needleLower || bName.startsWith(needleLower + ' ');
+                if (aWordBoundary && !bWordBoundary) return -1;
+                if (!aWordBoundary && bWordBoundary) return 1;
+                
+                // Avoid partial matches (e.g., "Egg" should not prefer "Eggplant")
+                const aIsPartial = aName.includes(needleLower) && aName !== needleLower && !aName.startsWith(needleLower + ' ');
+                const bIsPartial = bName.includes(needleLower) && bName !== needleLower && !bName.startsWith(needleLower + ' ');
+                if (!aIsPartial && bIsPartial) return -1;
+                if (aIsPartial && !bIsPartial) return 1;
+                
+                return 0;
+              });
+            }
           }
           
           // If still no match, try without numbers (e.g., "0.5 Banana" -> "Banana")
@@ -87,7 +122,9 @@ export async function POST(request: NextRequest) {
                 where: {
                   OR: [
                     { name: { equals: nameWithoutNumbers } },
-                    { name: { contains: nameWithoutNumbers } }
+                    { name: { contains: nameWithoutNumbers } },
+                    { nameRo: { equals: nameWithoutNumbers } },
+                    { nameRo: { contains: nameWithoutNumbers } }
                   ]
                 }
               });
@@ -103,6 +140,19 @@ export async function POST(request: NextRequest) {
               // If exact match, prefer it
               if (aExact && !bExact) return -1;
               if (!aExact && bExact) return 1;
+              
+              // Prefer exact word boundaries (e.g., "1 Egg" should not match "1 Eggplant")
+              const needleLower = needle.toLowerCase();
+              const aStartsWith = a.name.toLowerCase().startsWith(needleLower + ' ') || a.name.toLowerCase() === needleLower;
+              const bStartsWith = b.name.toLowerCase().startsWith(needleLower + ' ') || b.name.toLowerCase() === needleLower;
+              if (aStartsWith && !bStartsWith) return -1;
+              if (!aStartsWith && bStartsWith) return 1;
+              
+              // Avoid partial matches (e.g., "Egg" should not match "Eggplant")
+              const aIsPartial = a.name.toLowerCase().includes(needleLower) && a.name.toLowerCase() !== needleLower && !a.name.toLowerCase().startsWith(needleLower + ' ');
+              const bIsPartial = b.name.toLowerCase().includes(needleLower) && b.name.toLowerCase() !== needleLower && !b.name.toLowerCase().startsWith(needleLower + ' ');
+              if (!aIsPartial && bIsPartial) return -1;
+              if (aIsPartial && !bIsPartial) return 1;
               
               // If both or neither are exact, prefer unit-appropriate matches
               const aPer = String(a.per || '').toLowerCase();
@@ -160,18 +210,52 @@ export async function POST(request: NextRequest) {
         // Compute multiplier based on ingredient.per
         const per = String(ingredient.per || '').toLowerCase();
         let multiplier = 0;
+        // Support scoop-based portions like "1 scoop (15g)"
+        const scoopGMatch = per.match(/scoop[^\d]*(\d+(?:\.\d+)?)\s*g/);
+        const gramsPerScoop = scoopGMatch ? parseFloat(scoopGMatch[1]) : null;
+        // Heuristic: if per mentions scoop and parsed unit looks like grams with very small amount
+        // or the name indicates powder, treat the input amount as number of scoops
+        if (gramsPerScoop && (parsed.unit === 'scoop' || (
+          parsed.unit === 'g' && (parsed.amount || 0) <= 3 && /powder|whey|proteic|pudr/i.test(ingredient.name)
+        ))) {
+          const baseGramM = per.match(/(\d+(?:\.\d+)?)\s*g/);
+          const base = baseGramM ? parseFloat(baseGramM[1]) : gramsPerScoop;
+          const scoops = parsed.unit === 'scoop' ? (parsed.amount || 1) : (parsed.amount || 1); // amount represents scoops
+          multiplier = (scoops * gramsPerScoop) / base;
+          // normalize output as scoops
+          parsed.unit = 'scoop';
+          parsed.amount = scoops;
+        } else {
         const gramM = per.match(/(\d+(?:\.\d+)?)\s*g/);
         const mlM = per.match(/(\d+(?:\.\d+)?)\s*ml/);
         const tspM = per.match(/(\d+(?:\.\d+)?)\s*tsp/);
         const tbspM = per.match(/(\d+(?:\.\d+)?)\s*tbsp/);
         const pieceM = per.match(/(\d+(?:\.\d+)?)\s*(piece|pieces|slice|slices|stuks)/);
-        if (gramM) {
+        
+        // Special handling: if ingredient has per="1" (piece-based) and input is in grams with small amount,
+        // interpret as pieces (e.g., "3g Rice cake" should be "3 pieces", not "3 grams")
+        if (!multiplier && per === '1' && parsed.unit === 'g' && parsed.amount && parsed.amount <= 20) {
+          // Check if ingredient name suggests it's a piece-based item (cake, cracker, etc.)
+          const isPieceBasedItem = /\b(cake|cakes|cracker|crackers|biscuit|biscuits|vafe|rice\s+cake|slice|slices)\b/i.test(ingredient.name) ||
+                                   /\b(vafe|tort|biscuit|prajituri)\b/i.test(ingredient.nameRo || '');
+          
+          if (isPieceBasedItem) {
+            // Treat as pieces
+            parsed.unit = 'piece';
+            parsed.pieces = parsed.amount;
+            parsed.amount = parsed.amount * 9; // Estimate ~9g per rice cake
+            multiplier = parsed.pieces / 1; // 1 piece per unit
+          } else {
+            // Fallback to grams
+            multiplier = (parsed.amount || 0) / 100;
+          }
+        } else if (!multiplier && gramM) {
           const base = parseFloat(gramM[1]) || 100;
           multiplier = (parsed.amount || 0) / base; // parsed.amount already grams
-        } else if (mlM) {
+        } else if (!multiplier && mlM) {
           const base = parseFloat(mlM[1]) || 100;
           multiplier = (parsed.amount || 0) / base; // treat ml≈g
-        } else if (tspM) {
+        } else if (!multiplier && tspM) {
           const baseTsp = parseFloat(tspM[1]) || 1;
           // For tsp, we need to check if the parsed unit is tsp
           if (parsed.unit === 'tsp') {
@@ -181,7 +265,7 @@ export async function POST(request: NextRequest) {
             const tspInGrams = (parsed.amount || 0) / 5; // Convert grams to tsp
             multiplier = tspInGrams / baseTsp;
           }
-        } else if (tbspM) {
+        } else if (!multiplier && tbspM) {
           const baseTbsp = parseFloat(tbspM[1]) || 1;
           // For tbsp, we need to check if the parsed unit is tbsp
           if (parsed.unit === 'tbsp') {
@@ -191,11 +275,11 @@ export async function POST(request: NextRequest) {
             const tbspInGrams = (parsed.amount || 0) / 15; // Convert grams to tbsp
             multiplier = tbspInGrams / baseTbsp;
           }
-        } else if (pieceM) {
+        } else if (!multiplier && pieceM) {
           const basePieces = parseFloat(pieceM[1]) || 1;
           const pcs = parsed.pieces && typeof parsed.pieces === 'number' && parsed.pieces > 0 ? parsed.pieces : 1;
           multiplier = (pcs || 1) / basePieces;
-        } else {
+        } else if (!multiplier) {
           // For simple numbers like "1", treat as 1 piece
           const numMatch = per.match(/^(\d+(?:\.\d+)?)$/);
           if (numMatch) {
@@ -207,6 +291,10 @@ export async function POST(request: NextRequest) {
             multiplier = (parsed.amount || 0) / 100;
           }
         }
+
+        }
+
+        // end of non-scoop multiplier computation block
 
         const macros = {
           calories: Math.round((ingredient.calories ?? 0) * multiplier),
@@ -286,14 +374,28 @@ function parseIngredientString(ingredientString: string) {
             pieces: 1
           };
         } else {
-          // Format: "1 cmgbfexoi01be8igvuow7a57d|1 Beef Steak" or "100 cmgbf5ljc017j8igvp7v9hmpk|Whole Wheat Bread"
-          // Check if the ingredient name contains slice/piece indicators
+          // Format: "1 cmgbfexoi01be8igvuow7a57d|1 Beef Steak" or "3 cmgh5qg91006s89gxiy8sei1d|Rice cake"
+          // Check if the ingredient name contains slice/piece indicators or is a piece-based item
           const nameLower = ingredientName.toLowerCase();
-          if (nameLower.includes('slice') || nameLower.includes('piece') || nameLower.includes('stuk') || nameLower.includes('1 ')) {
-            // Piece-based ingredient
+          const isPieceBased = nameLower.includes('slice') || 
+                              nameLower.includes('piece') || 
+                              nameLower.includes('stuk') || 
+                              nameLower.includes('1 ') ||
+                              nameLower.includes('rice cake') ||
+                              nameLower.includes('vafe') ||
+                              nameLower.includes('cake') ||
+                              nameLower.includes('cracker') ||
+                              nameLower.includes('biscuit') ||
+                              // Check if ingredient ID matches known piece-based ingredients
+                              ingredientId === 'cmgh5qg91006s89gxiy8sei1d'; // Rice cake ID
+          
+          if (isPieceBased) {
+            // Piece-based ingredient - check database for actual piece weight
+            // For Rice cake, estimate ~9g per piece
+            const pieceWeight = nameLower.includes('rice cake') || ingredientId === 'cmgh5qg91006s89gxiy8sei1d' ? 9 : 50;
             return {
               name: `${ingredientId}|${ingredientName}`,
-              amount: quantity * 50, // Convert to grams for piece-based items
+              amount: quantity * pieceWeight, // Convert to grams for piece-based items
               unit: 'piece',
               pieces: quantity
             };
@@ -349,6 +451,8 @@ function parseIngredientString(ingredientString: string) {
 
   // Special handling for common ingredient patterns
   const specialPatterns = [
+    // Handle "3piece 1 Eggplant" or "3 piece 1 Egg" or "3pieces 1 Eggplant" -> "1 Eggplant" or "1 Egg" with 3 pieces
+    { pattern: /^(\d+(?:\.\d+)?)\s*(piece|pieces)\s+1\s+(.+)$/i, name: (match: RegExpMatchArray) => `1 ${match[3]}`, amount: (match: RegExpMatchArray) => parseFloat(match[1]) * 50, unit: 'piece', pieces: (match: RegExpMatchArray) => parseFloat(match[1]) },
     // Handle double numbers like "0.5 1 Banana" -> "1 Banana" (use the piece version)
     { pattern: /^(\d+(?:\.\d+)?)\s+1\s+(.+)$/i, name: (match: RegExpMatchArray) => `1 ${match[2]}`, amount: (match: RegExpMatchArray) => parseFloat(match[1]) * 50, pieces: (match: RegExpMatchArray) => parseFloat(match[1]) },
     // Handle "1 1 Egg" -> "1 Egg"
@@ -406,7 +510,11 @@ function parseIngredientString(ingredientString: string) {
     // "cucumber" -> "cucumber" with 1 piece
     { pattern: /cucumber/i, name: 'cucumber', amount: 100, pieces: 1 },
     // "1 scoop protein powder" -> "scoop protein powder" with 1 piece
-    { pattern: /(\d+)\s+scoop\s+protein\s+powder/i, name: 'scoop protein powder', amount: 30, pieces: 1 }
+    { pattern: /(\d+)\s+scoop\s+protein\s+powder/i, name: 'scoop protein powder', amount: 30, pieces: 1 },
+    // "3 rice cake" or "3 rice cakes" -> "rice cake" with 3 pieces
+    { pattern: /^(\d+)\s+rice\s+cakes?$/i, name: 'Rice cake', amount: (match: RegExpMatchArray) => parseFloat(match[1]) * 9, unit: 'piece', pieces: (match: RegExpMatchArray) => parseFloat(match[1]) },
+    // "3 vafe de orez" or "3 vafe" -> "Rice cake" with 3 pieces
+    { pattern: /^(\d+)\s+vafe/i, name: 'Rice cake', amount: (match: RegExpMatchArray) => parseFloat(match[1]) * 9, unit: 'piece', pieces: (match: RegExpMatchArray) => parseFloat(match[1]) }
   ];
 
   // Additional specials for common items with piece defaults
@@ -476,7 +584,7 @@ function parseIngredientString(ingredientString: string) {
         amount = parseFloat(match[1]);
         name = match[2];
         // Heuristic: if name contains words suggesting piece-like items
-        if (/\b(egg|eggs|carrot|banana|apple|orange|kiwi|thigh|piece|slice|steak|breast|fillet)\b/i.test(name)) {
+        if (/\b(egg|eggs|carrot|banana|apple|orange|kiwi|thigh|piece|slice|steak|breast|fillet|rice\s+cake|vafe|biscuit|cracker)\b/i.test(name)) {
           unit = 'piece';
           // For piece-based items, keep the full name including the number for better database matching
           name = `${amount} ${name}`;

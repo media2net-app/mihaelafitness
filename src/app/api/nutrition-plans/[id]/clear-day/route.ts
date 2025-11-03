@@ -20,7 +20,20 @@ export async function POST(
 
     const weekMenu: any = (plan as any).weekMenu || {};
     const day = { ...(weekMenu[dayKey] || {}) };
-    for (const meal of MEALS) day[meal] = '';
+    for (const meal of MEALS) {
+      // Clear both old string format and new object format (with cookingInstructions)
+      if (typeof day[meal] === 'string') {
+        day[meal] = '';
+      } else if (day[meal] && typeof day[meal] === 'object') {
+        // New format: clear ingredients and cooking instructions
+        day[meal] = {
+          ingredients: '',
+          cookingInstructions: ''
+        };
+      } else {
+        day[meal] = '';
+      }
+    }
     const updatedWeek = { ...weekMenu, [dayKey]: day };
 
     const updated = await prisma.nutritionPlan.update({

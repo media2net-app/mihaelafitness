@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
+    // Ensure Prisma is connected
+    await prisma.$connect();
+    
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
     const date = searchParams.get('date');
@@ -47,17 +50,46 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform sessions to ensure consistent date format
-    const transformedSessions = trainingSessions.map(session => ({
-      ...session,
-      date: session.date.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
-      customerName: session.customer?.name || null
-    }));
+    const transformedSessions = trainingSessions.map(session => {
+      // Handle date conversion safely
+      let dateString = '';
+      if (session.date instanceof Date) {
+        dateString = session.date.toISOString().split('T')[0];
+      } else if (typeof session.date === 'string') {
+        dateString = session.date.split('T')[0];
+      } else {
+        dateString = new Date(session.date).toISOString().split('T')[0];
+      }
+
+      return {
+        id: session.id,
+        customerId: session.customerId,
+        date: dateString,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        type: session.type,
+        status: session.status,
+        notes: session.notes || null,
+        customerName: session.customer?.name || null,
+        customer: session.customer ? {
+          id: session.customer.id,
+          name: session.customer.name,
+          email: session.customer.email
+        } : null
+      };
+    });
 
     return NextResponse.json(transformedSessions);
   } catch (error) {
     console.error('Error fetching training sessions:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('Error details:', { message: errorMessage, stack: errorStack });
     return NextResponse.json(
-      { error: 'Failed to fetch training sessions' },
+      { 
+        error: 'Failed to fetch training sessions',
+        details: errorMessage
+      },
       { status: 500 }
     );
   }

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 interface User {
   id: string;
@@ -25,6 +25,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('auth_user');
+  }, []);
 
   useEffect(() => {
     // Check for existing token in localStorage and sessionStorage
@@ -88,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
+  }, [logout]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -124,15 +133,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Login error:', error);
       return false;
     }
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
-    sessionStorage.removeItem('auth_token');
-    sessionStorage.removeItem('auth_user');
   };
 
   const isAuthenticated = !!user && !!token;

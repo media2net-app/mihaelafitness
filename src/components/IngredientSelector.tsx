@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FiSearch, FiPlus, FiX } from 'react-icons/fi';
+import React, { useState, useEffect, useRef } from 'react';
+import { FiSearch, FiPlus, FiX, FiCheckCircle } from 'react-icons/fi';
 
 interface Ingredient {
   id: string;
@@ -43,9 +43,19 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
   // Recipe selector state
   const [showRecipeSelector, setShowRecipeSelector] = useState(false);
   const [recipes, setRecipes] = useState<any[]>([]);
+  const [filteredRecipes, setFilteredRecipes] = useState<any[]>([]);
+  const [recipeSearchTerm, setRecipeSearchTerm] = useState('');
+  const [selectedRecipeLabel, setSelectedRecipeLabel] = useState<string>('all');
   const [loadingRecipes, setLoadingRecipes] = useState(false);
+  // Progress modal state
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressLogs, setProgressLogs] = useState<string[]>([]);
+  const [addingRecipe, setAddingRecipe] = useState(false);
+  const logContainerRef = useRef<HTMLDivElement>(null);
   const [savingNew, setSavingNew] = useState(false);
   const [newError, setNewError] = useState<string | null>(null);
+  const [applyingIngredients, setApplyingIngredients] = useState(false);
+  const [applyProgress, setApplyProgress] = useState<string[]>([]);
   const defaultNewIng = {
     name: '',
     per: '100g',
@@ -93,19 +103,90 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
   const loadRecipes = async () => {
     setLoadingRecipes(true);
     try {
-      const response = await fetch('/api/recipes');
-      if (response.ok) {
-        const data = await response.json();
+      const response = await fetch('/api/recipes', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-cache'
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to load recipes:', response.status, errorText);
+        setRecipes([]);
+        setFilteredRecipes([]);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      // Check if data is an array or has an error
+      if (Array.isArray(data)) {
         setRecipes(data);
+        setFilteredRecipes(data);
+      } else if (data.error) {
+        console.error('API returned error:', data.error);
+        setRecipes([]);
+        setFilteredRecipes([]);
       } else {
-        console.error('Failed to load recipes');
+        // Unexpected format
+        console.error('Unexpected response format:', data);
+        setRecipes([]);
+        setFilteredRecipes([]);
       }
     } catch (error) {
       console.error('Error loading recipes:', error);
+      // Show user-friendly error
+      setRecipes([]);
+      setFilteredRecipes([]);
+      alert('Failed to load recipes. Please check if the server is running and try again.');
     } finally {
       setLoadingRecipes(false);
     }
   };
+
+  // Filter recipes based on search term and label
+  useEffect(() => {
+    if (!showRecipeSelector || recipes.length === 0) return;
+    
+    let filtered = recipes;
+    
+    // Filter by search term
+    if (recipeSearchTerm.trim()) {
+      const search = recipeSearchTerm.toLowerCase();
+      filtered = filtered.filter(recipe =>
+        recipe.name.toLowerCase().includes(search) ||
+        recipe.description?.toLowerCase().includes(search)
+      );
+    }
+    
+    // Filter by label
+    if (selectedRecipeLabel !== 'all') {
+      filtered = filtered.filter(recipe =>
+        recipe.labels?.includes(selectedRecipeLabel)
+      );
+    }
+    
+    // Sort alphabetically by name (A to Z)
+    filtered = filtered.sort((a, b) => {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+    
+    setFilteredRecipes(filtered);
+  }, [recipes, recipeSearchTerm, selectedRecipeLabel, showRecipeSelector]);
+
+  // Get unique labels from recipes
+  const recipeLabels = Array.from(new Set(recipes.flatMap(r => r.labels || []))).sort();
+
+  // Auto-scroll progress logs to bottom when new logs are added
+  useEffect(() => {
+    if (logContainerRef.current && progressLogs.length > 0) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [progressLogs]);
 
   // Filter ingredients based on search and category (debounced on searchTerm)
   useEffect(() => {
@@ -174,7 +255,7 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
     return { amount: 100, unit: 'g', type: 'gram' };
   };
 
-  const displayUnit = (unit: string) => unit === 'piece' ? 'slice' : unit;
+  const displayUnit = (unit: string) => unit;
 
   // Compute scaled macros for a given ingredient and quantity relative to base `per`
   const getScaledMacros = (ingredient: Ingredient, qty: number): MealMacros => {
@@ -237,14 +318,47 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
   };
 
   const handleApplyToMeal = async () => {
-    // Apply sequentially to avoid race conditions where later writes overwrite earlier ones
-    for (const item of selectedItems) {
-      // Await in case onAddIngredient is async
-      await onAddIngredient(item.ingredient, item.quantity, mealType);
+    if (selectedItems.length === 0) return;
+    
+    setApplyingIngredients(true);
+    setApplyProgress([]);
+    
+    try {
+      // Apply sequentially to avoid race conditions where later writes overwrite earlier ones
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        setApplyProgress(prev => [...prev, `Adding ${item.ingredient.name}...`]);
+        
+        // Await in case onAddIngredient is async
+        await onAddIngredient(item.ingredient, item.quantity, mealType);
+        
+        setApplyProgress(prev => [...prev, `✅ ${item.ingredient.name} added successfully`]);
+        
+        // Small delay to show progress
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
+      setApplyProgress(prev => [...prev, '🎉 All ingredients added successfully!']);
+      
+      // Clear cart after apply
+      setSelectedItems([]);
+      
+      // Wait a moment to show success message, then close modal
+      setTimeout(() => {
+        setApplyingIngredients(false);
+        setApplyProgress([]);
+        if (!keepOpen) setIsOpen(false);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error applying ingredients:', error);
+      setApplyProgress(prev => [...prev, '❌ Error adding ingredients. Please try again.']);
+      
+      setTimeout(() => {
+        setApplyingIngredients(false);
+        setApplyProgress([]);
+      }, 2000);
     }
-    // Clear cart after apply
-    setSelectedItems([]);
-    if (!keepOpen) setIsOpen(false);
   };
 
   const selectedTotals: MealMacros = selectedItems.reduce((acc, it) => {
@@ -303,9 +417,71 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
 
   // Handle adding recipe
   const handleAddRecipe = async (recipe: any) => {
-    if (onAddRecipe) {
-      await onAddRecipe(recipe, mealType);
+    if (!onAddRecipe) return;
+
+    // Show progress modal
+    setShowProgressModal(true);
+    setProgressLogs([`Starting to add recipe: ${recipe.name}`]);
+    setAddingRecipe(true);
+
+    // Get recipe details with ingredients if not already loaded
+    let recipeWithIngredients = recipe;
+    if (!recipe.ingredients || recipe.ingredients.length === 0) {
+      try {
+        const recipeResponse = await fetch(`/api/recipes/${recipe.id}`);
+        if (recipeResponse.ok) {
+          recipeWithIngredients = await recipeResponse.json();
+        }
+      } catch (error) {
+        console.error('Error fetching recipe details:', error);
+      }
+    }
+
+    // Add log for each ingredient
+    const ingredients = recipeWithIngredients.ingredients || [];
+
+    const addLog = (message: string) => {
+      setProgressLogs(prev => [...prev, message]);
+    };
+
+    // Simulate adding ingredients one by one
+    for (let i = 0; i < ingredients.length; i++) {
+      const ingredient = ingredients[i];
+      const ingredientName = ingredient.name || `Ingredient ${i + 1}`;
+      const quantity = ingredient.quantity || 1;
+      const unit = ingredient.unit || 'g';
+      
+      addLog(`Adding ingredient ${i + 1}/${ingredients.length}: ${quantity}${unit} ${ingredientName}`);
+      
+      // Small delay for visual effect (only if not the last ingredient)
+      if (i < ingredients.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+
+    addLog(`All ingredients processed. Saving recipe to meal plan...`);
+
+    try {
+      // Actually add the recipe via the callback
+      await onAddRecipe(recipeWithIngredients, mealType);
+      
+      addLog(`✅ Recipe "${recipe.name}" successfully added!`);
+      
+      // Wait a moment to show success message
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Close both modals
+      setShowProgressModal(false);
       setShowRecipeSelector(false);
+      setProgressLogs([]);
+    } catch (error) {
+      console.error('Error adding recipe:', error);
+      addLog(`❌ Error: Failed to add recipe. Please try again.`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setShowProgressModal(false);
+      setProgressLogs([]);
+    } finally {
+      setAddingRecipe(false);
     }
   };
 
@@ -341,7 +517,7 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
           {/* Modal Backdrop */}
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 z-[999]"
-            onClick={() => setIsOpen(false)}
+            onClick={() => !applyingIngredients && setIsOpen(false)}
           />
           
           {/* Modal Content */}
@@ -349,21 +525,38 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
             {/* Header */}
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800">Add Ingredient</h3>
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  {applyingIngredients ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-500"></div>
+                      Adding Ingredients...
+                    </>
+                  ) : (
+                    'Add Ingredient'
+                  )}
+                </h3>
                 <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 text-xs text-gray-600">
-                    <input type="checkbox" checked={keepOpen} onChange={(e)=>setKeepOpen(e.target.checked)} />
-                    Keep open
-                  </label>
-                  <button onClick={openCreateForm} className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded border border-blue-200 hover:bg-blue-100">New</button>
-                  <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-gray-100 rounded">
+                  {!applyingIngredients && (
+                    <>
+                      <label className="flex items-center gap-2 text-xs text-gray-600">
+                        <input type="checkbox" checked={keepOpen} onChange={(e)=>setKeepOpen(e.target.checked)} />
+                        Keep open
+                      </label>
+                      <button onClick={openCreateForm} className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded border border-blue-200 hover:bg-blue-100">New</button>
+                    </>
+                  )}
+                  <button 
+                    onClick={() => setIsOpen(false)} 
+                    disabled={applyingIngredients}
+                    className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
+                  >
                     <FiX className="w-4 h-4 text-gray-500" />
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-0 h-full">
+            <div className={`grid grid-cols-1 xl:grid-cols-2 gap-0 h-full ${applyingIngredients ? 'pointer-events-none opacity-50' : ''}`}>
               {/* Left column: search and list */}
               <div className="p-4 border-r border-gray-100">
                 {/* Search */}
@@ -538,13 +731,35 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
                 {/* Apply */}
                 <div className="mt-3 flex justify-end gap-2">
                   <button
-                    disabled={selectedItems.length === 0}
+                    disabled={selectedItems.length === 0 || applyingIngredients}
                     onClick={handleApplyToMeal}
-                    className="px-4 py-2 bg-green-500 text-white rounded disabled:opacity-50 hover:bg-green-600 active:bg-green-700 font-medium"
+                    className="px-4 py-2 bg-green-500 text-white rounded disabled:opacity-50 hover:bg-green-600 active:bg-green-700 font-medium flex items-center gap-2"
                   >
-                    Apply to meal
+                    {applyingIngredients ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Adding...
+                      </>
+                    ) : (
+                      'Apply to meal'
+                    )}
                   </button>
                 </div>
+
+                {/* Progress Log */}
+                {applyingIngredients && applyProgress.length > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="text-sm font-medium text-blue-800 mb-2">Adding ingredients...</div>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {applyProgress.map((message, index) => (
+                        <div key={index} className="text-xs text-blue-700 flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                          {message}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {showCreate && (
                   <>
@@ -632,72 +847,257 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
           />
           
           {/* Modal Content */}
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95vw] sm:w-[90vw] lg:w-[500px] bg-white rounded-xl shadow-2xl border border-gray-200 z-[1000] max-h-[85vh] overflow-hidden">
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95vw] sm:w-[90vw] lg:w-[700px] xl:w-[800px] bg-white rounded-xl shadow-2xl border border-gray-200 z-[1000] max-h-[85vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
               <h2 className="text-lg font-semibold text-gray-800">Select Recipe</h2>
               <button
-                onClick={() => setShowRecipeSelector(false)}
+                onClick={() => {
+                  setShowRecipeSelector(false);
+                  setRecipeSearchTerm('');
+                  setSelectedRecipeLabel('all');
+                }}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-200"
               >
                 <FiX className="w-5 h-5" />
               </button>
             </div>
 
+            {/* Search and Filter Bar */}
+            <div className="p-4 border-b border-gray-200 bg-white">
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Search recipes..."
+                    value={recipeSearchTerm}
+                    onChange={(e) => setRecipeSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                {/* Label Filter */}
+                {recipeLabels.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => setSelectedRecipeLabel('all')}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedRecipeLabel === 'all'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {recipeLabels.map(label => (
+                      <button
+                        key={label}
+                        onClick={() => setSelectedRecipeLabel(label)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
+                          selectedRecipeLabel === label
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Results count */}
+              {filteredRecipes.length !== recipes.length && (
+                <p className="text-xs text-gray-500 mt-2">
+                  Showing {filteredRecipes.length} of {recipes.length} recipes
+                </p>
+              )}
+            </div>
+
             {/* Content */}
-            <div className="p-4 max-h-[calc(85vh-80px)] overflow-y-auto">
+            <div className="flex-1 overflow-y-auto p-4">
               {loadingRecipes ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                   <span className="ml-2 text-gray-600">Loading recipes...</span>
                 </div>
-              ) : recipes.length > 0 ? (
-                <div className="space-y-2">
-                  {recipes.map((recipe) => (
+              ) : filteredRecipes.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {filteredRecipes.map((recipe) => (
                     <div
                       key={recipe.id}
-                      className="p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all duration-200 group"
+                      className="p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all duration-200 group"
                       onClick={() => handleAddRecipe(recipe)}
                     >
-                      <div className="flex items-start justify-between">
+                      {/* Recipe Header */}
+                      <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900 group-hover:text-blue-700">{recipe.name}</h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {recipe.ingredients?.length || 0} ingredients
-                          </p>
-                          {recipe.instructions && (
-                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                              {recipe.instructions.split('\n')[0].substring(0, 80)}...
-                            </p>
+                          <h3 className="font-semibold text-gray-900 group-hover:text-blue-700 mb-1">
+                            {recipe.name}
+                          </h3>
+                          {recipe.labels && recipe.labels.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {recipe.labels.map((label: string) => (
+                                <span
+                                  key={label}
+                                  className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full capitalize"
+                                >
+                                  {label}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        <div className="ml-3 flex-shrink-0">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddRecipe(recipe);
-                            }}
-                            className="px-3 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 transition-colors font-medium"
-                          >
-                            Add
-                          </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddRecipe(recipe);
+                          }}
+                          className="ml-2 px-3 py-1.5 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 transition-colors font-medium flex-shrink-0"
+                        >
+                          Add
+                        </button>
+                      </div>
+                      
+                      {/* Nutrition Info */}
+                      <div className="grid grid-cols-4 gap-2 mt-3">
+                        <div className="text-center p-2 bg-orange-50 rounded">
+                          <div className="text-xs font-semibold text-orange-600">{Math.round(recipe.totalCalories || 0)}</div>
+                          <div className="text-xs text-gray-500">kcal</div>
+                        </div>
+                        <div className="text-center p-2 bg-blue-50 rounded">
+                          <div className="text-xs font-semibold text-blue-600">{Math.round(recipe.totalProtein || 0)}g</div>
+                          <div className="text-xs text-gray-500">protein</div>
+                        </div>
+                        <div className="text-center p-2 bg-green-50 rounded">
+                          <div className="text-xs font-semibold text-green-600">{Math.round(recipe.totalCarbs || 0)}g</div>
+                          <div className="text-xs text-gray-500">carbs</div>
+                        </div>
+                        <div className="text-center p-2 bg-purple-50 rounded">
+                          <div className="text-xs font-semibold text-purple-600">{Math.round(recipe.totalFat || 0)}g</div>
+                          <div className="text-xs text-gray-500">fat</div>
                         </div>
                       </div>
+                      
+                      {/* Recipe Info */}
+                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-600">
+                        <span>{recipe.ingredients?.length || 0} ingredients</span>
+                        {recipe.prepTime && (
+                          <span>{recipe.prepTime} min</span>
+                        )}
+                      </div>
+                      
+                      {/* Description (if available, truncated) */}
+                      {recipe.description && (
+                        <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                          {recipe.description}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
+                <div className="text-center py-12">
                   <div className="text-gray-400 mb-2">
                     <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500">No recipes found</p>
-                  <p className="text-sm text-gray-400 mt-1">Create your first recipe to get started</p>
+                  <p className="text-gray-500 font-medium">No recipes found</p>
+                  {recipeSearchTerm || selectedRecipeLabel !== 'all' ? (
+                    <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filter</p>
+                  ) : (
+                    <p className="text-sm text-gray-400 mt-1">Create your first recipe to get started</p>
+                  )}
                 </div>
               )}
             </div>
+          </div>
+        </>
+      )}
+
+      {/* Progress Modal */}
+      {showProgressModal && (
+        <>
+          {/* Modal Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-[1001]"
+            onClick={() => {}} // Don't close on backdrop click during adding
+          />
+          
+          {/* Modal Content */}
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[95vw] sm:w-[90vw] lg:w-[500px] bg-white rounded-xl shadow-2xl border border-gray-200 z-[1002] max-h-[60vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-blue-50">
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                {addingRecipe ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                ) : (
+                  <FiCheckCircle className="w-5 h-5 text-green-500" />
+                )}
+                Adding Recipe
+              </h2>
+              {!addingRecipe && (
+                <button
+                  onClick={() => {
+                    setShowProgressModal(false);
+                    setProgressLogs([]);
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-200"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            {/* Progress Logs */}
+            <div 
+              ref={logContainerRef}
+              className="flex-1 overflow-y-auto p-4 bg-gray-50"
+              style={{ maxHeight: 'calc(60vh - 80px)' }}
+            >
+              <div className="space-y-2">
+                {progressLogs.map((log, index) => (
+                  <div
+                    key={index}
+                    className={`text-sm p-2 rounded-lg ${
+                      log.includes('✅') 
+                        ? 'bg-green-100 text-green-800 border border-green-200'
+                        : log.includes('❌')
+                        ? 'bg-red-100 text-red-800 border border-red-200'
+                        : log.includes('Adding ingredient')
+                        ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                        : 'bg-white text-gray-700 border border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {log.includes('✅') && (
+                        <FiCheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      )}
+                      <span className="font-mono text-xs">{log}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            {!addingRecipe && (
+              <div className="p-4 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => {
+                    setShowProgressModal(false);
+                    setProgressLogs([]);
+                    setShowRecipeSelector(false);
+                  }}
+                  className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

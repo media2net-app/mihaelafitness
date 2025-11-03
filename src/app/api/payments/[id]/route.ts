@@ -74,3 +74,63 @@ export async function GET(
     );
   }
 }
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    
+    // Validate required fields
+    if (!body.amount || !body.paymentMethod || !body.paymentType || !body.paymentDate) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Check if payment exists
+    const existingPayment = await prisma.payment.findUnique({
+      where: { id }
+    });
+
+    if (!existingPayment) {
+      return NextResponse.json(
+        { error: 'Payment not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update the payment
+    const updatedPayment = await prisma.payment.update({
+      where: { id },
+      data: {
+        amount: parseFloat(body.amount),
+        paymentMethod: body.paymentMethod,
+        paymentType: body.paymentType,
+        status: body.status || existingPayment.status,
+        notes: body.notes || null,
+        paymentDate: new Date(body.paymentDate)
+      },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    return NextResponse.json(updatedPayment, { status: 200 });
+  } catch (error) {
+    console.error('Error updating payment:', error);
+    return NextResponse.json(
+      { error: 'Failed to update payment' },
+      { status: 500 }
+    );
+  }
+}

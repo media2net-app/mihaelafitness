@@ -3,7 +3,6 @@
 import { usePathname } from 'next/navigation';
 import Header from './Header';
 import Sidebar from './Sidebar';
-import ResponsiveDebugger from './ResponsiveDebugger';
 
 interface LayoutWrapperProps {
   children: React.ReactNode;
@@ -12,12 +11,11 @@ interface LayoutWrapperProps {
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   
-  // Don't show sidebar/header on login page, homepage, and customer views
-  if (pathname === '/login' || pathname === '/' || pathname.startsWith('/my-plan')) {
+  // Don't show sidebar/header on login page, homepage, customer views, and V2 pages
+  if (pathname === '/login' || pathname === '/' || pathname.startsWith('/my-plan') || pathname.startsWith('/admin/v2')) {
     return (
       <>
         {children}
-        <ResponsiveDebugger />
       </>
     );
   }
@@ -36,9 +34,6 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
           {children}
         </main>
       </div>
-      
-      {/* Responsive Debugger - Available on all pages */}
-      <ResponsiveDebugger />
     </div>
   );
 }

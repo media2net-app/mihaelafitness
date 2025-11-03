@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import { Calendar, Apple, TrendingUp, User, Heart, ShoppingCart, Check } from 'lucide-react';
+import { Calendar, Apple, TrendingUp, User, Heart, ShoppingCart, Check, ChefHat } from 'lucide-react';
 import IngredientBreakdown from '@/components/IngredientBreakdown';
 
 interface NutritionPlan {
@@ -37,25 +37,50 @@ export default function MyPlanPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch customer's assigned nutrition plan
+        // First, try to fetch as customerId (check for assignments)
         const response = await fetch(`/api/customer-nutrition-plans?customerId=${customerId}`);
         if (!response.ok) throw new Error('Failed to fetch nutrition plan');
         
         const assignments = await response.json();
-        if (assignments.length === 0) {
-          setLoading(false);
-          return;
-        }
-
-        const assignment = assignments[0];
-        setCustomer(assignment.customer);
-
-        // Fetch full nutrition plan details
-        const planResponse = await fetch(`/api/nutrition-plans/${assignment.nutritionPlanId}`);
-        if (!planResponse.ok) throw new Error('Failed to fetch plan details');
         
-        const planData = await planResponse.json();
-        setNutritionPlan(planData);
+        if (assignments.length > 0) {
+          // Found assignment - treat as customerId
+          const assignment = assignments[0];
+          setCustomer(assignment.customer);
+
+              // Fetch full nutrition plan details (including weekMenu with cookingInstructions)
+              const planResponse = await fetch(`/api/nutrition-plans/${assignment.nutritionPlanId}`);
+              if (!planResponse.ok) throw new Error('Failed to fetch plan details');
+              
+              const planData = await planResponse.json();
+              console.log('[MyPlan] Fetched plan data:', {
+                id: planData.id,
+                hasWeekMenu: !!planData.weekMenu,
+                mondayBreakfast: typeof planData.weekMenu?.monday?.breakfast,
+                hasCookingInstructions: typeof planData.weekMenu?.monday?.breakfast === 'object' && !!planData.weekMenu?.monday?.breakfast?.cookingInstructions
+              });
+              setNutritionPlan(planData);
+        } else {
+          // No assignment found - try to fetch as planId directly
+          const planResponse = await fetch(`/api/nutrition-plans/${customerId}`);
+          if (!planResponse.ok) {
+            // Not a valid planId either
+            setLoading(false);
+            return;
+          }
+          
+          const planData = await planResponse.json();
+          setNutritionPlan(planData);
+          
+          // Optionally try to get customer info if plan is assigned
+          const customerResponse = await fetch(`/api/nutrition-plans/${customerId}/customer`);
+          if (customerResponse.ok) {
+            const customerData = await customerResponse.json();
+            if (customerData.customer) {
+              setCustomer(customerData.customer);
+            }
+          }
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -70,8 +95,10 @@ export default function MyPlanPage() {
 
   // Update document title and meta tags when plan is loaded
   useEffect(() => {
-    if (nutritionPlan && customer) {
-      const title = `${nutritionPlan.name} - ${customer.name} | Mihaela Fitness`;
+    if (nutritionPlan) {
+      const title = customer 
+        ? `${nutritionPlan.name} - ${customer.name} | Mihaela Fitness`
+        : `${nutritionPlan.name} | Mihaela Fitness`;
       document.title = title;
 
       // Update Open Graph meta tags
@@ -181,33 +208,96 @@ export default function MyPlanPage() {
         if (typeof mealData === 'string') {
           mealDescription = mealData;
         } else if (mealData && typeof mealData === 'object') {
-          mealDescription = mealData.description || mealData.ingredients || '';
+          // Handle JSON array format
+          if (Array.isArray(mealData)) {
+            // Convert JSON array to ingredient string format
+            mealDescription = mealData.map((ing: any) => {
+              const qty = ing.quantity || 0;
+              const unit = ing.unit || 'g';
+              const name = ing.name || '';
+              return `${qty}${unit} ${name}`;
+            }).join(', ');
+          } else {
+            mealDescription = mealData.description || mealData.ingredients || '';
+          }
         }
 
         if (!mealDescription || mealDescription.trim() === '') return;
 
-        // Parse ingredients from description
-        const ingredientStrs = mealDescription.split(',').map(s => s.trim());
+        // Check if this is a recipe format: [RECIPE:Recipe Name] ingredient1, ingredient2, ...
+        let ingredientStrs: string[] = [];
+        if (mealDescription.includes('[RECIPE:')) {
+          // Extract recipe name and ingredients
+          const recipeMatch = mealDescription.match(/\[RECIPE:[^\]]+\]\s*(.*)/);
+          if (recipeMatch) {
+            const recipeIngredients = recipeMatch[1];
+            // Split ingredients from recipe
+            ingredientStrs = recipeIngredients.split(',').map(s => s.trim()).filter(s => s.length > 0);
+          }
+        } else {
+          // Regular format - parse ingredients from description
+          ingredientStrs = mealDescription.split(',').map(s => s.trim());
+        }
         
         ingredientStrs.forEach(ingredientStr => {
-          // Parse format: "2 cmgbfewgp01b78igv3zsoydrf|1 Egg" or "100 cmgbf5jgf016v8igv5viv7qkz|Chicken Breast"
-          const match = ingredientStr.match(/^([\d.]+)\s+([a-z0-9]+)\|(.+)$/i);
-          if (!match) return;
-
-          const [, quantityStr, ingredientId, ingredientName] = match;
-          const quantity = parseFloat(quantityStr);
+          // Handle recipe ingredient format: "55g Carne de Vită" or "190g Paste (fiert)" or "61 g Light Cream Sauce"
+          // First try recipe format (quantity + optional space + unit + name)
+          let match = ingredientStr.match(/^([\d.]+)\s*(g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms|piece|pieces|stuks|stuk|buc|bucăți)\s+(.+)$/i);
           
+          if (!match) {
+            // Fall back to ID format: "2 cmgbfewgp01b78igv3zsoydrf|1 Egg" or "100 cmgbf5jgf016v8igv5viv7qkz|Chicken Breast"
+            match = ingredientStr.match(/^([\d.]+)\s+([a-z0-9]+)\|(.+)$/i);
+          }
+          
+          if (!match) return;
+          
+          let quantity: number;
+          let unit: string;
+          let ingredientName: string;
+          let ingredientId: string = '';
+          
+          if (ingredientStr.includes('|')) {
+            // ID format: "100 ingredientId|Name"
+            const [, quantityStr, id, name] = match;
+            quantity = parseFloat(quantityStr);
+            ingredientId = id;
+            ingredientName = name;
+          } else {
+            // Recipe format: "55g Carne de Vită"
+            const [, quantityStr, unitStr, name] = match;
+            quantity = parseFloat(quantityStr);
+            unit = unitStr.toLowerCase();
+            ingredientName = name;
+            
+            // Normalize units
+            if (unit === 'g' || unit === 'gram' || unit === 'grams') {
+              unit = 'g';
+            } else if (unit === 'ml' || unit === 'milliliter' || unit === 'milliliters') {
+              unit = 'ml';
+            } else if (unit === 'piece' || unit === 'pieces' || unit === 'stuks' || unit === 'stuk' || unit === 'buc' || unit === 'bucăți') {
+              unit = 'stuks';
+            } else if (unit === 'kg' || unit === 'kilogram' || unit === 'kilograms') {
+              unit = 'kg';
+              quantity = quantity * 1000; // Convert to grams for consistency
+              unit = 'g';
+            }
+          }
+
           // Clean the ingredient name - remove leading numbers and quantities
           let cleanName = ingredientName.split('|').pop()?.trim() || ingredientName;
           
-          // Check if this is a piece-based ingredient (starts with "1 ")
-          const isPiece = /^1\s+/.test(cleanName);
-          
           // Remove patterns like "1 ", "2 ", "1.5 " from the start of the name
-          const baseCleanName = cleanName.replace(/^\d+(?:\.\d+)?\s+/, '');
+          const baseCleanName = cleanName.replace(/^\d+(?:\.\d+)?\s+/, '').trim();
           
-          // Create a smart grouping key based on base name (without "1 " prefix)
-          // This way "Banana" and "1 Banana" will have the same base key
+          // Determine if this is a piece-based ingredient
+          const isPiece = unit === 'stuks' || unit === 'piece' || unit === 'pieces' || unit === 'stuk' || unit === 'buc' || unit === 'bucăți';
+          
+          // If no unit was determined (from ID format), default to 'g'
+          if (!unit) {
+            unit = 'g';
+          }
+          
+          // Create a smart grouping key based on base name
           const baseKey = baseCleanName.toLowerCase().trim();
           
           // Find if we already have this ingredient (by base name)
@@ -229,6 +319,7 @@ export default function MyPlanPage() {
               const gramsPerPiece = 100;
               existing.quantity += quantity * gramsPerPiece;
               existing.unit = 'g';
+              existing.isPiece = false;
             } else if (!isPiece && existing.isPiece) {
               // Adding grams to pieces - convert existing pieces to grams first
               const gramsPerPiece = 100;
@@ -236,17 +327,29 @@ export default function MyPlanPage() {
               existing.unit = 'g';
               existing.isPiece = false;
             } else {
-              // Same unit type, just add
-              existing.quantity += quantity;
+              // Same unit type, just add (ensure units match)
+              if (existing.unit === unit) {
+                existing.quantity += quantity;
+              } else {
+                // Different units but same type - try to convert
+                if ((existing.unit === 'g' && unit === 'ml') || (existing.unit === 'ml' && unit === 'g')) {
+                  // For most liquids, 1ml ≈ 1g
+                  existing.quantity += quantity;
+                  existing.unit = 'g';
+                } else {
+                  // Can't convert, keep as is but aggregate
+                  existing.quantity += quantity;
+                }
+              }
             }
           } else {
             // New ingredient
-            const key = `${ingredientId}-${baseKey}`;
+            const key = ingredientId ? `${ingredientId}-${baseKey}` : `recipe-${baseKey}-${Date.now()}`;
             ingredientMap.set(key, { 
               quantity, 
-              unit: isPiece ? 'stuks' : 'g', 
+              unit: isPiece ? 'stuks' : unit, 
               name: baseCleanName, 
-              ingredientId,
+              ingredientId: ingredientId || key,
               isPiece
             });
           }
@@ -322,7 +425,8 @@ export default function MyPlanPage() {
     );
   }
 
-  const dayData = nutritionPlan.weekMenu?.[activeDay] || {};
+  const weekMenu = nutritionPlan?.weekMenu || {};
+  const dayData = weekMenu[activeDay] || {};
   const meals = ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'];
 
   return (
@@ -458,11 +562,47 @@ export default function MyPlanPage() {
             {meals.map((meal) => {
               const mealData = dayData[meal];
               let mealDescription = '';
+              let cookingInstructions = '';
 
+              // Handle both string format and object format with cookingInstructions
               if (typeof mealData === 'string') {
                 mealDescription = mealData;
+                // Check for instructions in separate instructions structure (old format from add-recipe API)
+                const instructionsKey = `${activeDay}_instructions`;
+                const dayInstructions = weekMenu?.[instructionsKey];
+                if (dayInstructions && typeof dayInstructions === 'object' && dayInstructions[meal]) {
+                  const rawInstructions = dayInstructions[meal] || '';
+                  // Filter out placeholder values
+                  cookingInstructions = rawInstructions && 
+                                       rawInstructions.trim() !== '-' && 
+                                       rawInstructions.trim().toLowerCase() !== 'n/a' &&
+                                       rawInstructions.trim().toLowerCase() !== 'na' &&
+                                       rawInstructions.trim() !== ''
+                                       ? rawInstructions.trim() : '';
+                } else {
+                  cookingInstructions = '';
+                }
               } else if (mealData && typeof mealData === 'object') {
-                mealDescription = mealData.description || mealData.ingredients || '';
+                // New object format: { ingredients: string, cookingInstructions: string }
+                mealDescription = mealData.ingredients || mealData.description || '';
+                const rawInstructions = mealData.cookingInstructions || '';
+                // Filter out placeholder values like "-", "n/a", empty strings
+                cookingInstructions = rawInstructions && 
+                                     rawInstructions.trim() !== '-' && 
+                                     rawInstructions.trim().toLowerCase() !== 'n/a' &&
+                                     rawInstructions.trim().toLowerCase() !== 'na' &&
+                                     rawInstructions.trim() !== ''
+                                     ? rawInstructions.trim() : '';
+                
+                // Debug: log if we have cooking instructions
+                if (cookingInstructions) {
+                  console.log(`[MyPlan] Found cooking instructions for ${meal}:`, cookingInstructions.substring(0, 50) + '...');
+                } else if (rawInstructions) {
+                  console.log(`[MyPlan] Skipping placeholder cooking instructions for ${meal}: "${rawInstructions}"`);
+                }
+              } else if (mealData === null || mealData === undefined) {
+                // Empty meal
+                return null;
               }
 
               if (!mealDescription || mealDescription.trim() === '') {
@@ -487,6 +627,17 @@ export default function MyPlanPage() {
                       editable={false}
                       ingredientTranslations={ingredientTranslationsMap}
                     />
+                    {cookingInstructions && cookingInstructions.trim() && (
+                      <div className="mt-4 bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-lg p-4 shadow-sm">
+                        <div className="flex items-center gap-2 mb-2">
+                          <ChefHat className="w-5 h-5 text-orange-600" />
+                          <div className="text-sm font-bold text-orange-800">Instrucțiuni de gătit - {mealTitle}</div>
+                        </div>
+                        <div className="text-sm text-gray-800 whitespace-pre-line leading-relaxed bg-white rounded p-3 border border-orange-100">
+                          {cookingInstructions}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

@@ -15,7 +15,8 @@ import {
   Euro,
   Target,
   UserPlus,
-  X
+  X,
+  DollarSign
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -79,63 +80,107 @@ export default function MobileScheduleClient({
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [paymentStatus, setPaymentStatus] = useState<{[customerId: string]: {isPaid: boolean, nextPaymentDate: string, amount: number, customerName: string}}>({});
   
   // Group data for group sessions - derived from customers with group plan
   const [groups, setGroups] = useState<Array<{
     id: string;
     name: string;
-    members: Array<{ id: string; name: string; }>;
+    members: Array<{ 
+      id: string; 
+      name: string; 
+      completedSessions: number;
+      totalSessions: number;
+      progress: string;
+    }>;
   }>>([]);
 
   // Function to generate groups from customer data
   const generateGroupsFromCustomers = async (customers: Customer[]) => {
-    console.log('🔍 DEBUG: All customers:', customers.map(c => ({ name: c.name, plan: c.plan })));
+    // Debug log removed for performance
     
     try {
       // Fetch group training pricing calculations
-      const response = await fetch('/api/group-subscriptions');
+      const response = await fetch('/api/groups');
       if (!response.ok) {
-        console.log('🔍 DEBUG: No group subscriptions API available, setting empty groups');
+        // Debug log removed for performance
         setGroups([]);
         return;
       }
       
-      const groupSubscriptions = await response.json();
-      console.log('🔍 DEBUG: Group subscriptions from API:', groupSubscriptions);
+      const groupData = await response.json();
+      // Debug log removed for performance
       
-      if (groupSubscriptions.length === 0) {
-        console.log('🔍 DEBUG: No group subscriptions found, setting empty groups');
+      if (groupData.length === 0) {
+        // Debug log removed for performance
         setGroups([]);
         return;
       }
 
-      // Group all customers from all subscriptions into one group
-      const allMembers = new Map();
+      // Fetch session data for all customers to get progress
+      const sessionResponse = await fetch('/api/training-sessions');
+      const allSessions = sessionResponse.ok ? await sessionResponse.json() : [];
       
-      groupSubscriptions.forEach((subscription: any) => {
-        subscription.customerNames.forEach((name: any, i: number) => {
-          const customerId = subscription.customerIds[i];
-          if (!allMembers.has(customerId)) {
-            allMembers.set(customerId, {
-              id: customerId,
-              name: name
+      // Fetch subscription data to get correct total sessions
+      const subscriptionResponse = await fetch('/api/pricing-calculations');
+      const allSubscriptions = subscriptionResponse.ok ? await subscriptionResponse.json() : [];
+      
+      // Create groups with session progress
+      const groupsArray = groupData.map((group: any) => {
+        const members = group.customerIds.map((customerId: string, index: number) => {
+          const customerName = group.customerNames[index];
+          
+          // Calculate session progress for this customer
+          const customerSessions = allSessions.filter((session: any) => 
+            session.customerId === customerId
+          );
+          const completedSessions = customerSessions.filter((session: any) => 
+            session.status === 'completed'
+          ).length;
+          
+          // Get total sessions from subscription data (duration * frequency)
+          // First try to find individual subscription, then group subscription
+          let customerSubscription = allSubscriptions.find((sub: any) => 
+            sub.customerId === customerId && sub.duration > 0
+          );
+          
+          if (!customerSubscription) {
+            customerSubscription = allSubscriptions.find((sub: any) => {
+              if (sub.customerId && sub.customerId.includes(',')) {
+                const customerIds = sub.customerId.split(',').map((id: string) => id.trim());
+                return customerIds.includes(customerId) && sub.duration > 0;
+              }
+              return false;
             });
           }
+          
+          const totalSessions = customerSubscription 
+            ? (customerSubscription.duration || 12) * (customerSubscription.frequency || 3)
+            : customerSessions.length; // Fallback to actual sessions if no subscription
+          
+          // Debug log removed for performance
+          
+          return {
+            id: customerId,
+            name: customerName,
+            completedSessions,
+            totalSessions,
+            progress: `${completedSessions}/${totalSessions}`
+          };
         });
+
+        return {
+          id: group.id,
+          name: group.name,
+          members
+        };
       });
 
-      // Create a single group with all members
-      const groupsArray = [{
-        id: 'group-1',
-        name: 'Groep 1',
-        members: Array.from(allMembers.values())
-      }];
-
-      console.log('🔍 DEBUG: Generated groups from subscriptions:', groupsArray);
+      // Debug log removed for performance
       setGroups(groupsArray);
       
     } catch (error) {
-      console.error('🔍 DEBUG: Error fetching group subscriptions:', error);
+      console.error('🔍 DEBUG: Error fetching groups:', error);
       setGroups([]);
     }
   };
@@ -179,10 +224,15 @@ export default function MobileScheduleClient({
   
   // Debug function
   const addDebugLog = (message: string) => {
+    // Debug logs disabled for performance - only keep in debug modal
     const timestamp = new Date().toLocaleTimeString();
     const logMessage = `[${timestamp}] ${message}`;
-    setDebugLogs(prev => [...prev, logMessage]);
-    console.log('🔍 DEBUG:', message);
+    setDebugLogs(prev => {
+      // Limit to last 100 logs to prevent memory issues
+      const newLogs = [...prev, logMessage];
+      return newLogs.slice(-100);
+    });
+    // Removed console.log for performance
   };
   
   // Recurring sessions state
@@ -213,68 +263,59 @@ export default function MobileScheduleClient({
     return hours * 60 + minutes;
   };
 
-  // Check if time slot is during break time (only 12:30, 17:00-17:30, and 17:30-19:00)
-  const isBreakTime = (timeSlot: string) => {
+
+  // Check if time slot is during break time
+  const isBreakTime = (timeSlot: string, date: string) => {
     const timeInMinutes = timeToMinutes(timeSlot);
+    const dayOfWeek = new Date(date).getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     
-    // First break: 12:30-13:00 (only 12:30 is break, 13:00-13:30 now available)
-    const break1Start = 12 * 60 + 30;  // 12:30
-    const break1End = 13 * 60 + 0;      // 13:00
+    // Lunch break: 12:30-13:00 (always applies)
+    const lunchBreakStart = 12 * 60 + 30;  // 12:30
+    const lunchBreakEnd = 13 * 60 + 0;     // 13:00
     
-    // Second break: 17:00-17:30 (new break time)
-    const break2Start = 17 * 60 + 0;   // 17:00
-    const break2End = 17 * 60 + 30;     // 17:30
+    // Evening break: 17:00-19:00 (only applies to Friday and Saturday)
+    const eveningBreakStart = 17 * 60 + 0;   // 17:00
+    const eveningBreakEnd = 19 * 60 + 0;     // 19:00
     
-    // Third break: 17:30-19:00 (exclude 19:30, now available)
-    const break3Start = 17 * 60 + 30;  // 17:30
-    const break3End = 19 * 60 + 0;     // 19:00
+    // Friday (5) and Saturday (6): whole day not available
+    if (dayOfWeek === 5 || dayOfWeek === 6) {
+      return true; // All time slots unavailable on Friday and Saturday
+    }
     
-    // Break times: only 12:30, 17:00-19:00 (13:00-13:30, 14:30, and 19:30 now available for booking)
-    return (timeInMinutes >= break1Start && timeInMinutes < break1End) ||
-           (timeInMinutes >= break2Start && timeInMinutes < break2End) ||
-           (timeInMinutes >= break3Start && timeInMinutes < break3End);
+    // Monday (1) to Thursday (4): only lunch break applies
+    if (dayOfWeek >= 1 && dayOfWeek <= 4) {
+      return timeInMinutes > lunchBreakStart && timeInMinutes < lunchBreakEnd;
+    }
+    
+    // Sunday (0): only lunch break applies
+    if (dayOfWeek === 0) {
+      return timeInMinutes > lunchBreakStart && timeInMinutes < lunchBreakEnd;
+    }
+    
+    return false;
   };
 
   // Check if time slot is available (not booked and not break time)
-  const isTimeSlotAvailable = (date: string, timeSlot: string, duration: number = 1) => {
-    console.log(`🔍 DEBUG: isTimeSlotAvailable called for ${date} at ${timeSlot}`);
-    
-    if (isBreakTime(timeSlot)) {
-      console.log(`❌ Time slot ${timeSlot} is break time`);
+  const isTimeSlotAvailable = (date: string, timeSlot: string, duration: number = 1, checkSessionType: string = sessionType) => {
+    if (isBreakTime(timeSlot, date)) {
       return false;
     }
+    
+    // Adjust duration for group sessions (1.5 hours)
+    const actualDuration = checkSessionType === 'group' ? 1.5 : duration;
     
     const [startHours, startMinutes] = timeSlot.split(':').map(Number);
     const startTimeInMinutes = startHours * 60 + startMinutes;
-    const endTimeInMinutes = startTimeInMinutes + (duration * 60);
+    const endTimeInMinutes = startTimeInMinutes + (actualDuration * 60);
     
     // Use same date normalization as getSessionsForDayAndTime
     const normalizedDate = new Date(date).toLocaleDateString('en-CA');
-    console.log(`📅 Normalized date: ${normalizedDate}`);
-    
-    // Check closed days (Friday, Saturday, Sunday)
-    const dateObj = new Date(date);
-    const dayOfWeek = dateObj.getDay();
-    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-    const dateString = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD format
-    
-    const isFriday = dayOfWeek === 5;
-    const isHoliday = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
-    
-    console.log(`📆 Date: ${date} (${dayName}, day ${dayOfWeek}) - Holiday: ${isHoliday}`);
-    
-    if (isFriday || isHoliday) {
-      console.log(`🏖️ CLOSED: ${dateString} is blocked (${isFriday ? 'Friday closed' : 'Weekend in Holland'})`);
-      return false;
-    }
     
     // Filter sessions for the specific date only - use same logic as getSessionsForDayAndTime
     const sessionsForDate = sessions.filter(session => {
       const sessionDate = new Date(session.date).toLocaleDateString('en-CA');
       return sessionDate === normalizedDate && session.status === 'scheduled';
     });
-    
-    console.log(`📋 Sessions for ${normalizedDate}:`, sessionsForDate.map(s => `${s.startTime}-${s.endTime} (${s.type})`));
     
     // Check for conflicts with existing sessions for this specific date
     const hasConflict = sessionsForDate.some(session => {
@@ -291,9 +332,7 @@ export default function MobileScheduleClient({
       return hasOverlap;
     });
     
-    const isAvailable = !hasConflict;
-    console.log(`✅ Time slot ${timeSlot} on ${normalizedDate}: ${isAvailable ? 'AVAILABLE' : 'BLOCKED'}`);
-    return isAvailable;
+    return !hasConflict;
   };
 
   // Days of the week (Monday to Saturday)
@@ -338,10 +377,7 @@ export default function MobileScheduleClient({
             // Generate groups from customer data
             await generateGroupsFromCustomers(data.customers);
             
-            // DEBUG: Log all sessions to see what's being loaded
-            addDebugLog(`Loaded ${data.sessions.length} total sessions`);
-            addDebugLog(`Intake sessions: ${data.sessions.filter((s: any) => s.type === 'Intake Consultation').length}`);
-            addDebugLog(`All sessions: ${JSON.stringify(data.sessions, null, 2)}`);
+            // Debug logs removed for performance
             
             // Transform sessions to ensure date format is correct and customer name is available
             const transformedSessions = data.sessions.map((session: any) => {
@@ -353,6 +389,31 @@ export default function MobileScheduleClient({
             
             setSessions(transformedSessions);
             addDebugLog(`Transformed ${transformedSessions.length} sessions`);
+            
+            // Set payment status from API response (optimized - no separate API calls needed!)
+            if (data.paymentStatus) {
+              const apiPaymentStatus = data.paymentStatus;
+              const paymentData: {[customerId: string]: {isPaid: boolean, nextPaymentDate: string, amount: number, customerName: string}} = {};
+              
+              for (const [customerId, status] of Object.entries(apiPaymentStatus)) {
+                // Try to get customer name from customers array first (more reliable)
+                const customer = data.customers?.find((c: any) => c.id === customerId);
+                let customerName = customer?.name;
+                
+                // Fallback to sessions if not found in customers
+                if (!customerName) {
+                  const customerSession = transformedSessions.find((s: any) => s.customerId === customerId);
+                  customerName = customerSession?.customerName;
+                }
+                
+                paymentData[customerId] = {
+                  ...(status as any),
+                  customerName: (customerName || 'Unknown').replace(/ completed?/gi, '').trim()
+                };
+              }
+              
+              setPaymentStatus(paymentData);
+            }
           } else {
             console.error('Failed to load mobile schedule data:', data.error);
             setCustomers([]);
@@ -372,10 +433,7 @@ export default function MobileScheduleClient({
             // Generate groups from customer data
             await generateGroupsFromCustomers(data.customers);
             
-            // DEBUG: Log all sessions to see what's being loaded
-            addDebugLog(`Loaded ${data.sessions.length} total sessions (desktop)`);
-            addDebugLog(`Intake sessions: ${data.sessions.filter((s: any) => s.type === 'Intake Consultation').length}`);
-            addDebugLog(`All sessions: ${JSON.stringify(data.sessions, null, 2)}`);
+            // Debug logs removed for performance
             
             // Transform sessions to ensure date format is correct and customer name is available
             const transformedSessions = data.sessions.map((session: any) => {
@@ -387,6 +445,31 @@ export default function MobileScheduleClient({
             
             setSessions(transformedSessions);
             addDebugLog(`Transformed ${transformedSessions.length} sessions (desktop)`);
+            
+            // Set payment status from API response (optimized - no separate API calls needed!)
+            if (data.paymentStatus) {
+              const apiPaymentStatus = data.paymentStatus;
+              const paymentData: {[customerId: string]: {isPaid: boolean, nextPaymentDate: string, amount: number, customerName: string}} = {};
+              
+              for (const [customerId, status] of Object.entries(apiPaymentStatus)) {
+                // Try to get customer name from customers array first (more reliable)
+                const customer = data.customers?.find((c: any) => c.id === customerId);
+                let customerName = customer?.name;
+                
+                // Fallback to sessions if not found in customers
+                if (!customerName) {
+                  const customerSession = transformedSessions.find((s: any) => s.customerId === customerId);
+                  customerName = customerSession?.customerName;
+                }
+                
+                paymentData[customerId] = {
+                  ...(status as any),
+                  customerName: (customerName || 'Unknown').replace(/ completed?/gi, '').trim()
+                };
+              }
+              
+              setPaymentStatus(paymentData);
+            }
           } else {
             console.error('Failed to load desktop schedule data:', data.error);
             setCustomers([]);
@@ -404,6 +487,9 @@ export default function MobileScheduleClient({
 
     loadScheduleData();
   }, [currentWeek, currentWeekDates, selectedDay, isMobile]);
+
+  // Payment status is now loaded from schedule API (optimized - no separate calls needed)
+  // This useEffect is no longer needed as payment status comes with schedule data
 
   // Auto-refresh sessions when they change
   useEffect(() => {
@@ -656,21 +742,33 @@ export default function MobileScheduleClient({
           const weekMonday = new Date(startDate);
           weekMonday.setDate(startDate.getDate() + diffToMonday);
           const sessionsToCreate: any[] = [];
+          
+          // Track sessions per member to respect their limits
+          const memberSessionCounts: Record<string, number> = {};
+          selectedGroup.members.forEach(member => {
+            memberSessionCounts[member.id] = 0;
+          });
+          
           for (let week = 0; week < recurringWeeks; week++) {
             // Base day
             const baseDate = new Date(startDate);
             baseDate.setDate(startDate.getDate() + (week * 7));
             const baseStr = baseDate.toLocaleDateString('en-CA');
             selectedGroup.members.forEach(member => {
-              sessionsToCreate.push({
-                customerId: member.id,
-                date: baseStr,
-                startTime: newSessionData.startTime,
-                endTime: newSessionData.endTime,
-                type: 'group',
-                status: 'scheduled',
-                notes: newSessionData.notes
-              });
+              // Check if member has remaining sessions
+              const remainingSessions = member.totalSessions - member.completedSessions;
+              if (memberSessionCounts[member.id] < remainingSessions) {
+                sessionsToCreate.push({
+                  customerId: member.id,
+                  date: baseStr,
+                  startTime: newSessionData.startTime,
+                  endTime: newSessionData.endTime,
+                  type: 'group',
+                  status: 'scheduled',
+                  notes: newSessionData.notes
+                });
+                memberSessionCounts[member.id]++;
+              }
             });
 
             // Extra weekdays for each week (skip Friday)
@@ -684,18 +782,26 @@ export default function MobileScheduleClient({
               // Avoid duplicating base day
               if (dateStr === baseStr) continue;
               selectedGroup.members.forEach(member => {
-                sessionsToCreate.push({
-                  customerId: member.id,
-                  date: dateStr,
-                  startTime: newSessionData.startTime,
-                  endTime: newSessionData.endTime,
-                  type: 'group',
-                  status: 'scheduled',
-                  notes: newSessionData.notes
-                });
+                // Check if member has remaining sessions
+                const remainingSessions = member.totalSessions - member.completedSessions;
+                if (memberSessionCounts[member.id] < remainingSessions) {
+                  sessionsToCreate.push({
+                    customerId: member.id,
+                    date: dateStr,
+                    startTime: newSessionData.startTime,
+                    endTime: newSessionData.endTime,
+                    type: 'group',
+                    status: 'scheduled',
+                    notes: newSessionData.notes
+                  });
+                  memberSessionCounts[member.id]++;
+                }
               });
             }
           }
+          
+          // Log how many sessions were scheduled per member
+          // Debug logs removed for performance
 
           const createPromises = sessionsToCreate.map(sessionData => 
             fetch('/api/training-sessions', {
@@ -896,7 +1002,7 @@ export default function MobileScheduleClient({
 
       if (response.ok) {
         const result = await response.json();
-        console.log('Auto-complete result:', result);
+        // Debug log removed for performance
         
         // Reload sessions to reflect changes
         const sessionsResponse = await fetch('/api/training-sessions');
@@ -994,7 +1100,7 @@ export default function MobileScheduleClient({
     // Default colors based on type
     switch (type) {
       case '1:1': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'group': return 'bg-rose-100 text-rose-800 border-rose-200';
+      case 'group': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'own-training': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'workout-plan': return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'Intake Consultation': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -1183,12 +1289,12 @@ export default function MobileScheduleClient({
     return `${hours}:${minutes}`;
   };
 
-  // Calculate end time automatically (+30 min for intake, +60 min otherwise)
+  // Calculate end time automatically (+30 min for intake, +90 min for group, +60 min otherwise)
   const calculateEndTime = (startTime: string) => {
     if (!startTime) return '';
     const [hours, minutes] = startTime.split(':');
     const startMinutes = parseInt(hours) * 60 + parseInt(minutes);
-    const addMinutes = sessionType === 'intake' ? 30 : 60;
+    const addMinutes = sessionType === 'intake' ? 30 : sessionType === 'group' ? 90 : 60;
     const endMinutes = startMinutes + addMinutes;
     const endHours = Math.floor(endMinutes / 60);
     const endMins = endMinutes % 60;
@@ -1209,8 +1315,30 @@ export default function MobileScheduleClient({
   const loadSessionCounts = async () => {
     const counts: {[key: string]: {scheduled: number, total: number, remaining: number}} = {};
     
+    // Fetch subscription data to get correct total sessions
+    const subscriptionResponse = await fetch('/api/pricing-calculations');
+    const allSubscriptions = subscriptionResponse.ok ? await subscriptionResponse.json() : [];
+    
     for (const customer of customers) {
-      const totalSessions = customer.trainingFrequency * 12; // 3 × 12 = 36
+      // Get total sessions from subscription data (duration * frequency)
+      // First try to find individual subscription, then group subscription
+      let customerSubscription = allSubscriptions.find((sub: any) => 
+        sub.customerId === customer.id && sub.duration > 0
+      );
+      
+      if (!customerSubscription) {
+        customerSubscription = allSubscriptions.find((sub: any) => {
+          if (sub.customerId && sub.customerId.includes(',')) {
+            const customerIds = sub.customerId.split(',').map((id: string) => id.trim());
+            return customerIds.includes(customer.id) && sub.duration > 0;
+          }
+          return false;
+        });
+      }
+      
+      const totalSessions = customerSubscription 
+        ? (customerSubscription.duration || 12) * (customerSubscription.frequency || 3)
+        : customer.trainingFrequency * 12; // Fallback to old logic
       
       try {
         // Use data already loaded from mobile API instead of making new calls
@@ -1428,10 +1556,88 @@ export default function MobileScheduleClient({
                         <Clock className="w-4 h-4 mr-2 text-gray-500" />
                         <span className="font-medium text-gray-800">{formatTime(timeSlot)}</span>
                       </div>
-                      {isBreakTime(timeSlot) && (
+                      {isBreakTime(timeSlot, currentDay.toLocaleDateString('en-CA')) && (
                         <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">Break</span>
                       )}
                     </div>
+                    
+                    {/* Payment Reminders at 08:30 */}
+                    {timeSlot === '08:30' && (() => {
+                      const dayStr = currentDay.toLocaleDateString('en-CA');
+                      const paymentReminders = Object.entries(paymentStatus)
+                        .filter(([customerId, status]) => {
+                          if (status.isPaid || !status.nextPaymentDate) return false;
+                          const nextPaymentDate = new Date(status.nextPaymentDate);
+                          const today = new Date(dayStr);
+                          // Show reminder only if payment is due today
+                          const daysUntil = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                          return daysUntil === 0;
+                        })
+                        .map(([customerId, status]) => {
+                          const nextPaymentDate = new Date(status.nextPaymentDate);
+                          const today = new Date(dayStr);
+                          const daysUntil = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                          return { customerId, ...status, daysUntil };
+                        });
+                      
+                      return paymentReminders.map((reminder) => (
+                        <div
+                          key={`payment-${reminder.customerId}`}
+                          className={`mt-2 p-3 rounded-lg border-2 ${
+                            reminder.daysUntil < 0 
+                              ? 'bg-red-50 border-red-300' 
+                              : reminder.daysUntil <= 3 
+                              ? 'bg-orange-50 border-orange-300'
+                              : 'bg-yellow-50 border-yellow-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Clock className={`w-4 h-4 ${
+                                reminder.daysUntil < 0 
+                                  ? 'text-red-600' 
+                                  : reminder.daysUntil <= 3 
+                                  ? 'text-orange-600'
+                                  : 'text-yellow-600'
+                              }`} />
+                              <span className={`text-xs font-semibold ${
+                                reminder.daysUntil < 0 
+                                  ? 'text-red-800' 
+                                  : reminder.daysUntil <= 3 
+                                  ? 'text-orange-800'
+                                  : 'text-yellow-800'
+                              }`}>
+                                Next Payment
+                              </span>
+                            </div>
+                            <span className={`text-sm font-bold ${
+                              reminder.daysUntil < 0 
+                                ? 'text-red-700' 
+                                : reminder.daysUntil <= 3 
+                                ? 'text-orange-700'
+                                : 'text-yellow-700'
+                            }`}>
+                              {reminder.amount} RON
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-700">
+                            <div>{reminder.customerName}</div>
+                            <div className="mt-1">
+                              Date: <span className="font-semibold">{new Date(reminder.nextPaymentDate).toLocaleDateString('ro-RO')}</span>
+                            </div>
+                            <div className="mt-1">
+                              {reminder.daysUntil < 0 ? (
+                                <span className="text-red-600 font-semibold">Overdue by {Math.abs(reminder.daysUntil)} days</span>
+                              ) : reminder.daysUntil === 0 ? (
+                                <span className="text-red-600 font-semibold">Due today!</span>
+                              ) : (
+                                <span>{reminder.daysUntil} days remaining</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
                     
                     {daySessions.map((session) => {
                       const isMergedWithNext = shouldMergeWithNextSlot(session, timeSlot);
@@ -1533,6 +1739,84 @@ export default function MobileScheduleClient({
                         }`}
                         title={isAvailable ? `Click to schedule session at ${formatTime(timeSlot)}` : 'Time slot unavailable'}
                       >
+                        {/* Payment Reminders at 08:30 */}
+                        {timeSlot === '08:30' && (() => {
+                          const dayStr = date.toLocaleDateString('en-CA');
+                          const paymentReminders = Object.entries(paymentStatus)
+                            .filter(([customerId, status]) => {
+                              if (status.isPaid || !status.nextPaymentDate) return false;
+                              const nextPaymentDate = new Date(status.nextPaymentDate);
+                              const today = new Date(dayStr);
+                              // Show reminder only if payment is due today
+                              const daysUntil = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                              return daysUntil === 0;
+                            })
+                            .map(([customerId, status]) => {
+                              const nextPaymentDate = new Date(status.nextPaymentDate);
+                              const today = new Date(dayStr);
+                              const daysUntil = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                              return { customerId, ...status, daysUntil };
+                            });
+                          
+                          return paymentReminders.map((reminder) => (
+                            <div
+                              key={`payment-${reminder.customerId}`}
+                              className={`mb-1 p-2 rounded-lg border-2 text-xs ${
+                                reminder.daysUntil < 0 
+                                  ? 'bg-red-50 border-red-300' 
+                                  : reminder.daysUntil <= 3 
+                                  ? 'bg-orange-50 border-orange-300'
+                                  : 'bg-yellow-50 border-yellow-300'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-1">
+                                  <Clock className={`w-3 h-3 ${
+                                    reminder.daysUntil < 0 
+                                      ? 'text-red-600' 
+                                      : reminder.daysUntil <= 3 
+                                      ? 'text-orange-600'
+                                      : 'text-yellow-600'
+                                  }`} />
+                                  <span className={`font-semibold ${
+                                    reminder.daysUntil < 0 
+                                      ? 'text-red-800' 
+                                      : reminder.daysUntil <= 3 
+                                      ? 'text-orange-800'
+                                      : 'text-yellow-800'
+                                  }`}>
+                                    Next Payment
+                                  </span>
+                                </div>
+                                <span className={`font-bold ${
+                                  reminder.daysUntil < 0 
+                                    ? 'text-red-700' 
+                                    : reminder.daysUntil <= 3 
+                                    ? 'text-orange-700'
+                                    : 'text-yellow-700'
+                                }`}>
+                                  {reminder.amount} RON
+                                </span>
+                              </div>
+                              <div className="text-gray-700 text-xs">
+                                <div className="truncate font-medium">{reminder.customerName}</div>
+                                <div className="mt-0.5">
+                                  {new Date(reminder.nextPaymentDate).toLocaleDateString('ro-RO')}
+                                </div>
+                                <div className="mt-0.5">
+                                  {reminder.daysUntil < 0 ? (
+                                    <span className="text-red-600 font-semibold">Overdue {Math.abs(reminder.daysUntil)}d</span>
+                                  ) : reminder.daysUntil === 0 ? (
+                                    <span className="text-red-600 font-semibold">Due today</span>
+                                  ) : (
+                                    <span>{reminder.daysUntil} days</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                        
                         {daySessions.map((session) => {
                           const isMergedWithNext = shouldMergeWithNextSlot(session, timeSlot);
                           const isMergedWithPrevious = shouldMergeWithPreviousSlot(session, timeSlot);
@@ -1860,9 +2144,14 @@ export default function MobileScheduleClient({
                         </div>
                         <div className="space-y-1">
                           {groups.find(g => g.id === newSessionData.customerId)?.members.map(member => (
-                            <div key={member.id} className="text-xs text-green-700 flex items-center">
-                              <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                              {member.name}
+                            <div key={member.id} className="text-xs text-green-700 flex items-center justify-between">
+                              <div className="flex items-center">
+                                <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                                {member.name}
+                              </div>
+                              <span className="text-xs font-medium bg-green-100 px-2 py-1 rounded">
+                                {member.progress}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -1931,7 +2220,7 @@ export default function MobileScheduleClient({
                       const selectedDate = modalSelectedDate || currentDay;
                       const durationHours = sessionType === 'intake' ? 0.5 : 1;
                       const isAvailable = isTimeSlotAvailable(selectedDate.toLocaleDateString('en-CA'), time, durationHours);
-                      const isBreak = isBreakTime(time);
+                      const isBreak = isBreakTime(time, selectedDate.toLocaleDateString('en-CA'));
                       const isSelected = newSessionData.startTime === time;
                       
                       return (

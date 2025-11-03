@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChefHat, Save, X } from 'lucide-react';
+import { ChefHat, Save, X, Plus } from 'lucide-react';
 
 interface CookingInstructionsProps {
   mealType: string;
@@ -31,6 +31,13 @@ export default function CookingInstructions({
     
     setSaving(true);
     try {
+      console.log('🍳 [CookingInstructions] Saving instructions:', {
+        planId,
+        dayKey,
+        mealType,
+        instructions: instructions.trim()
+      });
+
       const response = await fetch(`/api/nutrition-plans/${planId}/set-cooking-instructions`, {
         method: 'POST',
         headers: {
@@ -39,21 +46,24 @@ export default function CookingInstructions({
         body: JSON.stringify({
           dayKey,
           mealType,
-          cookingInstructions: instructions
+          cookingInstructions: instructions.trim()
         }),
       });
 
       if (response.ok) {
+        const result = await response.json();
+        console.log('🍳 [CookingInstructions] Save successful:', result);
         setIsEditing(false);
         if (onInstructionsUpdated) {
-          onInstructionsUpdated(instructions);
+          onInstructionsUpdated(instructions.trim());
         }
       } else {
-        console.error('Failed to save cooking instructions');
+        const errorData = await response.json();
+        console.error('🍳 [CookingInstructions] Save failed:', errorData);
         alert('Failed to save cooking instructions. Please try again.');
       }
     } catch (error) {
-      console.error('Error saving cooking instructions:', error);
+      console.error('🍳 [CookingInstructions] Error saving:', error);
       alert('Error saving cooking instructions. Please try again.');
     } finally {
       setSaving(false);
@@ -98,12 +108,20 @@ export default function CookingInstructions({
       <div className="p-4">
         {isEditing ? (
           <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-xs text-blue-800 font-medium mb-1">💡 Tips voor goede kookinstructies:</div>
+              <ul className="text-xs text-blue-700 space-y-1">
+                <li>• Vermeld kooktijd en temperatuur</li>
+                <li>• Beschrijf de bereidingswijze stap voor stap</li>
+                <li>• Voeg specifieke details toe (bijv. "middelhoog vuur", "goudbruin")</li>
+              </ul>
+            </div>
             <textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              placeholder="Voeg kook instructies toe... (bijv. Bak de pannenkoeken 2-3 minuten per kant op middelhoog vuur)"
+              placeholder="Voeg kook instructies toe... (bijv. Bak de pannenkoeken 2-3 minuten per kant op middelhoog vuur tot ze goudbruin zijn)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
-              rows={3}
+              rows={4}
             />
             <div className="flex gap-2 justify-end">
               <button
@@ -116,23 +134,40 @@ export default function CookingInstructions({
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || !instructions.trim()}
                 className="px-3 py-1 text-sm bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-1"
               >
-                <Save className="w-4 h-4" />
-                {saving ? 'Opslaan...' : 'Opslaan'}
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    Opslaan...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Opslaan
+                  </>
+                )}
               </button>
             </div>
           </div>
         ) : (
           <div className="min-h-[60px]">
             {instructions ? (
-              <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                {instructions}
+              <div className="space-y-2">
+                <div className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg border">
+                  {instructions}
+                </div>
+                <div className="text-xs text-gray-500 flex items-center gap-1">
+                  <ChefHat className="w-3 h-3" />
+                  Kookinstructies opgeslagen
+                </div>
               </div>
             ) : (
-              <div className="text-sm text-gray-400 italic">
-                Geen kook instructies toegevoegd. Klik op "Toevoegen" om instructies toe te voegen.
+              <div className="text-center py-4">
+                <ChefHat className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <div className="text-sm text-gray-400 mb-2">Geen kook instructies toegevoegd</div>
+                <div className="text-xs text-gray-500">Klik op "Toevoegen" om instructies toe te voegen</div>
               </div>
             )}
           </div>

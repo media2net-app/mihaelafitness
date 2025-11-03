@@ -8,9 +8,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  )
+  // Important: Do not redefine <html>/<body> in nested layouts to avoid hydration mismatches
+  // The root layout at src/app/layout.tsx already renders these tags.
+  return children
 }

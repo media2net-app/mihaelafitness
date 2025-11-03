@@ -151,7 +151,9 @@ export default function MobileNutritionPlansPage() {
         setVoedingsplannen(plans);
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to assign nutrition plan');
+        const errorMessage = error.details || error.error || 'Failed to assign nutrition plan';
+        console.error('Assignment error:', error);
+        alert(`Failed to assign nutrition plan: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Error assigning nutrition plan:', error);

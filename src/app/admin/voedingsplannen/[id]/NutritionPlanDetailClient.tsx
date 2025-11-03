@@ -1,6 +1,7 @@
 'use client';
 
 import { calculateDailyTotalsV2 } from '@/utils/dailyTotalsV2';
+import { calculateDailyTotalsV3 } from '@/utils/dailyTotalsV3';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -621,6 +622,22 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   const parseMealDescription = (mealDescription: string): string[] => {
     console.log('Parsing meal description:', mealDescription);
     
+    // Handle RECIPE format: [RECIPE:Recipe Name] ingredient1, ingredient2, ...
+    if (mealDescription.includes('[RECIPE:')) {
+      // Extract recipe name and ingredients
+      const recipeMatch = mealDescription.match(/\[RECIPE:([^\]]+)\]\s*(.*)/);
+      if (recipeMatch) {
+        const recipeName = recipeMatch[1];
+        const recipeIngredients = recipeMatch[2];
+        // Parse ingredients from recipe
+        if (recipeIngredients) {
+          const ingredients = recipeIngredients.split(',').map(ing => ing.trim()).filter(ing => ing.length > 0);
+          console.log('Parsed recipe ingredients:', ingredients);
+          return ingredients;
+        }
+      }
+    }
+    
     // Remove cooking instructions and descriptions
     let cleaned = mealDescription
       .replace(/\. Cook.*$/i, '') // Remove "Cook pancakes and serve with yogurt + berries"
@@ -779,7 +796,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           const pd = planDataRef.current;
           const ad = activeDayRef.current;
           const updatedDayData = pd?.weekMenu?.[ad];
-          const newDailyTotals = await calculateDailyTotalsV2(updatedDayData);
+          const newDailyTotals = await calculateDailyTotalsV3(updatedDayData);
           if (!shallowEqual(lastDailyTotalsRef.current, newDailyTotals)) {
             setDailyTotals(newDailyTotals);
             lastDailyTotalsRef.current = newDailyTotals;
@@ -1281,7 +1298,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       if (planRes.ok) {
         const updated = await planRes.json();
         setPlanData(updated);
-        const totals = await calculateDailyTotalsV2((updated.weekMenu || {})[day] || {});
+        const totals = await calculateDailyTotalsV3((updated.weekMenu || {})[day] || {});
         setDailyTotals({...totals});
       }
       addGenLog('Done and UI refreshed');
@@ -1320,16 +1337,14 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       // Force re-render by updating the plan data
       const updatedPlan = data.plan;
       
-      // Use V2 function for consistent calculation
+      // Use V3 function for optimized calculation
       const dayData = updatedPlan.weekMenu[activeDay];
-      const { mealMacros: newMealMacros, dailyTotals: totals } = await calculateMealMacrosAndTotalsV2(dayData);
+      const totals = await calculateDailyTotalsV3(dayData);
       
-      setMealMacros(newMealMacros);
       setDailyTotals({...totals});
       
       console.log('✅ Ingredient added successfully:', data.addedIngredient);
-      console.log('📊 [V2] Updated daily totals:', totals);
-      console.log('🍽️ [V2] Updated meal macros:', newMealMacros);
+      console.log('📊 [V3] Updated daily totals:', totals);
       
     } catch (error) {
       console.error('Error adding ingredient:', error);
@@ -1365,16 +1380,14 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       // Force re-render by updating the plan data
       const updatedPlan = data.plan;
       
-      // Use V2 function for consistent calculation
+      // Use V3 function for optimized calculation
       const dayData = updatedPlan.weekMenu[activeDay];
-      const { mealMacros: newMealMacros, dailyTotals: totals } = await calculateMealMacrosAndTotalsV2(dayData);
+      const totals = await calculateDailyTotalsV3(dayData);
       
-      setMealMacros(newMealMacros);
       setDailyTotals({...totals});
       
       console.log('✅ Recipe added successfully:', recipe.name);
-      console.log('📊 [V2] Updated daily totals:', totals);
-      console.log('🍽️ [V2] Updated meal macros:', newMealMacros);
+      console.log('📊 [V3] Updated daily totals:', totals);
     } catch (error) {
       console.error('Error adding recipe:', error);
       alert('Failed to add recipe. Please try again.');
@@ -1401,14 +1414,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     }
   };
 
-  const handleCopyCustomerLink = () => {
-    if (assignedCustomer?.id) {
-      const customerLink = `${window.location.origin}/my-plan/${assignedCustomer.id}`;
-      navigator.clipboard.writeText(customerLink);
-      // Optional: add toast notification
-      alert('Link gekopieerd! Je kunt deze nu delen met de klant.');
-    }
-  };
 
   // Helpers for PDF branding
   const THEME = {
@@ -1683,7 +1688,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       let dayTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
           if (dayData) {
             try {
-        dayTotals = await calculateDailyTotalsV2(dayData);
+        dayTotals = await calculateDailyTotalsV3(dayData);
             } catch {}
           }
           
@@ -1829,7 +1834,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           let dayTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
           if (dayMenu && Object.keys(dayMenu).length > 0) {
             try {
-              dayTotals = await calculateDailyTotalsV2(dayMenu);
+              dayTotals = await calculateDailyTotalsV3(dayMenu);
             } catch {}
           }
           
@@ -2847,28 +2852,30 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         </div>
 
         {/* Customer Share Link */}
-        {assignedCustomer && (
-          <div className="mb-4 sm:mb-6 bg-gradient-to-r from-rose-50 to-pink-50 border-2 border-rose-200 rounded-xl p-3 sm:p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">
-                  🔗 Persoonlijke Link voor {assignedCustomer.name}
-                </p>
-                <p className="text-xs text-gray-600 font-mono bg-white rounded px-2 sm:px-3 py-2 border border-gray-200 break-all">
-                  {typeof window !== 'undefined' && `${window.location.origin}/my-plan/${assignedCustomer.id}`}
-                </p>
-              </div>
-              <button
-                onClick={handleCopyCustomerLink}
-                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
-                title="Kopieer klant link"
-              >
-                <FiCopy className="w-3 h-3 sm:w-4 sm:h-4" />
-                Kopieer Link
-              </button>
+        <div className="mb-4 sm:mb-6 bg-gradient-to-r from-rose-50 to-pink-50 border-2 border-rose-200 rounded-xl p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                🔗 Persoonlijke Link{assignedCustomer ? ` voor ${assignedCustomer.name}` : ' voor Voedingsplan'}
+              </p>
+              <p className="text-xs text-gray-600 font-mono bg-white rounded px-2 sm:px-3 py-2 border border-gray-200 break-all">
+                {typeof window !== 'undefined' && `${window.location.origin}/my-plan/${assignedCustomer?.id || planData?.id || ''}`}
+              </p>
             </div>
+            <button
+              onClick={() => {
+                const personalLink = `${window.location.origin}/my-plan/${assignedCustomer?.id || planData?.id || ''}`;
+                navigator.clipboard.writeText(personalLink);
+                alert('Link gekopieerd! Je kunt deze nu delen.');
+              }}
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
+              title="Kopieer persoonlijke link"
+            >
+              <FiCopy className="w-3 h-3 sm:w-4 sm:h-4" />
+              Kopieer Link
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Plan Overview */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
@@ -3041,12 +3048,33 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                       if (res.ok) {
                         const data = await res.json();
                         if (data?.plan) {
+                          // Use the plan data directly from API - it already has the correct structure
                           setPlanData((prev: any) => ({ ...(prev || {}), weekMenu: data.plan.weekMenu }));
                         } else {
-                          setPlanData((prev: any) => ({ ...(prev || {}), weekMenu: { ...(prev?.weekMenu || {}), [activeDay]: { breakfast: '', 'morning-snack': '', lunch: '', 'afternoon-snack': '', dinner: '', 'evening-snack': '' } } }));
+                          // Fallback: create empty meal structure with object format (ingredients + cookingInstructions)
+                          const emptyDayStructure = {
+                            breakfast: { ingredients: '', cookingInstructions: '' },
+                            'morning-snack': { ingredients: '', cookingInstructions: '' },
+                            lunch: { ingredients: '', cookingInstructions: '' },
+                            'afternoon-snack': { ingredients: '', cookingInstructions: '' },
+                            dinner: { ingredients: '', cookingInstructions: '' },
+                            'evening-snack': { ingredients: '', cookingInstructions: '' }
+                          };
+                          setPlanData((prev: any) => ({ ...(prev || {}), weekMenu: { ...(prev?.weekMenu || {}), [activeDay]: emptyDayStructure } }));
                         }
                         setMealMacros({});
                         setDailyTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+                        
+                        // Force refresh by fetching latest plan data
+                        try {
+                          const refreshResponse = await fetch(`/api/nutrition-plans/${planId}`);
+                          if (refreshResponse.ok) {
+                            const refreshedPlan = await refreshResponse.json();
+                            setPlanData(refreshedPlan);
+                          }
+                        } catch (refreshError) {
+                          console.error('Error refreshing plan data:', refreshError);
+                        }
                       } else {
                         alert('Kon dag niet leegmaken. Probeer opnieuw.');
                       }
@@ -3455,35 +3483,49 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                                 console.log('🔄 [PARENT] Starting handleUpdate...');
                                 
                                 if (updatedPlan) {
-                                  // API update - use the updated plan data
+                                  // API update - first update state immediately for instant UI feedback
                                   setPlanData(updatedPlan);
                                   
-                                  // Use same logic as main useEffect: prefer weekMenu, fallback to days
-                                  let dayData = null;
-                                  if (updatedPlan?.weekMenu?.[activeDay]) {
-                                    dayData = updatedPlan.weekMenu[activeDay];
-                                    console.log('🔄 [PARENT] Using weekMenu data for day:', activeDay);
-                                  } else if (updatedPlan?.days?.[activeDay]) {
-                                    dayData = updatedPlan.days[activeDay];
-                                    console.log('🔄 [PARENT] Using days data for day:', activeDay);
-                                  }
-                                  
-                                  if (dayData) {
-                                    // Use V2 function for meal macros
-                                    const { mealMacros: newMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
-                                    setMealMacros(newMealMacros);
-                                    
-                                    // Wait for DOM update, then calculate daily totals from DOM
-                                    setTimeout(() => {
-                                      const totals = calculateDailyTotalsFromDOM();
-                                      setDailyTotals({...totals});
+                                  // Also fetch fresh data from server to ensure consistency
+                                  try {
+                                    const freshResponse = await fetch(`/api/nutrition-plans/${planId}`);
+                                    if (freshResponse.ok) {
+                                      const freshPlan = await freshResponse.json();
+                                      console.log('🔄 [PARENT] Fetched fresh plan data from server');
+                                      setPlanData(freshPlan);
                                       
-                                      console.log('🔄 [PARENT] New meal macros calculated with V2:', newMealMacros);
-                                      console.log('🔄 [PARENT] Daily totals calculated with V3 DOM:', totals);
-                                    }, 100);
+                                      // Use same logic as main useEffect: prefer weekMenu, fallback to days
+                                      let dayData = null;
+                                      if (freshPlan?.weekMenu?.[activeDay]) {
+                                        dayData = freshPlan.weekMenu[activeDay];
+                                        console.log('🔄 [PARENT] Using weekMenu data for day:', activeDay);
+                                      } else if (freshPlan?.days?.[activeDay]) {
+                                        dayData = freshPlan.days[activeDay];
+                                        console.log('🔄 [PARENT] Using days data for day:', activeDay);
+                                      }
+                                      
+                                      if (dayData) {
+                                        // Use V2 function for meal macros
+                                        const { mealMacros: newMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
+                                        setMealMacros(newMealMacros);
+                                        
+                                        // Wait for DOM update, then calculate daily totals from DOM
+                                        setTimeout(() => {
+                                          const totals = calculateDailyTotalsFromDOM();
+                                          setDailyTotals({...totals});
+                                          
+                                          console.log('🔄 [PARENT] New meal macros calculated with V2:', newMealMacros);
+                                          console.log('🔄 [PARENT] Daily totals calculated with V3 DOM:', totals);
+                                        }, 100);
+                                      }
+                                    }
+                                  } catch (fetchError) {
+                                    console.error('🔄 [PARENT] Error fetching fresh plan data:', fetchError);
+                                    // Fallback to using updatedPlan data
+                                    setPlanData(updatedPlan);
                                   }
                                   
-                                  console.log('✅ [PARENT] Both meal macros and daily totals updated with V2');
+                                  console.log('✅ [PARENT] Both meal macros and daily totals updated with fresh data');
                                 } else {
                                   // Local changes only - recalculate from current plan data
                                   console.log('🔄 [PARENT] Recalculating totals for local changes');
@@ -3528,6 +3570,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                         
                         
                         <CookingInstructions
+                          key={`${activeDay}-${mealType}-${planData?.weekMenu?.[activeDay]?.[mealType]?.cookingInstructions || ''}`}
                           mealType={mealType}
                           dayKey={activeDay}
                           planId={planId}

@@ -1,6 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Helper to find ingredient in database and get all possible name variations
+async function findIngredientNames(targetName: string): Promise<string[]> {
+  const normalizedTarget = targetName.toLowerCase().trim();
+  const variations: string[] = [normalizedTarget];
+  
+  // Try to find ingredient in database by name or nameRo
+  const ingredient = await prisma.ingredient.findFirst({
+    where: {
+      OR: [
+        { name: { equals: targetName, mode: 'insensitive' } },
+        { nameRo: { equals: targetName, mode: 'insensitive' } }
+      ]
+    }
+  });
+  
+  if (ingredient) {
+    // Add both English and Romanian names if available
+    if (ingredient.name) {
+      variations.push(ingredient.name.toLowerCase().trim());
+    }
+    if (ingredient.nameRo) {
+      variations.push(ingredient.nameRo.toLowerCase().trim());
+    }
+  }
+  
+  return [...new Set(variations)]; // Remove duplicates
+}
+
 interface Body {
   dayKey: string;
   mealType: string; // breakfast|snack|lunch|dinner (lowercase)
@@ -20,16 +48,23 @@ function splitMeal(meal: string): string[] {
 }
 
 function normalizeNamePart(part: string): string {
-  // Remove ID prefix if present (format: "id|name")
+  // Remove ID prefix if present (format: "quantity id|name")
   let cleanPart = part;
   if (cleanPart.includes('|')) {
-    cleanPart = cleanPart.split('|').slice(1).join('|').trim();
+    // Format: "55 cmgbf5jgf016v8igv5viv7qkz|Chicken Breast" -> "Chicken Breast"
+    const pipeIndex = cleanPart.indexOf('|');
+    cleanPart = cleanPart.substring(pipeIndex + 1).trim();
   }
   
-  return cleanPart
-    .replace(/^\s*\d+(?:\.\d+)?\s*(?:g|ml|tsp|tbsp|scoop|piece|pieces|slice)?\s*/i, '')
-    .trim()
-    .toLowerCase();
+  // Remove quantity and unit prefix (handles both "55g Name" and "55 g Name")
+  cleanPart = cleanPart
+    .replace(/^\s*\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms|piece|pieces|slice|stuks|stuk|buc|bucăți|tsp|tbsp|scoop)?\s*/i, '')
+    .trim();
+  
+  // Remove parentheses content (e.g., "Paste (fiert)" -> "Paste")
+  cleanPart = cleanPart.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  
+  return cleanPart.toLowerCase();
 }
 
 export async function POST(
@@ -59,13 +94,32 @@ export async function POST(
     const meal: string = typeof mealData === 'string' ? mealData : (isObjectMeal ? (mealData.ingredients || '') : '');
 
     const parts = splitMeal(meal);
-    const targetLower = name.toLowerCase();
+    const targetLower = name.toLowerCase().trim();
+    
+    // Get all name variations (English, Romanian, etc.) for better matching
+    const nameVariations = await findIngredientNames(name);
+    console.log('[update-ingredient] Searching for ingredient:', { name, targetLower, nameVariations, meal, partsCount: parts.length });
+    console.log('[update-ingredient] Parts:', parts.map(p => ({ original: p, normalized: normalizeNamePart(p) })));
 
     let changed = false;
     const updatedParts = parts.map((p) => {
       const pName = normalizeNamePart(p);
-      if (pName === targetLower) {
+      // Check if normalized part name matches any variation of the target name
+      const matches = nameVariations.some(variation => {
+        const normalizedVariation = normalizeNamePart(variation);
+        return pName === normalizedVariation;
+      });
+      
+      console.log('[update-ingredient] Comparing:', { 
+        pName, 
+        targetLower, 
+        nameVariations: nameVariations.map(v => normalizeNamePart(v)),
+        match: matches 
+      });
+      
+      if (matches || pName === targetLower) {
         changed = true;
+        console.log('[update-ingredient] Match found! Updating:', p);
         
         // Check if the original part has an ID format
         if (p.includes('|')) {
@@ -78,26 +132,47 @@ export async function POST(
           const idMatch = idPart.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
           if (idMatch) {
             const ingredientId = idMatch[2];
-            return `${newAmount} ${ingredientId}|${namePart}`.trim();
+            const updated = `${newAmount} ${ingredientId}|${namePart}`.trim();
+            console.log('[update-ingredient] ID format updated:', { old: p, new: updated });
+            return updated;
           } else {
             // Fallback: treat as simple ID
-            return `${newAmount} ${idPart}|${namePart}`.trim();
+            const updated = `${newAmount} ${idPart}|${namePart}`.trim();
+            console.log('[update-ingredient] ID format (fallback) updated:', { old: p, new: updated });
+            return updated;
           }
         } else {
+          // Check if it's a recipe format: "55g Beef" or "55g Carne de Vită"
+          const recipeFormatMatch = p.match(/^(\d+(?:\.\d+)?)\s*(g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms)\s+(.+)$/i);
+          if (recipeFormatMatch) {
+            // Recipe format - keep the original name from the meal string, only update quantity
+            const originalName = recipeFormatMatch[3].trim();
+            const updated = `${newAmount}${unit} ${originalName}`.trim();
+            console.log('[update-ingredient] Recipe format updated:', { old: p, new: updated, originalName });
+            return updated;
+          }
+          
           // For count-based items (piece/pieces), do not glue unit to the number
           if (unit.toLowerCase() === 'piece' || unit.toLowerCase() === 'pieces') {
             const displayName = name;
-            return `${newAmount} ${displayName}`.trim();
+            const updated = `${newAmount} ${displayName}`.trim();
+            console.log('[update-ingredient] Piece format updated:', { old: p, new: updated });
+            return updated;
           }
-          return `${newAmount}${unit} ${name}`.trim();
+          const updated = `${newAmount}${unit} ${name}`.trim();
+          console.log('[update-ingredient] Standard format updated:', { old: p, new: updated });
+          return updated;
         }
       }
       return p;
     });
 
     const newMeal = updatedParts.join(', ');
+    console.log('[update-ingredient] Result:', { changed, oldMeal: meal, newMeal });
+    
     if (!changed) {
       // If not found, return original without error to avoid breaking UI
+      console.warn('[update-ingredient] Ingredient not found in meal:', { name, targetLower, parts: parts.map(normalizeNamePart) });
       return NextResponse.json({ success: false, meal: meal, message: 'Ingredient not found in meal' });
     }
 
@@ -114,11 +189,15 @@ export async function POST(
       weekMenu[dayKey] = { ...dayMenu, [mealType]: newMeal };
     }
 
+    console.log('[update-ingredient] Updating database with weekMenu:', JSON.stringify(weekMenu[dayKey][mealType], null, 2));
+    
     const updated = await prisma.nutritionPlan.update({
       where: { id },
       data: { weekMenu },
     });
 
+    console.log('[update-ingredient] Database updated successfully. Returning updated plan.');
+    
     return NextResponse.json({ success: true, meal: newMeal, plan: updated });
   } catch (e) {
     console.error('Error updating ingredient amount:', e);

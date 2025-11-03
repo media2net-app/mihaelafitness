@@ -13,12 +13,10 @@ export async function GET(request: NextRequest) {
     
     // Build where clause
     const whereClause: any = {
-      // Exclude admin accounts and blocked time entries
+      // Exclude blocked time entries, but include Chiel and Mihaela as admin clients
+      // Note: We exclude "Mihaela (Own Training)" but include regular "Mihaela" 
       NOT: {
         OR: [
-          { email: 'mihaela@mihaelafitness.com' },
-          { email: 'info@mihaelafitness.com' },
-          { email: 'chiel@media2net.nl' },
           { name: { contains: 'Own Training' } },
           { name: { contains: 'Blocked Time' } },
           { email: { contains: 'blocked-time@system.local' } }
@@ -49,6 +47,7 @@ export async function GET(request: NextRequest) {
         email: true,
         phone: true,
         goal: true,
+        // profilePicture: true, // Temporarily commented until database is updated
         status: true,
         plan: true,
         trainingFrequency: true,
@@ -157,6 +156,48 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Get group subscriptions for all users
+    const groupSubscriptions = await prisma.pricingCalculation.findMany({
+      where: {
+        service: {
+          contains: 'Group Training'
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Create a map of customer IDs to group names (consolidated)
+    const customerGroupMap: Record<string, string> = {};
+    const groupMap = new Map<string, any>();
+    
+    groupSubscriptions.forEach(subscription => {
+      const customerIds = subscription.customerId.split(',').filter(id => id.trim());
+      const groupName = subscription.service.replace('Group Training', '').trim() || 'Group 1';
+      
+      // Consolidate groups by name
+      if (groupMap.has(groupName)) {
+        const existingGroup = groupMap.get(groupName);
+        const mergedCustomerIds = [...new Set([...existingGroup.customerIds, ...customerIds])];
+        groupMap.set(groupName, {
+          ...existingGroup,
+          customerIds: mergedCustomerIds
+        });
+      } else {
+        groupMap.set(groupName, {
+          customerIds
+        });
+      }
+    });
+    
+    // Build customer to group mapping
+    groupMap.forEach((group, groupName) => {
+      group.customerIds.forEach((customerId: string) => {
+        customerGroupMap[customerId.trim()] = groupName;
+      });
+    });
+
     // Group sessions by customer ID
     const sessionsByCustomer = allSessions.reduce((acc, session: Session) => {
       const key = String(session.customerId || '');
@@ -178,27 +219,6 @@ export async function GET(request: NextRequest) {
     }, {} as Record<string, any[]>);
 
     // Separate group and personal subscriptions
-    const groupSubscriptions = allPricingCalculations
-      .filter(calc => calc.service.includes('Group Training'))
-      .map(calc => {
-        const customerIds = String(calc.customerId || '').split(',').filter(id => id.trim());
-        const customerNames = String(calc.customerName || '').split(',').filter(name => name.trim());
-        const groupSize = customerIds.length;
-        
-        return {
-          id: calc.id,
-          service: calc.service,
-          duration: calc.duration,
-          frequency: calc.frequency,
-          finalPrice: calc.finalPrice / groupSize,
-          totalPrice: calc.finalPrice,
-          customerIds,
-          customerNames,
-          createdAt: calc.createdAt,
-          groupSize
-        };
-      });
-
     const personalSubscriptions = allPricingCalculations
       .filter(calc => !calc.service.includes('Group Training'))
       .map(calc => ({
@@ -250,9 +270,7 @@ export async function GET(request: NextRequest) {
         : null;
 
       // Filter subscriptions for this user
-      const userGroupSubscriptions = groupSubscriptions.filter(sub => 
-        sub.customerIds.includes(user.id)
-      );
+      const userGroupSubscriptions: any[] = [];
       
       const userPersonalSubscriptions = personalSubscriptions.filter(sub => 
         sub.customerId === user.id
@@ -264,6 +282,7 @@ export async function GET(request: NextRequest) {
         email: user.email,
         phone: user.phone,
         goal: user.goal,
+        profilePicture: (user as any).profilePicture || null, // Will be available after db update
         plan: user.plan,
         joinDate: user.createdAt,
         status: user.status,
@@ -277,7 +296,8 @@ export async function GET(request: NextRequest) {
         groupSubscriptions: userGroupSubscriptions,
         personalSubscriptions: userPersonalSubscriptions,
         photosCount: photoCountByCustomer[user.id] || 0,
-        measurementsCount: measurementCountByCustomer[user.id] || 0
+        measurementsCount: measurementCountByCustomer[user.id] || 0,
+        groupName: customerGroupMap[user.id] || null
       };
     });
 

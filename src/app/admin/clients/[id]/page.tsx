@@ -654,8 +654,10 @@ export default function ClientDetailPage() {
     createdAt: string;
   }>>([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
   const [showDeletePaymentModal, setShowDeletePaymentModal] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<any>(null);
+  const [editingPayment, setEditingPayment] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddMeasurementModal, setShowAddMeasurementModal] = useState(false);
   const [showEditMeasurementModal, setShowEditMeasurementModal] = useState(false);
@@ -2089,13 +2091,25 @@ export default function ClientDetailPage() {
                           </td>
                           <td className="py-3 px-2 text-gray-600">{payment.notes || '-'}</td>
                           <td className="py-3 px-2">
-                            <button
-                              onClick={() => handleDeletePaymentClick(payment)}
-                              className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                              title="Delete Payment"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingPayment(payment);
+                                  setShowEditPaymentModal(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                                title="Edit Payment"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePaymentClick(payment)}
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                title="Delete Payment"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -2665,6 +2679,166 @@ export default function ClientDetailPage() {
                     className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                   >
                     Record Payment
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Payment Modal */}
+        {showEditPaymentModal && editingPayment && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800">Edit Payment</h2>
+                <button
+                  onClick={() => {
+                    setShowEditPaymentModal(false);
+                    setEditingPayment(null);
+                  }}
+                  className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
+              
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                const paymentData = {
+                  amount: parseFloat(formData.get('amount') as string),
+                  paymentMethod: formData.get('paymentMethod') as string,
+                  paymentType: formData.get('paymentType') as string,
+                  status: formData.get('status') as string,
+                  notes: formData.get('notes') as string,
+                  paymentDate: formData.get('paymentDate') as string
+                };
+
+                try {
+                  const response = await fetch(`/api/payments/${editingPayment.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(paymentData)
+                  });
+
+                  if (response.ok) {
+                    const updatedPayment = await response.json();
+                    // Update the payment in the list
+                    setPayments(payments.map(p => p.id === editingPayment.id ? updatedPayment : p));
+                    setShowEditPaymentModal(false);
+                    setEditingPayment(null);
+                    alert('Payment updated successfully!');
+                    // Reload client data to update next payment date
+                    window.location.reload();
+                  } else {
+                    const errorData = await response.json();
+                    alert(`Error: ${errorData.error || 'Failed to update payment'}`);
+                  }
+                } catch (error) {
+                  console.error('Error updating payment:', error);
+                  alert('Failed to update payment. Please try again.');
+                }
+              }} className="space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Amount (RON)</label>
+                    <input
+                      type="number"
+                      name="amount"
+                      step="0.01"
+                      required
+                      defaultValue={editingPayment.amount}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Date</label>
+                    <input
+                      type="date"
+                      name="paymentDate"
+                      required
+                      defaultValue={new Date(editingPayment.paymentDate).toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                    <select
+                      name="paymentMethod"
+                      required
+                      defaultValue={editingPayment.paymentMethod}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                    >
+                      <option value="">Select method</option>
+                      <option value="cash">Cash</option>
+                      <option value="card">Card</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="online">Online</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
+                    <select
+                      name="paymentType"
+                      required
+                      defaultValue={editingPayment.paymentType}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                    >
+                      <option value="">Select type</option>
+                      <option value="full">Full Payment (1x)</option>
+                      <option value="installment">Installment (2x)</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    name="status"
+                    required
+                    defaultValue={editingPayment.status}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="refunded">Refunded</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                  <textarea
+                    name="notes"
+                    rows={3}
+                    defaultValue={editingPayment.notes || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                    placeholder="Additional notes about this payment..."
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditPaymentModal(false);
+                      setEditingPayment(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Update Payment
                   </button>
                 </div>
               </form>

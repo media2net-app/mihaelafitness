@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, Users, CreditCard, Calendar, AlertCircle, CheckCircle, Clock, Filter, Download, RefreshCw } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, CreditCard, Calendar, AlertCircle, CheckCircle, Clock, Filter, Download, RefreshCw, Edit, X } from 'lucide-react';
 import MobilePaymentsPage from './MobilePaymentsPage';
 
 interface PaymentOverview {
@@ -60,6 +60,8 @@ export default function PaymentsPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [currency, setCurrency] = useState<'RON' | 'EUR'>('RON');
   const [isMobile, setIsMobile] = useState(false);
+  const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<any>(null);
 
   // Check if device is mobile
   useEffect(() => {
@@ -432,6 +434,34 @@ export default function PaymentsPage() {
                               {payment.status}
                             </span>
                           </td>
+                          <td className="py-4 px-4">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  // Fetch full payment details including notes
+                                  const response = await fetch(`/api/payments/${payment.id}`);
+                                  if (response.ok) {
+                                    const fullPayment = await response.json();
+                                    setEditingPayment(fullPayment);
+                                    setShowEditPaymentModal(true);
+                                  } else {
+                                    // Fallback to using payment from overview
+                                    setEditingPayment(payment);
+                                    setShowEditPaymentModal(true);
+                                  }
+                                } catch (error) {
+                                  console.error('Error fetching payment details:', error);
+                                  // Fallback to using payment from overview
+                                  setEditingPayment(payment);
+                                  setShowEditPaymentModal(true);
+                                }
+                              }}
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                              title="Edit Payment"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -520,6 +550,167 @@ export default function PaymentsPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Payment Modal */}
+      {showEditPaymentModal && editingPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800">Edit Payment</h2>
+              <button
+                onClick={() => {
+                  setShowEditPaymentModal(false);
+                  setEditingPayment(null);
+                }}
+                className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target as HTMLFormElement);
+              const paymentData = {
+                amount: parseFloat(formData.get('amount') as string),
+                paymentMethod: formData.get('paymentMethod') as string,
+                paymentType: formData.get('paymentType') as string,
+                status: formData.get('status') as string,
+                notes: formData.get('notes') as string,
+                paymentDate: formData.get('paymentDate') as string
+              };
+
+              try {
+                const response = await fetch(`/api/payments/${editingPayment.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(paymentData)
+                });
+
+                if (response.ok) {
+                  // Reload overview to get updated data
+                  const overviewResponse = await fetch('/api/payments/overview');
+                  if (overviewResponse.ok) {
+                    const updatedData = await overviewResponse.json();
+                    setOverview(updatedData);
+                  }
+                  setShowEditPaymentModal(false);
+                  setEditingPayment(null);
+                  alert('Payment updated successfully!');
+                } else {
+                  const errorData = await response.json();
+                  alert(`Error: ${errorData.error || 'Failed to update payment'}`);
+                }
+              } catch (error) {
+                console.error('Error updating payment:', error);
+                alert('Failed to update payment. Please try again.');
+              }
+            }} className="space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Amount (RON)</label>
+                  <input
+                    type="number"
+                    name="amount"
+                    step="0.01"
+                    required
+                    defaultValue={editingPayment.amount}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Date</label>
+                  <input
+                    type="date"
+                    name="paymentDate"
+                    required
+                    defaultValue={new Date(editingPayment.paymentDate).toISOString().split('T')[0]}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                  <select
+                    name="paymentMethod"
+                    required
+                    defaultValue={editingPayment.paymentMethod}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  >
+                    <option value="">Select method</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="online">Online</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
+                  <select
+                    name="paymentType"
+                    required
+                    defaultValue={editingPayment.paymentType}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  >
+                    <option value="">Select type</option>
+                    <option value="full">Full Payment (1x)</option>
+                    <option value="installment">Installment (2x)</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  name="status"
+                  required
+                  defaultValue={editingPayment.status}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="failed">Failed</option>
+                  <option value="refunded">Refunded</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                <textarea
+                  name="notes"
+                  rows={3}
+                  defaultValue={editingPayment.notes || ''}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  placeholder="Additional notes about this payment..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditPaymentModal(false);
+                    setEditingPayment(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Update Payment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ model User {
   name                   String
   phone                  String?
   goal                   String?
+  profilePicture         String?                      // URL to profile picture
   joinDate               DateTime                     @default(now())
   status                 String                       @default("active")
   plan                   String                       @default("Basic")
@@ -214,6 +215,36 @@ model NutritionCalculation {
   @@map("nutrition_calculations")
 }
 
+model NutritionCalculationV2 {
+  id                    String   @id @default(cuid())
+  customerId            String
+  customerName          String
+  weight                Float
+  age                   Int
+  gender                String
+  bodyType              String
+  objective             String
+  objectivePercentage   Float
+  dailyActivity         Float
+  trainingHours         Float
+  trainingIntensity     Float
+  step1_mb              Float
+  step2_gender          Float
+  step3_age             Float
+  step4_bodyType        Float
+  step5_objective       Float
+  step6_dailyActivity   Float
+  step7_training         Float
+  finalCalories         Int
+  protein               Int
+  fat                   Int
+  carbs                 Int
+  calculationType       String   @default("v2")
+  createdAt             DateTime @default(now())
+
+  @@map("nutrition_calculations_v2")
+}
+
 model CustomerMeasurement {
   id         String   @id @default(cuid())
   customerId String
@@ -395,6 +426,7 @@ model Recipe {
   totalProtein  Float             @default(0)
   totalCarbs    Float             @default(0)
   totalFat      Float             @default(0)
+  labels        String[]          @default([]) // e.g., ["breakfast", "lunch", "dinner"]
   status        String            @default("active")
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt

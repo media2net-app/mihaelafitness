@@ -61,6 +61,50 @@ export default function IngredientenPage() {
   const [editingNameRo, setEditingNameRo] = useState<{ [key: string]: string }>({});
   const [savingNameRo, setSavingNameRo] = useState<{ [key: string]: boolean }>({});
 
+  // Cooked/Uncooked helpers (no schema change: store in aliases as STATE:cooked|uncooked)
+  const detectCookedState = (ing: Ingredient): 'cooked' | 'uncooked' | 'unknown' => {
+    const name = (ing.name || '').toLowerCase();
+    const aliasArr = (() => {
+      try {
+        const a = typeof ing.aliases === 'string' ? JSON.parse(ing.aliases) : ing.aliases;
+        return Array.isArray(a) ? a.map((x: string) => x.toLowerCase()) : [];
+      } catch {
+        return [] as string[];
+      }
+    })();
+
+    const text = [name, ...aliasArr].join(' | ');
+    if (/\bstate:cooked\b/.test(text) || /(\bcooked\b|\bboiled\b|\bsteamed\b|\broasted\b|\bgrilled\b|\bfried\b)/.test(text)) return 'cooked';
+    if (/\bstate:uncooked\b/.test(text) || /(\buncooked\b|\braw\b|\bdry\b)/.test(text)) return 'uncooked';
+    return 'unknown';
+  };
+
+  const saveCookedState = async (ing: Ingredient, state: 'cooked' | 'uncooked' | 'unknown') => {
+    // Read aliases -> remove any STATE:* and add new when cooked/uncooked
+    let aliasArr: string[] = [];
+    try {
+      const a = typeof ing.aliases === 'string' ? JSON.parse(ing.aliases) : ing.aliases;
+      aliasArr = Array.isArray(a) ? [...a] : [];
+    } catch {
+      aliasArr = [];
+    }
+    aliasArr = aliasArr.filter(a => !/^STATE:/.test(a));
+    if (state !== 'unknown') aliasArr.push(`STATE:${state}`);
+
+    // Persist via existing PUT endpoint
+    const res = await fetch(`/api/ingredients/${ing.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aliases: JSON.stringify(aliasArr) })
+    });
+    if (res.ok) {
+      setIngredients(prev => prev.map(i => i.id === ing.id ? { ...i, aliases: JSON.stringify(aliasArr) } as Ingredient : i));
+    } else {
+      try { const err = await res.json(); console.error('Failed to save cooked state', err); } catch {}
+      alert('Opslaan van cooked state mislukt');
+    }
+  };
+
   // Fetch ingredients from database
   useEffect(() => {
     const fetchIngredients = async () => {
@@ -647,6 +691,9 @@ export default function IngredientenPage() {
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Type
                     </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Cooked state
+                    </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Categorie
                     </th>
@@ -681,6 +728,7 @@ export default function IngredientenPage() {
                     const { cleanName } = extractCleanNameAndPer(ingredient.name);
                     const per = ingredient.per || '100g';
                     const type = extractType(per, ingredient.name, ingredient.category);
+                    const cookedState = detectCookedState(ingredient);
                     return (
                     <tr key={index} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-4 whitespace-nowrap">
@@ -750,6 +798,22 @@ export default function IngredientenPage() {
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           {type}
                         </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${cookedState === 'cooked' ? 'bg-emerald-100 text-emerald-800' : cookedState === 'uncooked' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'}`}>
+                            {cookedState === 'unknown' ? 'Unknown' : cookedState.charAt(0).toUpperCase() + cookedState.slice(1)}
+                          </span>
+                          <select
+                            value={cookedState}
+                            onChange={(e) => saveCookedState(ingredient, e.target.value as any)}
+                            className="text-xs border border-gray-200 rounded px-1 py-0.5 bg-white"
+                          >
+                            <option value="unknown">Unknown</option>
+                            <option value="cooked">Cooked</option>
+                            <option value="uncooked">Uncooked</option>
+                          </select>
+                        </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(ingredient.category || 'other')}`}>

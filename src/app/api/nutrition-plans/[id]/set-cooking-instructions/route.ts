@@ -11,6 +11,13 @@ export async function POST(
     const { id } = await params;
     const { dayKey, mealType, cookingInstructions } = await request.json();
 
+    console.log('🍳 [API] Setting cooking instructions:', {
+      planId: id,
+      dayKey,
+      mealType,
+      instructions: cookingInstructions?.substring(0, 100) + (cookingInstructions?.length > 100 ? '...' : '')
+    });
+
     if (!id || !dayKey || !mealType) {
       return NextResponse.json(
         { error: 'Plan ID, day key, and meal type are required' },
@@ -24,6 +31,7 @@ export async function POST(
     });
 
     if (!plan) {
+      console.log('🍳 [API] Plan not found:', id);
       return NextResponse.json(
         { error: 'Nutrition plan not found' },
         { status: 404 }
@@ -33,6 +41,13 @@ export async function POST(
     // Get current weekMenu
     const currentWeekMenu = (plan.weekMenu as any) || {};
     const currentDayMenu = currentWeekMenu[dayKey] || {};
+
+    console.log('🍳 [API] Current day menu structure:', {
+      dayKey,
+      mealType,
+      hasMealData: !!currentDayMenu[mealType],
+      mealDataType: typeof currentDayMenu[mealType]
+    });
 
     // Get current meal data
     const currentMealData = currentDayMenu[mealType];
@@ -45,18 +60,21 @@ export async function POST(
         ingredients: currentMealData,
         cookingInstructions: cookingInstructions || ''
       };
+      console.log('🍳 [API] Converted from old string structure');
     } else if (currentMealData && typeof currentMealData === 'object') {
       // New structure: update cooking instructions
       newMealData = {
         ...currentMealData,
         cookingInstructions: cookingInstructions || ''
       };
+      console.log('🍳 [API] Updated existing object structure');
     } else {
       // No existing data: create new structure
       newMealData = {
         ingredients: '',
         cookingInstructions: cookingInstructions || ''
       };
+      console.log('🍳 [API] Created new structure');
     }
 
     // Update the weekMenu
@@ -68,6 +86,14 @@ export async function POST(
       }
     };
 
+    console.log('🍳 [API] Updated weekMenu structure:', {
+      dayKey,
+      mealType,
+      hasIngredients: !!newMealData.ingredients,
+      hasInstructions: !!newMealData.cookingInstructions,
+      instructionsLength: newMealData.cookingInstructions?.length || 0
+    });
+
     // Save to database
     const updatedPlan = await prisma.nutritionPlan.update({
       where: { id },
@@ -76,13 +102,15 @@ export async function POST(
       }
     });
 
+    console.log('🍳 [API] Successfully saved cooking instructions');
+
     return NextResponse.json({
       success: true,
       plan: updatedPlan
     });
 
   } catch (error) {
-    console.error('Error updating cooking instructions:', error);
+    console.error('🍳 [API] Error updating cooking instructions:', error);
     return NextResponse.json(
       { error: 'Failed to update cooking instructions' },
       { status: 500 }

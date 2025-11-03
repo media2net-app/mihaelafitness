@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
+
+
 
 // GET - Load all recipes
 export async function GET(request: NextRequest) {
@@ -14,7 +15,20 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json(recipes);
+    // Ensure labels field is included in response
+    // Note: If labels are empty, the server may need to be restarted after Prisma generate
+    const recipesWithLabels = recipes.map(recipe => {
+      // Handle labels - ensure it's always an array
+      const labels = recipe.labels || [];
+      const labelsArray = Array.isArray(labels) ? labels : [];
+      
+      return {
+        ...recipe,
+        labels: labelsArray
+      };
+    });
+
+    return NextResponse.json(recipesWithLabels);
   } catch (error) {
     console.error('Error loading recipes:', error);
     return NextResponse.json({ 
@@ -28,7 +42,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, prepTime, servings, instructions, ingredients } = body;
+    const { name, description, prepTime, servings, instructions, ingredients, labels } = body;
 
     // Create recipe
     const newRecipe = await prisma.recipe.create({
@@ -41,7 +55,8 @@ export async function POST(request: NextRequest) {
         totalCalories: 0,
         totalProtein: 0,
         totalCarbs: 0,
-        totalFat: 0
+        totalFat: 0,
+        labels: labels || []
       }
     });
 

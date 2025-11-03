@@ -10,6 +10,30 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Get all customer nutrition plan assignments
+    const customerNutritionPlans = await prisma.customerNutritionPlan.findMany({
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        nutritionPlan: {
+          select: {
+            id: true,
+            name: true,
+            goal: true
+          }
+        }
+      },
+      orderBy: {
+        assignedAt: 'desc'
+      }
+    });
+
+
     // Get all payments
     const payments = await prisma.payment.findMany({
       include: {
@@ -22,7 +46,7 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: {
-        createdAt: 'desc'
+        paymentDate: 'desc'
       }
     });
 
@@ -45,10 +69,11 @@ export async function GET(request: NextRequest) {
     const processedPricing = [];
     
     for (const calc of pricingCalculations) {
-      if (calc.service.includes('Group Training') && calc.groupSize && calc.groupSize > 1) {
+      if (calc.service.includes('Group Training')) {
         // Split group training into individual entries
         const customerIds = calc.customerId.split(',').filter(id => id.trim());
         const customerNames = calc.customerName.split(',').filter(name => name.trim());
+        const actualGroupSize = customerIds.length; // Calculate group size from customer IDs
         
         customerIds.forEach((customerId, index) => {
           processedPricing.push({
@@ -56,14 +81,40 @@ export async function GET(request: NextRequest) {
             id: `${calc.id}_${index}`, // Unique ID for each person
             customerId: customerId.trim(),
             customerName: customerNames[index]?.trim() || 'Unknown',
-            finalPrice: calc.finalPrice / calc.groupSize, // Price per person
+            finalPrice: calc.finalPrice / actualGroupSize, // Price per person
             service: calc.service,
-            groupSize: 1 // Each entry is now for 1 person
+            groupSize: 1, // Each entry is now for 1 person
+            includeNutritionPlan: calc.includeNutritionPlan // Preserve nutrition plan inclusion
           });
         });
       } else {
         // Keep personal training as is
         processedPricing.push(calc);
+      }
+    }
+
+    // Add nutrition plan assignments as pricing entries (200 RON per plan)
+    // Only add if not already included in training subscription
+    for (const cnp of customerNutritionPlans) {
+      if (cnp.status === 'active') {
+        // Check if customer already has a training subscription that includes nutrition plan
+        const hasTrainingWithNutrition = processedPricing.some(p => 
+          p.customerId === cnp.customerId && 
+          (p.service.includes('Personal Training') || p.service.includes('Group Training')) &&
+          p.includeNutritionPlan === true
+        );
+        
+        if (!hasTrainingWithNutrition) {
+          processedPricing.push({
+            id: `nutrition_${cnp.id}`,
+            customerId: cnp.customerId,
+            customerName: cnp.customer.name,
+            finalPrice: 200, // Standard meal plan price
+            service: `Nutrition Plan - ${cnp.nutritionPlan.name}`,
+            groupSize: 1,
+            createdAt: cnp.assignedAt
+          });
+        }
       }
     }
 
@@ -96,10 +147,15 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {} as Record<string, any>);
 
+
+    
     // Group pricing by customer using processed pricing
+    // Priority: Personal Training > Group Training (personal training takes precedence)
+    // Nutrition plans are always added (don't replace training subscriptions)
     const pricingByCustomer = processedPricing.reduce((acc, calc) => {
       const customerId = calc.customerId;
       const customer = customerLookup[customerId];
+      
       if (!acc[customerId]) {
         acc[customerId] = {
           customer: customer,
@@ -108,8 +164,37 @@ export async function GET(request: NextRequest) {
         };
       }
       
-      acc[customerId].pricing.push(calc);
-      acc[customerId].totalRevenue += calc.finalPrice;
+      // Check if this is a nutrition plan
+      const isNutritionPlan = calc.service.includes('Nutrition Plan');
+      
+      if (isNutritionPlan) {
+        // Always add nutrition plans
+        acc[customerId].pricing.push(calc);
+        acc[customerId].totalRevenue += calc.finalPrice;
+        return acc;
+      }
+      
+      // Check if customer already has personal training (higher priority)
+      const hasPersonalTraining = acc[customerId].pricing.some(p => !p.service.includes('Group Training') && !p.service.includes('Nutrition Plan'));
+      const isPersonalTraining = !calc.service.includes('Group Training');
+      
+      if (hasPersonalTraining && !isPersonalTraining) {
+        // Skip group training if personal training already exists
+        return acc;
+      }
+      
+      if (!hasPersonalTraining && isPersonalTraining) {
+        // Replace group training with personal training
+        // Keep nutrition plans, replace only training subscriptions
+        const nutritionPlans = acc[customerId].pricing.filter(p => p.service.includes('Nutrition Plan'));
+        acc[customerId].pricing = [...nutritionPlans, calc];
+        acc[customerId].totalRevenue = nutritionPlans.reduce((sum, p) => sum + p.finalPrice, 0) + calc.finalPrice;
+      } else {
+        // Add pricing (first time or same type)
+        acc[customerId].pricing.push(calc);
+        acc[customerId].totalRevenue += calc.finalPrice;
+      }
+      
       return acc;
     }, {} as Record<string, any>);
 
@@ -164,7 +249,7 @@ export async function GET(request: NextRequest) {
         paymentMethods,
         paymentTypes
       },
-      recentPayments: payments.slice(0, 10),
+      recentPayments: payments.slice(0, 15),
       recentPricing: processedPricing.slice(0, 10).map(calc => {
         return {
           ...calc,
