@@ -277,18 +277,20 @@ export default function MobileScheduleClient({
     const eveningBreakStart = 17 * 60 + 0;   // 17:00
     const eveningBreakEnd = 19 * 60 + 0;     // 19:00
     
-    // Friday (5) and Saturday (6): whole day not available
+    // Sunday (0): whole day not available
+    if (dayOfWeek === 0) {
+      return true; // All time slots unavailable on Sunday
+    }
+    
+    // Friday (5) and Saturday (6): lunch break and evening break apply
     if (dayOfWeek === 5 || dayOfWeek === 6) {
-      return true; // All time slots unavailable on Friday and Saturday
+      const isLunchBreak = timeInMinutes > lunchBreakStart && timeInMinutes < lunchBreakEnd;
+      const isEveningBreak = timeInMinutes >= eveningBreakStart && timeInMinutes < eveningBreakEnd;
+      return isLunchBreak || isEveningBreak;
     }
     
     // Monday (1) to Thursday (4): only lunch break applies
     if (dayOfWeek >= 1 && dayOfWeek <= 4) {
-      return timeInMinutes > lunchBreakStart && timeInMinutes < lunchBreakEnd;
-    }
-    
-    // Sunday (0): only lunch break applies
-    if (dayOfWeek === 0) {
       return timeInMinutes > lunchBreakStart && timeInMinutes < lunchBreakEnd;
     }
     

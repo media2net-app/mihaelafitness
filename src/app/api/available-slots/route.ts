@@ -16,12 +16,11 @@ export async function GET(request: NextRequest) {
     // Check if the date is a specific holiday (only Oct 10-11, 2025)
     const dateObj = new Date(date);
     const dateString = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD format
-    // Check if Friday/Saturday/Sunday are closed
+    // Check if Sunday is closed (Sunday = 0)
     const dayOfWeek = dateObj.getDay();
-    const isFriday = dayOfWeek === 5;
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+    const isWeekend = dayOfWeek === 0; // Only Sunday is closed
     
-    if (isFriday || isWeekend) {
+    if (isWeekend) {
       return NextResponse.json({
         date,
         availableSlots: [],
@@ -35,8 +34,8 @@ export async function GET(request: NextRequest) {
           { start: '17:30', end: '19:00' },
         ],
         weekend: isWeekend,
-        friday: isFriday,
-        message: isFriday ? 'Closed on Friday' : 'Weekend in Holland'
+        friday: false,
+        message: 'Weekend in Holland'
       });
     }
 

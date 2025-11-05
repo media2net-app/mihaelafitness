@@ -133,14 +133,13 @@ export default function HomePage() {
         date.setDate(today.getDate() + i);
         const dayOfWeek = date.getDay();
         const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-        const isFriday = dayOfWeek === 5;
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isWeekend = dayOfWeek === 0; // Only Sunday is closed
         
         console.log(`📅 Day ${i}: ${date.toDateString()} (${dayName}, ${dayOfWeek}) - ${isWeekend ? 'WEEKEND BLOCKED' : 'WORKDAY INCLUDED'}`);
         
-        // Skip Friday/Saturday/Sunday (closed days)
+        // Skip Sunday (closed day)
         const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD format
-        const isClosed = isFriday || isWeekend; // Fri/Sat/Sun closed
+        const isClosed = isWeekend; // Only Sunday closed
         
         if (!isClosed) {
           const dayNameFormatted = date.toLocaleDateString('en-US', { 
@@ -156,8 +155,7 @@ export default function HomePage() {
           });
           console.log(`✅ Added to available days: ${dateString} (${dayNameFormatted})`);
         } else {
-          const reason = isFriday ? 'FRIDAY CLOSED' : 'WEEKEND CLOSED';
-          console.log(`❌ Skipped ${reason}: ${date.toDateString()} (${dayName})`);
+          console.log(`❌ Skipped SUNDAY CLOSED: ${date.toDateString()} (${dayName})`);
         }
       }
       

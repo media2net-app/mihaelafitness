@@ -33,13 +33,12 @@ export async function POST(request: NextRequest) {
       const [hours, minutes] = preferredTime.split(':').map(Number);
       sessionDate.setHours(hours, minutes, 0, 0);
 
-      // Validate: no Fridays and no weekends (Saturday=6, Sunday=0)
+      // Validate: no Sundays (Sunday=0)
       const dayOfWeek = sessionDate.getDay();
-      const isFriday = dayOfWeek === 5;
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      if (isFriday || isWeekend) {
+      const isWeekend = dayOfWeek === 0; // Only Sunday is closed
+      if (isWeekend) {
         return NextResponse.json(
-          { error: 'Selected date is not available (Friday/weekend closed). Please choose another weekday.' },
+          { error: 'Selected date is not available (Sunday closed). Please choose another day.' },
           { status: 400 }
         );
       }
