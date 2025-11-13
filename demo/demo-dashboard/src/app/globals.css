@@ -1904,13 +1904,15 @@ a:hover {
 }
 
 /* ============================================
-   LANDING PAGE STYLES
+   LANDING PAGE STYLES - DARK MODE SCI-FI 2.0
    ============================================ */
 
 .landing-page {
   min-height: 100vh;
-  background: #ffffff;
-  color: #0f172a;
+  background: #0a0a0f;
+  color: #ffffff;
+  position: relative;
+  overflow-x: hidden;
 }
 
 /* Navigation */
@@ -1920,10 +1922,11 @@ a:hover {
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(10, 10, 15, 0.85);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
   padding: 1rem 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .landing-nav__container {
@@ -1941,14 +1944,15 @@ a:hover {
   gap: 0.75rem;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #ffffff;
 }
 
 .landing-nav__brand-text {
-  background: linear-gradient(135deg, #2563eb, #22c55e);
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
 }
 
 .landing-nav__actions {
@@ -1958,14 +1962,15 @@ a:hover {
 }
 
 .landing-nav__link {
-  color: #475569;
+  color: #94a3b8;
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .landing-nav__link:hover {
-  color: #2563eb;
+  color: #3b82f6;
+  text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
 }
 
 /* Buttons */
@@ -1984,25 +1989,30 @@ a:hover {
 }
 
 .landing-btn--primary {
-  background: linear-gradient(135deg, #2563eb, #22c55e);
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4), 0 0 30px rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .landing-btn--primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 6px 30px rgba(59, 130, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
 }
 
 .landing-btn--secondary {
-  background: rgba(15, 23, 42, 0.05);
-  color: #0f172a;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(30, 41, 59, 0.3);
+  color: #ffffff;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  backdrop-filter: blur(10px);
 }
 
 .landing-btn--secondary:hover {
-  background: rgba(15, 23, 42, 0.1);
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(59, 130, 246, 0.5);
   transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
 }
 
 .landing-btn--outline {
@@ -2018,12 +2028,14 @@ a:hover {
 
 .landing-btn--white {
   background: #ffffff;
-  color: #2563eb;
+  color: #0a0a0f;
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
 }
 
 .landing-btn--white:hover {
-  background: #f8fafc;
+  background: #f1f5f9;
   transform: translateY(-2px);
+  box-shadow: 0 6px 30px rgba(255, 255, 255, 0.3);
 }
 
 .landing-btn--large {
@@ -2040,6 +2052,8 @@ a:hover {
   justify-content: center;
   padding: 8rem 2rem 4rem;
   overflow: hidden;
+  background: radial-gradient(ellipse at top, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+              radial-gradient(ellipse at bottom, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
 }
 
 .landing-hero__background {
@@ -2057,7 +2071,7 @@ a:hover {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, rgba(34, 197, 94, 0.1) 50%, transparent 70%);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(6, 182, 212, 0.15) 50%, transparent 70%);
   animation: rotate 20s linear infinite;
 }
 
@@ -2068,10 +2082,20 @@ a:hover {
   right: 0;
   bottom: 0;
   background-image: 
-    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
   background-size: 50px 50px;
-  opacity: 0.5;
+  opacity: 0.3;
+  animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(50px, 50px);
+  }
 }
 
 @keyframes rotate {
@@ -2091,13 +2115,14 @@ a:hover {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(30, 41, 59, 0.4);
   backdrop-filter: blur(10px);
   border-radius: 999px;
   font-size: 0.875rem;
-  color: #475569;
+  color: #94a3b8;
   margin-bottom: 2rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
 }
 
 .landing-hero__title {
@@ -2105,20 +2130,32 @@ a:hover {
   font-weight: 800;
   line-height: 1.1;
   margin: 0 0 1.5rem;
-  color: #0f172a;
+  color: #ffffff;
+  text-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
 }
 
 .landing-hero__title-highlight {
-  background: linear-gradient(135deg, #2563eb, #22c55e);
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.6));
+  animation: glow 3s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.6));
+  }
+  to {
+    filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.9));
+  }
 }
 
 .landing-hero__subtitle {
   font-size: clamp(1rem, 2vw, 1.25rem);
   line-height: 1.6;
-  color: #475569;
+  color: #cbd5e1;
   margin: 0 0 2.5rem;
   max-width: 700px;
   margin-left: auto;
@@ -2147,16 +2184,17 @@ a:hover {
 .landing-stat__value {
   font-size: 2.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #2563eb, #22c55e);
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin-bottom: 0.25rem;
+  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
 }
 
 .landing-stat__label {
   font-size: 0.875rem;
-  color: #64748b;
+  color: #94a3b8;
   font-weight: 500;
 }
 
@@ -2164,10 +2202,12 @@ a:hover {
 .landing-section {
   padding: 6rem 2rem;
   position: relative;
+  background: #0a0a0f;
 }
 
 .landing-section--alt {
-  background: linear-gradient(to bottom, #ffffff, #f8fafc);
+  background: linear-gradient(to bottom, #0a0a0f, #111827);
+  border-top: 1px solid rgba(59, 130, 246, 0.1);
 }
 
 .landing-section__container {
@@ -2186,13 +2226,14 @@ a:hover {
   font-weight: 800;
   line-height: 1.2;
   margin: 0 0 1rem;
-  color: #0f172a;
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
 }
 
 .landing-section__subtitle {
   font-size: 1.125rem;
   line-height: 1.6;
-  color: #64748b;
+  color: #cbd5e1;
   margin: 0;
 }
 
@@ -2205,16 +2246,34 @@ a:hover {
 
 .landing-feature {
   padding: 2rem;
-  background: #ffffff;
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(10px);
   border-radius: 1.5rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-feature::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.landing-feature:hover::before {
+  left: 100%;
 }
 
 .landing-feature:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
-  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.3), 0 0 30px rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.5);
 }
 
 .landing-feature__icon {
@@ -2223,24 +2282,32 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(34, 197, 94, 0.1));
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(6, 182, 212, 0.2));
   border-radius: 1rem;
   margin-bottom: 1.5rem;
-  color: #2563eb;
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+  position: relative;
+  z-index: 1;
 }
 
 .landing-feature__title {
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0 0 0.75rem;
-  color: #0f172a;
+  color: #ffffff;
+  position: relative;
+  z-index: 1;
 }
 
 .landing-feature__description {
   font-size: 1rem;
   line-height: 1.6;
-  color: #64748b;
+  color: #cbd5e1;
   margin: 0;
+  position: relative;
+  z-index: 1;
 }
 
 /* Benefits Section */
@@ -2263,22 +2330,23 @@ a:hover {
 }
 
 .landing-benefit__icon {
-  color: #22c55e;
+  color: #06b6d4;
   flex-shrink: 0;
   margin-top: 0.25rem;
+  filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.5));
 }
 
 .landing-benefit__title {
   font-size: 1.25rem;
   font-weight: 700;
   margin: 0 0 0.5rem;
-  color: #0f172a;
+  color: #ffffff;
 }
 
 .landing-benefit__description {
   font-size: 1rem;
   line-height: 1.6;
-  color: #64748b;
+  color: #cbd5e1;
   margin: 0;
 }
 
@@ -2287,10 +2355,11 @@ a:hover {
 }
 
 .landing-visual-card {
-  background: #ffffff;
+  background: rgba(30, 41, 59, 0.5);
+  backdrop-filter: blur(10px);
   border-radius: 1.5rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(59, 130, 246, 0.2);
   overflow: hidden;
 }
 
@@ -2299,8 +2368,8 @@ a:hover {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  background: #f8fafc;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(15, 23, 42, 0.5);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .landing-visual-card__dots {
@@ -2329,7 +2398,7 @@ a:hover {
 
 .landing-visual-card__title {
   font-size: 0.875rem;
-  color: #64748b;
+  color: #94a3b8;
   font-weight: 500;
 }
 
@@ -2343,19 +2412,22 @@ a:hover {
   gap: 1rem;
   margin-bottom: 2rem;
   padding: 1rem;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(34, 197, 94, 0.1));
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(6, 182, 212, 0.2));
   border-radius: 1rem;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
 }
 
 .landing-visual-metric__value {
   font-size: 2rem;
   font-weight: 800;
-  color: #2563eb;
+  color: #3b82f6;
+  text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
 }
 
 .landing-visual-metric__label {
   font-size: 0.875rem;
-  color: #64748b;
+  color: #cbd5e1;
 }
 
 .landing-visual-chart {
@@ -2367,10 +2439,11 @@ a:hover {
 
 .landing-visual-chart__bar {
   flex: 1;
-  background: linear-gradient(to top, #2563eb, #22c55e);
+  background: linear-gradient(to top, #3b82f6, #06b6d4);
   border-radius: 0.25rem 0.25rem 0 0;
   min-height: 20px;
   animation: grow 1s ease-out;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
 }
 
 @keyframes grow {
@@ -2399,9 +2472,10 @@ a:hover {
   position: absolute;
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.3), transparent);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.4), rgba(6, 182, 212, 0.3), transparent);
   border-radius: 50%;
   animation: pulse 3s ease-in-out infinite;
+  filter: blur(40px);
 }
 
 @keyframes pulse {
@@ -2418,8 +2492,9 @@ a:hover {
 .landing-ai__icon {
   position: relative;
   z-index: 1;
-  color: #2563eb;
+  color: #3b82f6;
   animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.8));
 }
 
 @keyframes float {
@@ -2443,10 +2518,12 @@ a:hover {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem;
-  background: rgba(37, 99, 235, 0.05);
+  background: rgba(59, 130, 246, 0.1);
   border-radius: 0.75rem;
-  color: #2563eb;
+  color: #3b82f6;
   font-weight: 500;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  backdrop-filter: blur(5px);
 }
 
 .landing-ai-feature svg {
@@ -2475,7 +2552,8 @@ a:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #2563eb, #22c55e);
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.3);
 }
 
 .landing-cta__content {
@@ -2508,9 +2586,10 @@ a:hover {
 
 /* Footer */
 .landing-footer {
-  background: #0f172a;
+  background: #050508;
   color: #f8fafc;
   padding: 3rem 2rem;
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
 }
 
 .landing-footer__container {
@@ -2537,12 +2616,12 @@ a:hover {
 
 .landing-footer__info p {
   margin: 0.25rem 0;
-  color: #cbd5e1;
+  color: #94a3b8;
   font-size: 0.875rem;
 }
 
 .landing-footer__copyright {
-  color: #94a3b8 !important;
+  color: #64748b !important;
 }
 
 /* Responsive Design */
