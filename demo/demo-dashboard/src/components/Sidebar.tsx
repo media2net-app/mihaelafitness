@@ -77,12 +77,27 @@ export default function Sidebar({ client }: SidebarProps) {
           Overzicht
         </h2>
         <ul className="client-sidebar__list">
-          {client.sidebarLinks.map((link) => {
+          {client.sidebarLinks.map((link, index) => {
             const active =
               pathname === link.href || pathname.startsWith(`${link.href}/`);
+            
+            // Check if this is the "Ontwikkelingskosten" link to add spacer before it
+            const isOntwikkelingskosten = link.label === "Ontwikkelingskosten";
+            const showSpacer = isOntwikkelingskosten && index > 0;
 
             return (
               <li key={link.href}>
+                {showSpacer && (
+                  <div 
+                    style={{
+                      height: "1px",
+                      background: "var(--client-border)",
+                      margin: "1rem 0",
+                      opacity: 0.5,
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
                 <Link
                   href={link.href}
                   className={`client-sidebar__link${active ? " is-active" : ""}`}
