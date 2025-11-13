@@ -2662,6 +2662,12 @@ a:hover {
   border-top: 1px solid rgba(59, 130, 246, 0.1);
 }
 
+.landing-section--problem {
+  background: rgba(245, 158, 11, 0.05);
+  border-top: 1px solid rgba(245, 158, 11, 0.2);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+}
+
 .landing-section__container {
   max-width: 1280px;
   margin: 0 auto;
@@ -2760,6 +2766,86 @@ a:hover {
   margin: 0;
   position: relative;
   z-index: 1;
+}
+
+/* Problems Section */
+.landing-problems {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.landing-problem {
+  padding: 2rem;
+  background: rgba(245, 158, 11, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.landing-problem:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.landing-problem__icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.landing-problem h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  color: #ffffff;
+}
+
+.landing-problem p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+/* Use Cases Section */
+.landing-use-cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.landing-use-case {
+  padding: 2rem;
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(10px);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  transition: all 0.3s ease;
+}
+
+.landing-use-case:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.3), 0 0 30px rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.landing-use-case h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  color: #ffffff;
+}
+
+.landing-use-case p {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  margin: 0;
 }
 
 /* Benefits Section */
