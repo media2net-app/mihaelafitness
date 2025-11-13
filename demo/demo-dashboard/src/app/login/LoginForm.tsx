@@ -47,13 +47,15 @@ export default function LoginForm({ clients, loginAction }: LoginFormProps) {
 
         {error && (
           <div
+            className="login-error"
             style={{
               padding: "0.75rem",
-              background: "#fee2e2",
-              border: "1px solid #fca5a5",
+              background: "rgba(239, 68, 68, 0.2)",
+              border: "1px solid rgba(239, 68, 68, 0.4)",
               borderRadius: "0.5rem",
-              color: "#991b1b",
+              color: "#fca5a5",
               marginBottom: "1rem",
+              backdropFilter: "blur(10px)",
             }}
           >
             {error}
@@ -96,13 +98,15 @@ export default function LoginForm({ clients, loginAction }: LoginFormProps) {
       {/* Client Selectie Modal */}
       {showClientModal && (
         <div
+          className="login-modal-overlay"
           style={{
             position: "fixed",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(0, 0, 0, 0.5)",
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(10px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -112,11 +116,17 @@ export default function LoginForm({ clients, loginAction }: LoginFormProps) {
           onClick={() => setShowClientModal(false)}
         >
           <div
-            className="page-card"
+            className="login-modal"
             style={{
               maxWidth: "500px",
               width: "100%",
               position: "relative",
+              background: "rgba(30, 41, 59, 0.5)",
+              backdropFilter: "blur(20px)",
+              borderRadius: "1.5rem",
+              padding: "2rem",
+              border: "1px solid rgba(59, 130, 246, 0.3)",
+              boxShadow: "0 12px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(59, 130, 246, 0.2)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -127,10 +137,10 @@ export default function LoginForm({ clients, loginAction }: LoginFormProps) {
                 alignItems: "center",
                 marginBottom: "1.5rem",
                 paddingBottom: "1rem",
-                borderBottom: "2px solid var(--client-border)",
+                borderBottom: "1px solid rgba(59, 130, 246, 0.2)",
               }}
             >
-              <h2 style={{ margin: 0 }}>Kies een klantmap</h2>
+              <h2 style={{ margin: 0, color: "#ffffff", fontSize: "1.5rem", fontWeight: 700 }}>Kies een klantmap</h2>
               <button
                 onClick={() => setShowClientModal(false)}
                 style={{
@@ -140,8 +150,11 @@ export default function LoginForm({ clients, loginAction }: LoginFormProps) {
                   padding: "0.5rem",
                   display: "flex",
                   alignItems: "center",
-                  color: "#64748b",
+                  color: "#94a3b8",
+                  transition: "color 0.2s ease",
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.color = "#ffffff"}
+                onMouseLeave={(e) => e.currentTarget.style.color = "#94a3b8"}
               >
                 <X size={24} />
               </button>
@@ -152,7 +165,7 @@ export default function LoginForm({ clients, loginAction }: LoginFormProps) {
                 <button
                   key={client.id}
                   onClick={() => handleClientSelect(client.id)}
-                  className="btn btn--primary"
+                  className="login-client-btn"
                   style={{
                     width: "100%",
                     textAlign: "left",
@@ -160,10 +173,28 @@ export default function LoginForm({ clients, loginAction }: LoginFormProps) {
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "flex-start",
+                    background: "rgba(59, 130, 246, 0.1)",
+                    border: "1px solid rgba(59, 130, 246, 0.3)",
+                    borderRadius: "0.75rem",
+                    color: "#ffffff",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(59, 130, 246, 0.2)";
+                    e.currentTarget.style.borderColor = "rgba(59, 130, 246, 0.5)";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "0 4px 20px rgba(59, 130, 246, 0.3)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(59, 130, 246, 0.1)";
+                    e.currentTarget.style.borderColor = "rgba(59, 130, 246, 0.3)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "none";
                   }}
                 >
-                  <strong style={{ fontSize: "1.1rem" }}>{client.name}</strong>
-                  <span style={{ fontSize: "0.9rem", opacity: 0.8, marginTop: "0.25rem" }}>
+                  <strong style={{ fontSize: "1.1rem", color: "#ffffff" }}>{client.name}</strong>
+                  <span style={{ fontSize: "0.9rem", color: "#cbd5e1", marginTop: "0.25rem" }}>
                     {client.tagline}
                   </span>
                 </button>
