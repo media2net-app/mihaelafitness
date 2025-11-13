@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd demo-dashboard && npm run build",
+  "devCommand": "cd demo-dashboard && npm run dev",
+  "installCommand": "cd demo-dashboard && npm install",
+  "framework": "nextjs"
+}
+
