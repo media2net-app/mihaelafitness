@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: "Demo Dashboard",
   description:
     "A customizable client dashboard demo with per-client theming and navigation.",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
 };
 
 export default function RootLayout({
