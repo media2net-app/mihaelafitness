@@ -1,0 +1,34 @@
+# Exclude everything except demo-dashboard
+*
+
+# But include demo-dashboard
+!demo-dashboard/
+!demo-dashboard/**
+
+# Include vercel.json in root
+!vercel.json
+
+# Include .gitignore itself
+!.gitignore
+
+# Exclude node_modules everywhere
+node_modules/
+**/node_modules/
+
+# Exclude build outputs
+.next/
+**/.next/
+dist/
+**/dist/
+build/
+**/build/
+
+# Exclude environment files
+.env
+.env.local
+.env*.local
+
+# Exclude OS files
+.DS_Store
+*.log
+
