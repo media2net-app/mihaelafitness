@@ -7,12 +7,10 @@ import {
   listClients,
 } from "@/lib/clients";
 
-async function loginAction(formData: FormData) {
+async function loginAction(clientId: string) {
   "use server";
 
-  const selectedClient = formData.get("client");
-
-  if (typeof selectedClient !== "string" || !isClientId(selectedClient)) {
+  if (!isClientId(clientId)) {
     redirect("/login");
   }
 
@@ -20,7 +18,7 @@ async function loginAction(formData: FormData) {
   const cookieStore = await cookies();
   
   // Set the cookie - in server actions, cookies() returns a mutable RequestCookies
-  (cookieStore as any).set("demo-client", selectedClient, {
+  (cookieStore as any).set("demo-client", clientId, {
     path: "/",
     httpOnly: false,
     maxAge: 60 * 60 * 8,
@@ -28,7 +26,7 @@ async function loginAction(formData: FormData) {
   });
 
   // Redirect to the client dashboard
-  redirect(clientDashboardPath(selectedClient));
+  redirect(clientDashboardPath(clientId));
 }
 
 export default function LoginPage() {

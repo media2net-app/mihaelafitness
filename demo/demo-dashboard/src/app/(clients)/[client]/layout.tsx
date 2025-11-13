@@ -1,14 +1,7 @@
 import type { ReactNode } from "react";
-import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import LogoutButton from "@/components/LogoutButton";
-import {
-  clientDashboardPath,
-  findClient,
-  isClientId,
-  listClients,
-} from "@/lib/clients";
+import { findClient, listClients } from "@/lib/clients";
 
 type ClientLayoutProps = {
   children: ReactNode;
@@ -31,21 +24,8 @@ export default async function ClientLayout({
   }
 
   const clientConfig = client;
-  const cookieStore = await cookies();
-  const sessionClient = cookieStore.get("demo-client");
 
-  if (!sessionClient) {
-    redirect("/login");
-  }
-
-  if (sessionClient.value !== clientConfig.id) {
-    if (isClientId(sessionClient.value)) {
-      redirect(clientDashboardPath(sessionClient.value));
-    }
-
-    redirect("/login");
-  }
-
+  // Geen login vereist - directe toegang tot alle client dashboards
   return (
     <div data-client={clientConfig.id} className="client-shell">
       <Sidebar client={clientConfig} />
@@ -56,7 +36,6 @@ export default async function ClientLayout({
             <h1 className="client-title">{clientConfig.name}</h1>
             <p className="client-tagline">{clientConfig.tagline}</p>
           </div>
-          <LogoutButton />
         </header>
         <div className="client-content">{children}</div>
       </div>

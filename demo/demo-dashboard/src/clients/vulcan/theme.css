@@ -1,0 +1,38 @@
+[data-client="vulcan"] {
+  --client-brand: #0066cc;
+  --client-accent: #004499;
+  --client-surface: #f0f7ff;
+  --client-border: #b3d9ff;
+  --client-card-bg: #ffffff;
+  --client-card-text: #001133;
+  --client-sidebar-bg: #0066cc;
+  --client-sidebar-text: #ffffff;
+  --client-sidebar-muted: rgba(255, 255, 255, 0.8);
+  --client-sidebar-active-bg: rgba(255, 255, 255, 0.2);
+  --client-sidebar-active-text: #ffffff;
+  --client-button-text: #001133;
+}
+
+[data-client="vulcan"] .logout-button,
+[data-client="vulcan"] .login-button {
+  color: #001133;
+}
+
+[data-client="vulcan"] .dashboard-card--primary {
+  background: linear-gradient(145deg, #0066cc, #004499);
+  color: #ffffff;
+}
+
+[data-client="vulcan"] .client-sidebar__link.is-active {
+  background: rgba(0, 17, 51, 0.3);
+  color: #ffffff;
+  border-left: 3px solid #ffffff;
+  font-weight: 600;
+}
+
+[data-client="vulcan"] .client-sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+

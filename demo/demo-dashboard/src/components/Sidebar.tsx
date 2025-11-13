@@ -41,7 +41,7 @@ export default function Sidebar({ client }: SidebarProps) {
                   className={`client-sidebar__link${active ? " is-active" : ""}`}
                 >
                   <span>{link.label}</span>
-                  {link.description && (
+                  {"description" in link && link.description && (
                     <span className="client-sidebar__link-description">
                       {link.description}
                     </span>
@@ -52,27 +52,35 @@ export default function Sidebar({ client }: SidebarProps) {
           })}
         </ul>
       </nav>
-      {client.resources && client.resources.length > 0 && (
-        <div className="client-sidebar__nav">
-          <h2 className="client-sidebar__section" aria-label="Snelle links">
-            Resources
-          </h2>
-          <ul className="client-sidebar__list">
-            {client.resources.map((resource) => (
-              <li key={resource.href}>
-                <Link
-                  href={resource.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="client-sidebar__link client-sidebar__link--external"
-                >
-                  <span>{resource.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {(() => {
+        if ("resources" in client) {
+          const resources = client.resources;
+          if (resources && Array.isArray(resources) && resources.length > 0) {
+            return (
+              <div className="client-sidebar__nav">
+                <h2 className="client-sidebar__section" aria-label="Snelle links">
+                  Resources
+                </h2>
+                <ul className="client-sidebar__list">
+                  {resources.map((resource) => (
+                    <li key={resource.href}>
+                      <Link
+                        href={resource.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="client-sidebar__link client-sidebar__link--external"
+                      >
+                        <span>{resource.label}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          }
+        }
+        return null;
+      })()}
     </aside>
   );
 }

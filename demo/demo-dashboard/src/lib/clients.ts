@@ -99,6 +99,49 @@ const clientDefinitions = [
       },
     ],
   },
+  {
+    id: "vulcan",
+    name: "Vulcan Nederland",
+    tagline: "Het zout- en chemicaliënvrije ontkalksysteem",
+    logo: "/clients/vulcan/logo.svg",
+    summary:
+      "Vulcan is een chemicaliënvrij waterbehandelingssysteem dat gebruik maakt van de Vulcan-impulstechnologie om water fysiek te behandelen. Geen zout, geen chemicaliën, geen onderhoud - alleen elektronische impulsen.",
+    contact: {
+      phone: "0528-783873",
+      email: "info@healthyhomeholland.nl",
+      address: "Onlandweg 5, 9482 TC Tynaarlo",
+    },
+    highlights: [
+      "Geen zout, geen chemicaliën, geen onderhoud",
+      "Internationale 25-jarige garantie",
+      "Made in Germany - CWT-kwaliteit",
+      "Geschikt voor buisdiameters van 10 tot 1000 mm",
+      "Beschikbaar in meer dan 70 landen",
+    ],
+    quickStats: [
+      { label: "Garantie", value: "25 jaar" },
+      { label: "Landen", value: "70+" },
+      { label: "Ervaring", value: "40+ jaar" },
+    ],
+    sidebarLinks: [
+      { label: "Dashboard", href: "/vulcan/dashboard" },
+      {
+        label: "Installaties",
+        href: "/vulcan/projects",
+        description: "Geïnstalleerde systemen",
+      },
+      {
+        label: "Klanten",
+        href: "/vulcan/clients",
+        description: "Klanten & contacten",
+      },
+      {
+        label: "Rapportages",
+        href: "/vulcan/reports",
+        description: "Service & onderhoud",
+      },
+    ],
+  },
 ] as const satisfies readonly ClientDefinition[];
 
 export type ClientConfig = (typeof clientDefinitions)[number];

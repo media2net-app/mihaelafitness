@@ -1,8 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams, useParams } from "next/navigation";
 import { ArrowLeft, Sparkles, CheckCircle } from "lucide-react";
 import Link from "next/link";
+
+// Force dynamic rendering omdat we searchParams gebruiken
+export const dynamic = 'force-dynamic';
 
 // Ingrediënten database (per 100g) - zelfde als in schema detail pagina
 const ingrediëntenDatabase = [
@@ -304,7 +308,7 @@ function genereerMaaltijden(
   });
 }
 
-export default function AIPlanPage() {
+function AIPlanPageContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const clientId = params.client as string;
@@ -688,6 +692,18 @@ export default function AIPlanPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AIPlanPage() {
+  return (
+    <Suspense fallback={
+      <div className="page-admin" style={{ padding: "2rem", textAlign: "center" }}>
+        <div>Laden...</div>
+      </div>
+    }>
+      <AIPlanPageContent />
+    </Suspense>
   );
 }
 
