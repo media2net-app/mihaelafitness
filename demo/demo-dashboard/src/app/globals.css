@@ -2663,9 +2663,23 @@ a:hover {
 }
 
 .landing-section--problem {
-  background: rgba(245, 158, 11, 0.05);
-  border-top: 1px solid rgba(245, 158, 11, 0.2);
-  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+  background: rgba(15, 23, 42, 0.3);
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.landing-problem-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(6, 182, 212, 0.2));
+  border-radius: 1.5rem;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
 }
 
 .landing-section__container {
@@ -2778,23 +2792,51 @@ a:hover {
 
 .landing-problem {
   padding: 2rem;
-  background: rgba(245, 158, 11, 0.1);
+  background: rgba(30, 41, 59, 0.4);
   backdrop-filter: blur(10px);
   border-radius: 1.5rem;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.2);
   text-align: center;
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-problem::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.landing-problem:hover::before {
+  left: 100%;
 }
 
 .landing-problem:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.3), 0 0 30px rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.5);
 }
 
 .landing-problem__icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(6, 182, 212, 0.2));
+  border-radius: 1.5rem;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+  position: relative;
+  z-index: 1;
 }
 
 .landing-problem h3 {
@@ -2802,6 +2844,8 @@ a:hover {
   font-weight: 700;
   margin: 0 0 0.75rem;
   color: #ffffff;
+  position: relative;
+  z-index: 1;
 }
 
 .landing-problem p {
@@ -2809,6 +2853,8 @@ a:hover {
   line-height: 1.6;
   color: #cbd5e1;
   margin: 0;
+  position: relative;
+  z-index: 1;
 }
 
 /* Use Cases Section */

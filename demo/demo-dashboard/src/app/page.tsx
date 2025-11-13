@@ -20,7 +20,9 @@ import {
   Users,
   FileText,
   Calendar,
-  PieChart
+  PieChart,
+  XCircle,
+  RefreshCw
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -94,7 +96,9 @@ export default function LandingPage() {
       <section className="landing-section landing-section--problem">
         <div className="landing-section__container">
           <div className="landing-section__header">
-            <AlertTriangle size={48} style={{ color: "#f59e0b", marginBottom: "1rem" }} />
+            <div className="landing-problem-header-icon">
+              <AlertTriangle size={48} />
+            </div>
             <h2 className="landing-section__title">
               Herken je dit? Je werkt met meerdere systemen
             </h2>
@@ -105,22 +109,30 @@ export default function LandingPage() {
           </div>
           <div className="landing-problems">
             <div className="landing-problem">
-              <div className="landing-problem__icon">⏱️</div>
+              <div className="landing-problem__icon">
+                <Clock size={48} />
+              </div>
               <h3>Verlies van tijd</h3>
               <p>Dagelijks uren kwijt aan het zoeken en kopiëren van data tussen verschillende systemen</p>
             </div>
             <div className="landing-problem">
-              <div className="landing-problem__icon">📊</div>
+              <div className="landing-problem__icon">
+                <BarChart3 size={48} />
+              </div>
               <h3>Geen overzicht</h3>
               <p>Je hebt geen real-time beeld van wat er gebeurt in je organisatie</p>
             </div>
             <div className="landing-problem">
-              <div className="landing-problem__icon">🔄</div>
+              <div className="landing-problem__icon">
+                <RefreshCw size={48} />
+              </div>
               <h3>Handmatig werk</h3>
               <p>Repetitieve taken die eigenlijk geautomatiseerd zouden moeten zijn</p>
             </div>
             <div className="landing-problem">
-              <div className="landing-problem__icon">❌</div>
+              <div className="landing-problem__icon">
+                <XCircle size={48} />
+              </div>
               <h3>Fouten en vertraging</h3>
               <p>Data komt niet op tijd binnen of bevat fouten door handmatige invoer</p>
             </div>
