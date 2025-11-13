@@ -27,95 +27,95 @@ export default async function OntwikkelingskostenPage({ params }: Ontwikkelingsk
       categorie: "Dashboard & Overzicht",
       icon: LayoutDashboard,
       items: [
-        { naam: "Dashboard met KPI's en statistieken", prijs: 150 },
-        { naam: "Real-time metrics en overzichten", prijs: 100 },
-        { naam: "Customizable dashboard widgets", prijs: 75 },
+        "Dashboard met KPI's en statistieken",
+        "Real-time metrics en overzichten",
+        "Customizable dashboard widgets",
       ],
     },
     {
       categorie: "Klantenbeheer",
       icon: Users,
       items: [
-        { naam: "Klanten overzicht met filters", prijs: 100 },
-        { naam: "Klant detail pagina's", prijs: 125 },
-        { naam: "Klant status tracking", prijs: 50 },
-        { naam: "Progress tracking per klant", prijs: 75 },
+        "Klanten overzicht met filters",
+        "Klant detail pagina's",
+        "Klant status tracking",
+        "Progress tracking per klant",
       ],
     },
     {
       categorie: "Agenda & Planning",
       icon: CalendarDays,
       items: [
-        { naam: "Weekoverzicht agenda", prijs: 150 },
-        { naam: "Mobile agenda (per dag weergave)", prijs: 100 },
-        { naam: "Sessie planning en beheer", prijs: 75 },
-        { naam: "Tijdsloten beheer (06:00 - 22:00)", prijs: 50 },
+        "Weekoverzicht agenda",
+        "Mobile agenda (per dag weergave)",
+        "Sessie planning en beheer",
+        "Tijdsloten beheer (06:00 - 22:00)",
       ],
     },
     {
       categorie: "Voedingsplannen",
       icon: UtensilsCrossed,
       items: [
-        { naam: "Voedingsplan overzicht", prijs: 100 },
-        { naam: "Voedingsplan detail pagina", prijs: 125 },
-        { naam: "Macro tracking per dag (tabs)", prijs: 100 },
-        { naam: "Maaltijd toevoegen functionaliteit", prijs: 75 },
-        { naam: "Ingrediënten database (100+ items)", prijs: 100 },
-        { naam: "Automatische voedingswaarde berekening", prijs: 75 },
+        "Voedingsplan overzicht",
+        "Voedingsplan detail pagina",
+        "Macro tracking per dag (tabs)",
+        "Maaltijd toevoegen functionaliteit",
+        "Ingrediënten database (100+ items)",
+        "Automatische voedingswaarde berekening",
       ],
     },
     {
       categorie: "AI Functionaliteiten",
       icon: Brain,
       items: [
-        { naam: "AI Voedingsplan Generator", prijs: 200 },
-        { naam: "Slimme maaltijd suggesties", prijs: 100 },
-        { naam: "Automatische macro berekening", prijs: 75 },
+        "AI Voedingsplan Generator",
+        "Slimme maaltijd suggesties",
+        "Automatische macro berekening",
       ],
     },
     {
       categorie: "Design & UI/UX",
       icon: Palette,
       items: [
-        { naam: "Modern dark mode sci-fi 2.0 design", prijs: 150 },
-        { naam: "Landing page met glassmorphism", prijs: 100 },
-        { naam: "Fully responsive mobile design", prijs: 125 },
-        { naam: "Hamburger menu & mobile navigation", prijs: 75 },
-        { naam: "Custom client theming", prijs: 50 },
+        "Modern dark mode sci-fi 2.0 design",
+        "Landing page met glassmorphism",
+        "Fully responsive mobile design",
+        "Hamburger menu & mobile navigation",
+        "Custom client theming",
       ],
     },
     {
       categorie: "Technische Features",
       icon: Code,
       items: [
-        { naam: "Next.js App Router implementatie", prijs: 100 },
-        { naam: "TypeScript type safety", prijs: 50 },
-        { naam: "Server & Client component optimalisatie", prijs: 75 },
-        { naam: "Performance optimalisatie", prijs: 50 },
+        "Next.js App Router implementatie",
+        "TypeScript type safety",
+        "Server & Client component optimalisatie",
+        "Performance optimalisatie",
       ],
     },
     {
       categorie: "Beveiliging & Authenticatie",
       icon: Shield,
       items: [
-        { naam: "Login systeem met authenticatie", prijs: 100 },
-        { naam: "Client selectie na login", prijs: 50 },
-        { naam: "Secure cookie management", prijs: 50 },
+        "Login systeem met authenticatie",
+        "Client selectie na login",
+        "Secure cookie management",
       ],
     },
     {
       categorie: "Mobile Optimalisatie",
       icon: Smartphone,
       items: [
-        { naam: "Responsive dashboard componenten", prijs: 100 },
-        { naam: "Mobile-first table layouts", prijs: 75 },
-        { naam: "Touch-friendly interacties", prijs: 50 },
-        { naam: "Mobile agenda optimalisatie", prijs: 75 },
+        "Responsive dashboard componenten",
+        "Mobile-first table layouts",
+        "Touch-friendly interacties",
+        "Mobile agenda optimalisatie",
       ],
     },
   ];
 
-  const totaalFuncties = functies.reduce((sum, cat) => sum + cat.items.reduce((s, i) => s + i.prijs, 0), 0);
+  const totaalFuncties = functies.reduce((sum, cat) => sum + cat.items.length, 0);
 
   return (
     <div className="page-admin">
@@ -188,14 +188,13 @@ export default async function OntwikkelingskostenPage({ params }: Ontwikkelingsk
           <div className="dashboard-card__header">
             <h2>Functionaliteiten & Onderdelen</h2>
             <span style={{ color: "#64748b", fontSize: "0.875rem" }}>
-              Totaal: €{totaalFuncties.toLocaleString("nl-NL")}
+              {totaalFuncties} functionaliteiten
             </span>
           </div>
           
           <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
             {functies.map((categorie, catIndex) => {
               const IconComponent = categorie.icon;
-              const categorieTotaal = categorie.items.reduce((sum, item) => sum + item.prijs, 0);
               
               return (
                 <div key={catIndex} style={{ borderBottom: catIndex < functies.length - 1 ? "1px solid var(--client-border)" : "none", paddingBottom: catIndex < functies.length - 1 ? "2rem" : "0" }}>
@@ -214,9 +213,6 @@ export default async function OntwikkelingskostenPage({ params }: Ontwikkelingsk
                     <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 600 }}>
                       {categorie.categorie}
                     </h3>
-                    <span style={{ marginLeft: "auto", color: "var(--client-brand)", fontWeight: 600 }}>
-                      €{categorieTotaal.toLocaleString("nl-NL")}
-                    </span>
                   </div>
                   
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginLeft: "2.5rem" }}>
@@ -225,13 +221,11 @@ export default async function OntwikkelingskostenPage({ params }: Ontwikkelingsk
                         key={itemIndex}
                         style={{ 
                           display: "flex", 
-                          justifyContent: "space-between", 
                           alignItems: "center",
                           padding: "0.5rem 0",
                         }}
                       >
-                        <span style={{ color: "#64748b", fontSize: "0.95rem" }}>{item.naam}</span>
-                        <span style={{ fontWeight: 600, color: "#1e293b" }}>€{item.prijs.toLocaleString("nl-NL")}</span>
+                        <span style={{ color: "#64748b", fontSize: "0.95rem" }}>{item}</span>
                       </div>
                     ))}
                   </div>
