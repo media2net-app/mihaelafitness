@@ -24,9 +24,10 @@ export default function Sidebar({ client }: SidebarProps) {
             <Image
               src={client.logo}
               alt={`${client.name} logo`}
-              width={120}
-              height={36}
+              width={client.id === "neumann" ? 60 : 120}
+              height={client.id === "neumann" ? 18 : 36}
               priority
+              style={{ width: "auto", height: "auto" }}
             />
           </div>
           <button

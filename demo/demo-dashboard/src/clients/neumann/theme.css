@@ -46,3 +46,14 @@
   object-fit: contain;
 }
 
+/* Neumann mobile header logo ook kleiner */
+[data-client="neumann"] .client-mobile-header__logo {
+  max-width: 60px;
+}
+
+[data-client="neumann"] .client-mobile-header__logo img {
+  width: 60px !important;
+  height: 18px !important;
+  object-fit: contain;
+}
+
