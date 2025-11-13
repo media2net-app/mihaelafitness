@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import type { ClientConfig } from "@/lib/clients";
 
 type SidebarProps = {
@@ -11,20 +13,63 @@ type SidebarProps = {
 
 export default function Sidebar({ client }: SidebarProps) {
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <aside className="client-sidebar" aria-label={`${client.name} navigatie`}>
-      <div className="client-sidebar__branding">
-        <div className="client-sidebar__logo">
-          <Image
-            src={client.logo}
-            alt={`${client.name} logo`}
-            width={160}
-            height={48}
-            priority
-          />
+    <>
+      {/* Mobile Header met Hamburger Menu */}
+      <div className="client-mobile-header">
+        <div className="client-mobile-header__content">
+          <div className="client-mobile-header__logo">
+            <Image
+              src={client.logo}
+              alt={`${client.name} logo`}
+              width={120}
+              height={36}
+              priority
+            />
+          </div>
+          <button
+            className="client-mobile-header__menu-toggle"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Menu openen"
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="client-mobile-overlay"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`client-sidebar ${isMobileMenuOpen ? "is-open" : ""}`}
+        aria-label={`${client.name} navigatie`}
+      >
+        <div className="client-sidebar__branding">
+          <div className="client-sidebar__logo">
+            <Image
+              src={client.logo}
+              alt={`${client.name} logo`}
+              width={160}
+              height={48}
+              priority
+            />
+          </div>
+          <button
+            className="client-sidebar__close"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-label="Menu sluiten"
+          >
+            <X size={20} />
+          </button>
+        </div>
       <nav className="client-sidebar__nav">
         <h2 className="client-sidebar__section" aria-label="Navigatie">
           Overzicht
@@ -39,6 +84,7 @@ export default function Sidebar({ client }: SidebarProps) {
                 <Link
                   href={link.href}
                   className={`client-sidebar__link${active ? " is-active" : ""}`}
+                  onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <span>{link.label}</span>
                   {"description" in link && link.description && (
@@ -69,6 +115,7 @@ export default function Sidebar({ client }: SidebarProps) {
                         target="_blank"
                         rel="noreferrer"
                         className="client-sidebar__link client-sidebar__link--external"
+                        onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <span>{resource.label}</span>
                       </Link>
@@ -81,7 +128,8 @@ export default function Sidebar({ client }: SidebarProps) {
         }
         return null;
       })()}
-    </aside>
+      </aside>
+    </>
   );
 }
 
