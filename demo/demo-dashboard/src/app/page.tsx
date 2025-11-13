@@ -24,6 +24,7 @@ import {
   XCircle,
   RefreshCw
 } from "lucide-react";
+import UseCasesSection from "./UseCasesSection";
 
 export default function LandingPage() {
   return (
@@ -218,69 +219,7 @@ export default function LandingPage() {
       </section>
 
       {/* Use Cases Section */}
-      <section className="landing-section landing-section--alt">
-        <div className="landing-section__container">
-          <div className="landing-section__header">
-            <h2 className="landing-section__title">
-              Wat kun je er allemaal mee?
-            </h2>
-            <p className="landing-section__subtitle">
-              Concrete voorbeelden van wat DataDashboard.app voor jouw organisatie kan betekenen
-            </p>
-          </div>
-          <div className="landing-use-cases">
-            <div className="landing-use-case">
-              <Users size={32} style={{ color: "var(--client-brand)", marginBottom: "1rem" }} />
-              <h3>Klantenbeheer</h3>
-              <p>
-                Centraal overzicht van alle klanten, trajecten en contactmomenten. 
-                Automatische synchronisatie met je CRM, real-time statusupdates en 
-                slimme reminders voor follow-ups.
-              </p>
-            </div>
-            <div className="landing-use-case">
-              <Calendar size={32} style={{ color: "var(--client-brand)", marginBottom: "1rem" }} />
-              <h3>Planning & Agenda</h3>
-              <p>
-                Weekoverzicht van alle afspraken en sessies. Automatische conflictdetectie, 
-                herinneringen naar klanten en integratie met je kalender.
-              </p>
-            </div>
-            <div className="landing-use-case">
-              <FileText size={32} style={{ color: "var(--client-brand)", marginBottom: "1rem" }} />
-              <h3>Voedingsplannen & Schema&apos;s</h3>
-              <p>
-                Maak op maat gemaakte plannen met AI-ondersteuning. Automatische macro-berekeningen, 
-                ingrediëntendatabase en real-time aanpassingen per klant.
-              </p>
-            </div>
-            <div className="landing-use-case">
-              <BarChart3 size={32} style={{ color: "var(--client-brand)", marginBottom: "1rem" }} />
-              <h3>Rapportages & Analytics</h3>
-              <p>
-                Automatische rapportages over prestaties, trends en KPI&apos;s. 
-                Real-time dashboards met alle belangrijke metrics op één plek.
-              </p>
-            </div>
-            <div className="landing-use-case">
-              <Target size={32} style={{ color: "var(--client-brand)", marginBottom: "1rem" }} />
-              <h3>Doelen & Progress Tracking</h3>
-              <p>
-                Volg de voortgang van klanten en projecten. Automatische updates, 
-                visuele progress indicators en slimme alerts bij mijlpalen.
-              </p>
-            </div>
-            <div className="landing-use-case">
-              <PieChart size={32} style={{ color: "var(--client-brand)", marginBottom: "1rem" }} />
-              <h3>Financieel Overzicht</h3>
-              <p>
-                Inzicht in omzet, kosten en winstgevendheid. Automatische facturering, 
-                kosten tracking en financiële rapportages.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <UseCasesSection />
 
       {/* Benefits Section */}
       <section className="landing-section">
