@@ -30,7 +30,7 @@ export default function LandingPage() {
               Demo bekijken
             </Link>
             <Link href="/login" className="landing-btn landing-btn--primary">
-              Start gratis
+              Vraag demo aan
             </Link>
           </div>
         </div>
@@ -58,7 +58,7 @@ export default function LandingPage() {
           </p>
           <div className="landing-hero__cta">
             <Link href="/login" className="landing-btn landing-btn--large landing-btn--primary">
-              Start nu
+              Vraag demo aan
               <ArrowRight size={20} />
             </Link>
             <Link href="#features" className="landing-btn landing-btn--large landing-btn--secondary">
@@ -295,7 +295,7 @@ export default function LandingPage() {
           </p>
           <div className="landing-cta__actions">
             <Link href="/login" className="landing-btn landing-btn--large landing-btn--primary landing-btn--white">
-              Start gratis proefperiode
+              Vraag demo aan
               <ArrowRight size={20} />
             </Link>
             <Link href="#features" className="landing-btn landing-btn--large landing-btn--outline">
