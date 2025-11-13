@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { findClient } from "@/lib/clients";
-import { Euro, Calendar, FileText, CheckCircle2, Clock, Zap, LayoutDashboard, Users, CalendarDays, UtensilsCrossed, Brain, Smartphone, Shield, Code, Palette, Download } from "lucide-react";
+import { Euro, Calendar, CheckCircle2, Clock, Zap, LayoutDashboard, Users, CalendarDays, UtensilsCrossed, Brain, Smartphone, Shield, Code, Palette } from "lucide-react";
 
 type OntwikkelingskostenPageProps = {
   params: Promise<{ client: string }> | { client: string };
@@ -125,16 +125,6 @@ export default async function OntwikkelingskostenPage({ params }: Ontwikkelingsk
           <p style={{ color: "#64748b", marginTop: "0.5rem" }}>
             Volledige prijsopgave voor ontwikkeling van het dashboard platform
           </p>
-        </div>
-        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-          <button className="btn btn--primary">
-            <Download size={16} />
-            Download PDF
-          </button>
-          <button className="btn btn--secondary">
-            <FileText size={16} />
-            Print Offerte
-          </button>
         </div>
       </div>
 
