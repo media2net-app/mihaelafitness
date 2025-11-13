@@ -98,6 +98,11 @@ const clientDefinitions = [
         href: "/neumann/voeding",
         description: "Voedingsadvisering & schema's",
       },
+      {
+        label: "Ontwikkelingskosten",
+        href: "/neumann/ontwikkelingskosten",
+        description: "Kostenoverzicht & facturering",
+      },
     ],
   },
   {
