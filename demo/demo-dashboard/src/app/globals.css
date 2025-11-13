@@ -86,6 +86,8 @@ a:hover {
 .client-content {
   flex: 1;
   padding: 0 3rem 3rem;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .client-sidebar {
@@ -1640,6 +1642,14 @@ a:hover {
 
   .client-content {
     padding: 0 1.5rem 2rem;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  /* Zorg ervoor dat mobile header zichtbaar is */
+  .client-mobile-header {
+    display: block !important;
   }
 
   /* Tablet aanpassingen - tussen 640px en 960px */
@@ -1705,6 +1715,9 @@ a:hover {
 @media (max-width: 768px) {
   .client-content {
     padding: 0 1.25rem 2rem;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
   }
 
   .dashboard-grid {
@@ -1859,12 +1872,29 @@ a:hover {
 
   .client-content {
     padding: 0 1rem 2rem;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
   }
 
   /* Sidebar kleiner op mobile */
   .client-sidebar {
     width: 260px;
     padding: 1.25rem;
+  }
+
+  /* Zorg ervoor dat mobile header altijd zichtbaar is */
+  .client-mobile-header {
+    display: block !important;
+  }
+
+  /* Zorg ervoor dat content niet te breed wordt */
+  .dashboard-admin,
+  .dashboard-grid,
+  .dashboard-card,
+  .dashboard-table {
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .client-sidebar__logo {
@@ -1995,6 +2025,8 @@ a:hover {
     margin: 0 -1rem;
     padding: 0 1rem;
     position: relative;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .dashboard-table::after {
