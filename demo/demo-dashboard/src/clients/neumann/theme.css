@@ -35,25 +35,25 @@
   color: #ffffff;
 }
 
-/* Neumann logo kleiner maken (helft kleiner) */
+/* Neumann logo kleiner maken (75% van origineel) */
 [data-client="neumann"] .client-sidebar__logo {
-  max-width: 90px;
+  max-width: 135px;
 }
 
 [data-client="neumann"] .client-sidebar__logo img {
-  width: 80px !important;
-  height: 24px !important;
+  width: 120px !important;
+  height: 36px !important;
   object-fit: contain;
 }
 
 /* Neumann mobile header logo ook kleiner */
 [data-client="neumann"] .client-mobile-header__logo {
-  max-width: 60px;
+  max-width: 90px;
 }
 
 [data-client="neumann"] .client-mobile-header__logo img {
-  width: 60px !important;
-  height: 18px !important;
+  width: 90px !important;
+  height: 27px !important;
   object-fit: contain;
 }
 

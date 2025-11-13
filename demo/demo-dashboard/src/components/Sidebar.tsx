@@ -24,8 +24,8 @@ export default function Sidebar({ client }: SidebarProps) {
             <Image
               src={client.logo}
               alt={`${client.name} logo`}
-              width={client.id === "neumann" ? 60 : 120}
-              height={client.id === "neumann" ? 18 : 36}
+              width={client.id === "neumann" ? 90 : 120}
+              height={client.id === "neumann" ? 27 : 36}
               priority
               style={{ width: "auto", height: "auto" }}
             />
@@ -58,8 +58,8 @@ export default function Sidebar({ client }: SidebarProps) {
           <Image
             src={client.logo}
             alt={`${client.name} logo`}
-            width={client.id === "neumann" ? 80 : 160}
-            height={client.id === "neumann" ? 24 : 48}
+            width={client.id === "neumann" ? 120 : 160}
+            height={client.id === "neumann" ? 36 : 48}
             priority
             style={{ width: "auto", height: "auto" }}
           />
