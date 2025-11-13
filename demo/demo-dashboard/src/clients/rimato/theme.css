@@ -1,0 +1,39 @@
+[data-client="rimato"] {
+  --client-brand: #ED1D24;
+  --client-accent: #c41a20;
+  --client-surface: #fef2f2;
+  --client-border: #fecaca;
+  --client-card-bg: #ffffff;
+  --client-card-text: #0f172a;
+  --client-sidebar-bg: #ED1D24;
+  --client-sidebar-text: #ffffff;
+  --client-sidebar-muted: rgba(255, 255, 255, 0.8);
+  --client-sidebar-active-bg: rgba(255, 255, 255, 0.2);
+  --client-sidebar-active-text: #ffffff;
+  --client-button-text: #0f2d1f;
+}
+
+[data-client="rimato"] .logout-button,
+[data-client="rimato"] .login-button {
+  color: #0f2d1f;
+}
+
+[data-client="rimato"] .dashboard-card--primary {
+  background: linear-gradient(145deg, #ED1D24, #c41a20);
+  color: #ffffff;
+}
+
+[data-client="rimato"] .client-sidebar__link.is-active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border-left: 3px solid #ffffff;
+  font-weight: 600;
+}
+
+[data-client="rimato"] .client-sidebar__logo img {
+  opacity: 1;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  filter: brightness(0) invert(1);
+}

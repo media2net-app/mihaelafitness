@@ -1,0 +1,37 @@
+[data-client="neumann"] {
+  --client-brand: #61C421;
+  --client-accent: #4da01a;
+  --client-surface: #f0fdf4;
+  --client-border: #bbf7d0;
+  --client-card-bg: #ffffff;
+  --client-card-text: #0f2d1f;
+  --client-sidebar-bg: #61C421;
+  --client-sidebar-text: #ffffff;
+  --client-sidebar-muted: rgba(255, 255, 255, 0.8);
+  --client-sidebar-active-bg: rgba(255, 255, 255, 0.2);
+  --client-sidebar-active-text: #ffffff;
+  --client-button-text: #0f2d1f;
+}
+
+[data-client="neumann"] .logout-button,
+[data-client="neumann"] .login-button {
+  color: #0f2d1f;
+}
+
+[data-client="neumann"] .dashboard-card--primary {
+  background: linear-gradient(145deg, #61C421, #4da01a);
+  color: #ffffff;
+}
+
+[data-client="neumann"] .client-sidebar__link.is-active {
+  background: rgba(15, 45, 31, 0.3);
+  color: #ffffff;
+  border-left: 3px solid #ffffff;
+  font-weight: 600;
+}
+
+[data-client="neumann"] .client-sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
