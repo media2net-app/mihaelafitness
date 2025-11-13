@@ -2425,6 +2425,115 @@ a:hover {
   text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
 }
 
+/* Language Switcher */
+.language-switcher {
+  position: relative;
+}
+
+.language-switcher__button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 0.75rem;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.language-switcher__button:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.language-switcher__code {
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.language-switcher__chevron {
+  transition: transform 0.3s ease;
+  color: #94a3b8;
+}
+
+.language-switcher__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.language-switcher__dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 180px;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(59, 130, 246, 0.2);
+  overflow: hidden;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.language-switcher__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.language-switcher__option:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #ffffff;
+}
+
+.language-switcher__option.is-active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.language-switcher__option-name {
+  flex: 1;
+}
+
+.language-switcher__option-code {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-left: 0.75rem;
+}
+
+.language-switcher__option.is-active .language-switcher__option-code {
+  color: #3b82f6;
+}
+
 /* Buttons */
 .landing-btn {
   display: inline-flex;

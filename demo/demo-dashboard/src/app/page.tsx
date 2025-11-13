@@ -25,6 +25,7 @@ import {
   RefreshCw
 } from "lucide-react";
 import UseCasesSection from "./UseCasesSection";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function LandingPage() {
   return (
@@ -37,6 +38,7 @@ export default function LandingPage() {
             <span className="landing-nav__brand-text">DataDashboard.app</span>
           </div>
           <div className="landing-nav__actions">
+            <LanguageSwitcher />
             <Link href="/login" className="landing-nav__link">
               Demo bekijken
             </Link>
