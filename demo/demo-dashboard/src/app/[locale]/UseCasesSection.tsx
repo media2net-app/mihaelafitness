@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from 'next-intl';
 import { 
   Users, 
   Calendar, 
@@ -358,6 +359,7 @@ const branches: Branch[] = [
 ];
 
 export default function UseCasesSection() {
+  const t = useTranslations('useCases');
   const [selectedBranch, setSelectedBranch] = useState<string>(branches[0].id);
 
   const currentBranch = branches.find((b) => b.id === selectedBranch) || branches[0];
@@ -368,10 +370,10 @@ export default function UseCasesSection() {
       <div className="landing-section__container">
         <div className="landing-section__header">
           <h2 className="landing-section__title">
-            Wat kun je er allemaal mee?
+            {t('title')}
           </h2>
           <p className="landing-section__subtitle">
-            Concrete voorbeelden van wat DataDashboard.app voor jouw organisatie kan betekenen
+            {t('subtitle')}
           </p>
         </div>
 

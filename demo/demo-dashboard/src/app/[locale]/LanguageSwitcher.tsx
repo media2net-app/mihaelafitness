@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useParams, usePathname } from "next/navigation";
 import { Globe, ChevronDown } from "lucide-react";
+import { useRouter } from '@/i18n/routing';
 
 type Language = {
   code: string;
@@ -16,9 +18,23 @@ const languages: Language[] = [
 ];
 
 export default function LanguageSwitcher() {
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>(languages[0]);
+  const params = useParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const currentLocale = (params?.locale as string) || 'nl';
+  
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>(
+    languages.find(l => l.code === currentLocale) || languages[0]
+  );
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const lang = languages.find(l => l.code === currentLocale);
+    if (lang) {
+      setSelectedLanguage(lang);
+    }
+  }, [currentLocale]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -39,7 +55,10 @@ export default function LanguageSwitcher() {
   const handleLanguageSelect = (language: Language) => {
     setSelectedLanguage(language);
     setIsOpen(false);
-    // Hier kun je later de taal daadwerkelijk switchen met i18n
+    
+    // Remove locale from pathname and add new locale
+    const pathWithoutLocale = pathname.replace(`/${currentLocale}`, '') || '/';
+    router.push(pathWithoutLocale, { locale: language.code });
   };
 
   return (

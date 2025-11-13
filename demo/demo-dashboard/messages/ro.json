@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "demo": "Vezi Demo",
+    "requestDemo": "Solicită Demo"
+  },
+  "hero": {
+    "badge": "Parte din Media2Net",
+    "title": "Oprește-te să comuti între sisteme.",
+    "titleHighlight": "Totul vizibil într-o aplicație web",
+    "subtitle": "Panoul central care aduce împreună toate procesele tale de afaceri. De la gestionarea clienților la planificare, de la vânzări la operațiuni - totul într-un singur loc, vizibil în timp real și complet automatizat.",
+    "cta": {
+      "requestDemo": "Solicită Demo",
+      "discover": "Descoperă Opțiuni"
+    },
+    "stats": {
+      "timeSaving": "Economie de timp",
+      "custom": "Personalizat",
+      "automation": "Automatizare"
+    }
+  },
+  "problem": {
+    "title": "Recunoști asta? Lucrezi cu mai multe sisteme",
+    "subtitle": "Excel pentru planificare, un CRM pentru clienți, instrumente separate pentru vânzări și raportare. Pierzi timp comutând între sisteme și copiind manual datele.",
+    "timeLoss": {
+      "title": "Pierdere de timp",
+      "description": "Ore zilnice pierdute căutând și copiind date între diferite sisteme"
+    },
+    "noOverview": {
+      "title": "Fără privire de ansamblu",
+      "description": "Nu ai o vedere în timp real a ceea ce se întâmplă în organizația ta"
+    },
+    "manualWork": {
+      "title": "Muncă manuală",
+      "description": "Sarcini repetitive care ar trebui de fapt să fie automatizate"
+    },
+    "errors": {
+      "title": "Erori și întârzieri",
+      "description": "Datele nu ajung la timp sau conțin erori din cauza introducerii manuale"
+    }
+  },
+  "solution": {
+    "title": "DataDashboard.app rezolvă asta",
+    "subtitle": "O aplicație web centrală care integrează și automatizează toate sistemele tale. Tot ce ai nevoie, într-un singur loc, întotdeauna actualizat."
+  },
+  "useCases": {
+    "title": "Ce poți face cu el?",
+    "subtitle": "Exemple concrete despre ce poate însemna DataDashboard.app pentru organizația ta"
+  },
+  "benefits": {
+    "title": "De ce DataDashboard.app este indispensabil",
+    "timeSaving": {
+      "title": "Economisește 80% din timpul tău",
+      "description": "Nu mai copia manual date sau comuta între sisteme. Totul se întâmplă automat, astfel încât să te poți concentra pe ceea ce contează cu adevărat."
+    },
+    "decisions": {
+      "title": "Decizii mai bune",
+      "description": "Perspectiva în timp real înseamnă că poți răspunde mai rapid la oportunități și probleme. Deciziile bazate pe date conduc la rezultate mai bune."
+    },
+    "costs": {
+      "title": "Costuri mai mici",
+      "description": "Mai puține erori, mai puțină muncă manuală și eficiență mai bună. Automatizarea economisește nu doar timp, ci și bani."
+    },
+    "customers": {
+      "title": "Clienți mai mulțumiți",
+      "description": "Timp de răspuns mai rapid, serviciu mai bun și atenție personală. Prin automatizare ai mai mult timp pentru clienții tăi."
+    },
+    "scalability": {
+      "title": "Scalabilitate",
+      "description": "Crește odată cu afacerea ta fără personal suplimentar. Panoul se scalează automat cu nevoile tale."
+    },
+    "errors": {
+      "title": "Mai puține erori",
+      "description": "Sincronizarea automată previne erorile manuale. Datele sunt întotdeauna actualizate și consistente între toate sistemele."
+    }
+  },
+  "ai": {
+    "title": "AI care lucrează pentru tine, 24/7",
+    "subtitle": "DataDashboard.app folosește AI avansat pentru a-ți automatiza procesele și a oferi perspective proactive. Lasă tehnologia să facă treaba, astfel încât să te poți concentra pe creștere."
+  },
+  "cta": {
+    "title": "Nu mai pierde timp. Începe să crești.",
+    "subtitle": "Descoperă cum DataDashboard.app transformă organizația ta. Solicită un demo gratuit și vezi ce este posibil.",
+    "requestDemo": "Solicită Demo",
+    "viewOptions": "Vezi Opțiuni"
+  }
+}
+

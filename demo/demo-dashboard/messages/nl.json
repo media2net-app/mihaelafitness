@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "demo": "Demo bekijken",
+    "requestDemo": "Vraag demo aan"
+  },
+  "hero": {
+    "badge": "Onderdeel van Media2Net",
+    "title": "Stop met switchen tussen systemen.",
+    "titleHighlight": "Alles inzichtelijk in 1 webapplicatie",
+    "subtitle": "Het centrale dashboard dat al jouw bedrijfsprocessen samenbrengt. Van klantenbeheer tot planning, van verkoop tot operations - alles op één plek, real-time inzichtelijk en volledig geautomatiseerd.",
+    "cta": {
+      "requestDemo": "Vraag demo aan",
+      "discover": "Ontdek mogelijkheden"
+    },
+    "stats": {
+      "timeSaving": "Tijdsbesparing",
+      "custom": "Maatwerk",
+      "automation": "Automatisering"
+    }
+  },
+  "problem": {
+    "title": "Herken je dit? Je werkt met meerdere systemen",
+    "subtitle": "Excel voor planning, een CRM voor klanten, aparte tools voor verkoop en rapportages. Je verliest tijd met het switchen tussen systemen en het handmatig kopiëren van data.",
+    "timeLoss": {
+      "title": "Verlies van tijd",
+      "description": "Dagelijks uren kwijt aan het zoeken en kopiëren van data tussen verschillende systemen"
+    },
+    "noOverview": {
+      "title": "Geen overzicht",
+      "description": "Je hebt geen real-time beeld van wat er gebeurt in je organisatie"
+    },
+    "manualWork": {
+      "title": "Handmatig werk",
+      "description": "Repetitieve taken die eigenlijk geautomatiseerd zouden moeten zijn"
+    },
+    "errors": {
+      "title": "Fouten en vertraging",
+      "description": "Data komt niet op tijd binnen of bevat fouten door handmatige invoer"
+    }
+  },
+  "solution": {
+    "title": "DataDashboard.app lost dit op",
+    "subtitle": "Eén centrale webapplicatie die al jouw systemen integreert en automatiseert. Alles wat je nodig hebt, op één plek, altijd up-to-date."
+  },
+  "useCases": {
+    "title": "Wat kun je er allemaal mee?",
+    "subtitle": "Concrete voorbeelden van wat DataDashboard.app voor jouw organisatie kan betekenen"
+  },
+  "benefits": {
+    "title": "Waarom DataDashboard.app onmisbaar is",
+    "timeSaving": {
+      "title": "Bespaar 80% van je tijd",
+      "description": "Geen meer handmatig kopiëren van data of switchen tussen systemen. Alles gebeurt automatisch, zodat jij je kunt focussen op wat echt belangrijk is."
+    },
+    "decisions": {
+      "title": "Betere beslissingen",
+      "description": "Real-time inzicht betekent dat je sneller kunt reageren op kansen en problemen. Data-gedreven beslissingen leiden tot betere resultaten."
+    },
+    "costs": {
+      "title": "Lagere kosten",
+      "description": "Minder fouten, minder handmatig werk en betere efficiency. Automatisering bespaart niet alleen tijd, maar ook geld."
+    },
+    "customers": {
+      "title": "Tevredenere klanten",
+      "description": "Snellere reactietijden, betere service en persoonlijke aandacht. Door automatisering heb je meer tijd voor je klanten."
+    },
+    "scalability": {
+      "title": "Schaalbaarheid",
+      "description": "Groei mee met je bedrijf zonder extra personeel. Het dashboard schaalt automatisch mee met jouw behoeften."
+    },
+    "errors": {
+      "title": "Minder fouten",
+      "description": "Automatische synchronisatie voorkomt handmatige fouten. Data is altijd up-to-date en consistent tussen alle systemen."
+    }
+  },
+  "ai": {
+    "title": "AI die voor je werkt, 24/7",
+    "subtitle": "DataDashboard.app gebruikt geavanceerde AI om je processen te automatiseren en proactieve inzichten te geven. Laat de technologie het werk doen, zodat jij je kunt focussen op groei."
+  },
+  "cta": {
+    "title": "Stop met tijd verliezen. Start met groeien.",
+    "subtitle": "Ontdek hoe DataDashboard.app jouw organisatie transformeert. Vraag een gratis demo aan en zie wat er mogelijk is.",
+    "requestDemo": "Vraag demo aan",
+    "viewOptions": "Bekijk mogelijkheden"
+  }
+}
+
