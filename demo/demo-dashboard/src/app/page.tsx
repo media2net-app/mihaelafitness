@@ -49,7 +49,7 @@ export default function LandingPage() {
           </div>
           <h1 className="landing-hero__title">
             Alle processen inzichtelijk in{" "}
-            <span className="landing-hero__title-highlight">1 app</span>
+            <span className="landing-hero__title-highlight">1 webapplicatie</span>
           </h1>
           <p className="landing-hero__subtitle">
             Maatwerk data dashboards volledig ingericht op jouw bedrijfsproces. 
