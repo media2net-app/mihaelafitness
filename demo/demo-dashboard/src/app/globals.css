@@ -2643,7 +2643,12 @@ a:hover {
   }
 
   .landing-hero__stats {
-    gap: 2rem;
+    gap: 1.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .landing-stat {
+    flex: 1;
   }
 
   .landing-section {
@@ -2702,11 +2707,20 @@ a:hover {
   }
 
   .landing-hero__stats {
-    flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
+    flex-wrap: nowrap;
+  }
+
+  .landing-stat {
+    flex: 1;
+    min-width: 0;
   }
 
   .landing-stat__value {
-    font-size: 2rem;
+    font-size: 1.5rem;
+  }
+
+  .landing-stat__label {
+    font-size: 0.75rem;
   }
 }
