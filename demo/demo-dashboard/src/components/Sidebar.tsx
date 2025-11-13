@@ -53,15 +53,16 @@ export default function Sidebar({ client }: SidebarProps) {
         aria-label={`${client.name} navigatie`}
       >
         <div className="client-sidebar__branding">
-          <div className="client-sidebar__logo">
-            <Image
-              src={client.logo}
-              alt={`${client.name} logo`}
-              width={160}
-              height={48}
-              priority
-            />
-          </div>
+        <div className="client-sidebar__logo">
+          <Image
+            src={client.logo}
+            alt={`${client.name} logo`}
+            width={client.id === "neumann" ? 80 : 160}
+            height={client.id === "neumann" ? 24 : 48}
+            priority
+            style={{ width: "auto", height: "auto" }}
+          />
+        </div>
           <button
             className="client-sidebar__close"
             onClick={() => setIsMobileMenuOpen(false)}

@@ -35,3 +35,14 @@
   color: #ffffff;
 }
 
+/* Neumann logo kleiner maken (helft kleiner) */
+[data-client="neumann"] .client-sidebar__logo {
+  max-width: 90px;
+}
+
+[data-client="neumann"] .client-sidebar__logo img {
+  width: 80px !important;
+  height: 24px !important;
+  object-fit: contain;
+}
+
