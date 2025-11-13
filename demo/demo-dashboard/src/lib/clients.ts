@@ -82,6 +82,7 @@ const clientDefinitions = [
       { label: "Regio", value: "Hoogeveen e.o." },
     ],
     sidebarLinks: [
+      { label: "Dashboard", href: "/neumann/dashboard" },
       {
         label: "Klanten",
         href: "/neumann/clients",
