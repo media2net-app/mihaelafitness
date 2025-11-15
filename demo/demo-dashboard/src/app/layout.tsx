@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/clients/rimato/theme.css";
 import "@/clients/neumann/theme.css";
@@ -19,11 +19,12 @@ export const metadata: Metadata = {
   title: "Demo Dashboard",
   description:
     "A customizable client dashboard demo with per-client theming and navigation.",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
