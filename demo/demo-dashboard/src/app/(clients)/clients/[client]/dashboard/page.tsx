@@ -316,25 +316,25 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
                 <tbody>
                   {data.clients.map((clientItem) => (
                     <tr key={clientItem.id}>
-                      <td>
+                      <td data-label="Klant">
                         <strong>{clientItem.name}</strong>
                         <span className="dashboard-table__meta">{clientItem.email}</span>
                       </td>
-                      <td>{clientItem.goal}</td>
-                      <td>
+                      <td data-label="Doel">{clientItem.goal}</td>
+                      <td data-label="Status">
                         <span className={`dashboard-badge dashboard-badge--${clientItem.status.toLowerCase()}`}>
                           {clientItem.status}
                         </span>
                       </td>
-                      <td>{clientItem.type}</td>
-                      <td>
+                      <td data-label="Type">{clientItem.type}</td>
+                      <td data-label="Voortgang">
                         <div className="dashboard-progress">
                           <div className="dashboard-progress__bar" style={{ width: `${clientItem.progress}%` }}></div>
                           <span>{clientItem.progress}%</span>
                         </div>
                         <span className="dashboard-table__meta">{clientItem.sessionsCompleted}/{clientItem.totalSessions} sessies</span>
                       </td>
-                      <td>€{clientItem.value.toLocaleString("nl-NL")}</td>
+                      <td data-label="Waarde">€{clientItem.value.toLocaleString("nl-NL")}</td>
                     </tr>
                   ))}
                 </tbody>

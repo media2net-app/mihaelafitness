@@ -1984,10 +1984,10 @@ a:hover {
   }
 
   .dashboard-metric-card {
-    flex-direction: row;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
     padding: 1rem;
-    gap: 1rem;
+    gap: 0.5rem;
     min-height: auto;
   }
 
@@ -2011,74 +2011,71 @@ a:hover {
   }
 
   .dashboard-metric__content h3 {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     line-height: 1.2;
-    margin: 0 0 0.25rem;
+    margin: 0;
   }
 
   .dashboard-metric__content p {
-    font-size: 0.8125rem;
+    font-size: 0.78rem;
     margin: 0;
-    line-height: 1.3;
+    line-height: 1.25;
   }
 
   .dashboard-metric__sub {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     display: block;
-    margin-top: 0.25rem;
-    opacity: 0.9;
+    margin-top: 0.15rem;
+    opacity: 0.85;
   }
 
   /* Dashboard Table - horizontaal scrollbaar met betere UX */
   .dashboard-table {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin: 0 -1rem;
-    padding: 0 1rem;
-    position: relative;
-    max-width: 100%;
-    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    position: static;
+    overflow: visible;
   }
 
   .dashboard-table::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 20px;
-    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.05));
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    display: none;
   }
 
-  .dashboard-table:has(table:not(:hover))::after {
-    opacity: 1;
-  }
-
-  .dashboard-table table {
-    min-width: 700px;
+  .dashboard-table table,
+  .dashboard-table tbody,
+  .dashboard-table tr,
+  .dashboard-table td {
+    display: block;
     width: 100%;
   }
 
-  .dashboard-table th,
-  .dashboard-table td {
-    padding: 0.75rem 0.5rem;
-    font-size: 0.8125rem;
-    white-space: nowrap;
+  .dashboard-table thead {
+    display: none;
   }
 
-  .dashboard-table th {
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+  .dashboard-table tr {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--client-border);
+    border-radius: 0.9rem;
+    padding: 0.85rem;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
   }
 
   .dashboard-table td {
+    padding: 0.4rem 0;
+    font-size: 0.875rem;
     white-space: normal;
-    word-break: break-word;
+  }
+
+  .dashboard-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin-bottom: 0.1rem;
   }
 
   .dashboard-table__type,
