@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { findClient } from "@/lib/clients";
-import { Euro, Calendar, CheckCircle2, Clock, Zap, LayoutDashboard, Users, CalendarDays, UtensilsCrossed, Brain, Smartphone, Shield, Code, Palette } from "lucide-react";
+import { Euro, Calendar, CheckCircle2, Clock, Zap, LayoutDashboard, Users, UtensilsCrossed, Brain, Smartphone, Shield, Code, Palette } from "lucide-react";
 
 type OntwikkelingskostenPageProps = {
   params: Promise<{ client: string }> | { client: string };
@@ -14,7 +14,7 @@ export default async function OntwikkelingskostenPage({ params }: Ontwikkelingsk
     notFound();
   }
 
-  const totaalPrijsExclBTW = 1350;
+  const totaalPrijsExclBTW = 1100;
   const btwPercentage = 21;
   const btwBedrag = Math.round(totaalPrijsExclBTW * (btwPercentage / 100));
   const totaalPrijsInclBTW = totaalPrijsExclBTW + btwBedrag;
@@ -40,16 +40,6 @@ export default async function OntwikkelingskostenPage({ params }: Ontwikkelingsk
         "Klant detail pagina's",
         "Klant status tracking",
         "Progress tracking per klant",
-      ],
-    },
-    {
-      categorie: "Agenda & Planning",
-      icon: CalendarDays,
-      items: [
-        "Weekoverzicht agenda",
-        "Mobile agenda (per dag weergave)",
-        "Sessie planning en beheer",
-        "Tijdsloten beheer (06:00 - 22:00)",
       ],
     },
     {

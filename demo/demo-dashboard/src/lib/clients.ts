@@ -89,11 +89,6 @@ const clientDefinitions = [
         description: "Klanten & trajecten",
       },
       {
-        label: "Agenda",
-        href: "/clients/neumann/agenda",
-        description: "Weekoverzicht & afspraken",
-      },
-      {
         label: "Voedingsplannen",
         href: "/clients/neumann/voeding",
         description: "Voedingsadvisering & schema's",
