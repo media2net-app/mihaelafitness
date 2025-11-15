@@ -45,15 +45,15 @@ const clientDefinitions = [
       { label: "CO2-ladder", value: "Niveau 5" },
     ],
     sidebarLinks: [
-      { label: "Dashboard", href: "/rimato/dashboard" },
+      { label: "Dashboard", href: "/clients/rimato/dashboard" },
       {
         label: "Projecten",
-        href: "/rimato/projects",
+        href: "/clients/rimato/projects",
         description: "Lopende opdrachten",
       },
       {
         label: "Rapportages",
-        href: "/rimato/reports",
+        href: "/clients/rimato/reports",
         description: "Inspecties & audits",
       },
     ],
@@ -82,25 +82,25 @@ const clientDefinitions = [
       { label: "Regio", value: "Hoogeveen e.o." },
     ],
     sidebarLinks: [
-      { label: "Dashboard", href: "/neumann/dashboard" },
+      { label: "Dashboard", href: "/clients/neumann/dashboard" },
       {
         label: "Klanten",
-        href: "/neumann/clients",
+        href: "/clients/neumann/clients",
         description: "Klanten & trajecten",
       },
       {
         label: "Agenda",
-        href: "/neumann/agenda",
+        href: "/clients/neumann/agenda",
         description: "Weekoverzicht & afspraken",
       },
       {
         label: "Voedingsplannen",
-        href: "/neumann/voeding",
+        href: "/clients/neumann/voeding",
         description: "Voedingsadvisering & schema's",
       },
       {
         label: "Ontwikkelingskosten",
-        href: "/neumann/ontwikkelingskosten",
+        href: "/clients/neumann/ontwikkelingskosten",
         description: "Kostenoverzicht & facturering",
       },
     ],
@@ -130,20 +130,20 @@ const clientDefinitions = [
       { label: "Ervaring", value: "40+ jaar" },
     ],
     sidebarLinks: [
-      { label: "Dashboard", href: "/vulcan/dashboard" },
+      { label: "Dashboard", href: "/clients/vulcan/dashboard" },
       {
         label: "Installaties",
-        href: "/vulcan/projects",
+        href: "/clients/vulcan/projects",
         description: "Geïnstalleerde systemen",
       },
       {
         label: "Klanten",
-        href: "/vulcan/clients",
+        href: "/clients/vulcan/clients",
         description: "Klanten & contacten",
       },
       {
         label: "Rapportages",
-        href: "/vulcan/reports",
+        href: "/clients/vulcan/reports",
         description: "Service & onderhoud",
       },
     ],
@@ -178,6 +178,6 @@ export function isClientId(clientId: string): clientId is ClientId {
 }
 
 export function clientDashboardPath(clientId: ClientId): string {
-  return `/${clientId}/dashboard`;
+  return `/clients/${clientId}/dashboard`;
 }
 
