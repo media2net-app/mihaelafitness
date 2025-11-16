@@ -181,7 +181,13 @@ export default async function ReportsPage({ params }: ReportsPageProps) {
                     <span className="dashboard-table__type">{report.type}</span>
                   </td>
                   <td>
-                    <strong>{report.project}</strong>
+                    <Link
+                      href={`/clients/${client.id}/reports/${report.id}`}
+                      style={{ textDecoration: "none", color: "inherit" }}
+                      aria-label={`Bekijk rapport ${report.type} voor ${report.project}`}
+                    >
+                      <strong>{report.project}</strong>
+                    </Link>
                   </td>
                   <td>{report.client}</td>
                   <td>{new Date(report.date).toLocaleDateString("nl-NL")}</td>

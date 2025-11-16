@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { findClient } from "@/lib/clients";
 import { rimatoDashboardData } from "@/lib/dashboard-data";
+import Link from "next/link";
 import { Edit, Eye, Trash2, Plus } from "lucide-react";
 
 type ProjectsPageProps = {
@@ -163,7 +164,13 @@ export default async function ProjectsPage({ params }: ProjectsPageProps) {
               {allProjects.map((project) => (
                 <tr key={project.id}>
                   <td>
-                    <strong>{project.name}</strong>
+                    <Link
+                      href={`/clients/${client.id}/projects/${project.id}`}
+                      style={{ textDecoration: "none", color: "inherit" }}
+                      aria-label={`Bekijk project ${project.name}`}
+                    >
+                      <strong>{project.name}</strong>
+                    </Link>
                   </td>
                   <td>{project.client}</td>
                   <td>
