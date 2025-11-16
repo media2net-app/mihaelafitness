@@ -89,9 +89,9 @@ export const rimatoDashboardData = {
   leads: {
     offertegenerator: {
       disciplines: [
-        { id: "industriel", name: "Industriële reiniging", baseRate: 85, unit: "uur" },
-        { id: "riool", name: "Rioolbeheer", baseRate: 95, unit: "uur" },
-        { id: "gevel", name: "Gevelbeheer", baseRate: 75, unit: "uur" },
+        { id: "industriel", name: "Industriële reiniging", basePrice: 1500, baseRate: 85, unit: "uur" },
+        { id: "riool", name: "Rioolbeheer", basePrice: 1200, baseRate: 95, unit: "uur" },
+        { id: "gevel", name: "Gevelbeheer", basePrice: 800, baseRate: 75, unit: "uur" },
       ],
       parameters: [
         { key: "oppervlakte_m2", label: "Oppervlakte (m²)" },
