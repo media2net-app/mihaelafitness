@@ -143,8 +143,96 @@
   gap: 1.25rem;
 }
 
+/* Rimato - Fix number overflow in metric cards */
+[data-client="rimato"] .dashboard-metric-card {
+  min-width: 0;
+  overflow: hidden;
+  word-wrap: break-word;
+}
+
+[data-client="rimato"] .dashboard-metric__content {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+[data-client="rimato"] .dashboard-metric__content h3 {
+  font-size: clamp(1.25rem, 4vw, 2rem);
+  line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+[data-client="rimato"] .dashboard-metric__content p {
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
+  overflow-wrap: break-word;
+}
+
+[data-client="rimato"] .dashboard-metric__sub {
+  font-size: clamp(0.65rem, 1.5vw, 0.75rem);
+  overflow-wrap: break-word;
+  display: block;
+  max-width: 100%;
+}
+
 [data-client="rimato"] .dashboard-grid {
   gap: 1.75rem;
+}
+
+/* Rimato - Fix overflow in all dashboard cards */
+[data-client="rimato"] .dashboard-card {
+  overflow: hidden;
+  word-wrap: break-word;
+}
+
+[data-client="rimato"] .dashboard-card h2,
+[data-client="rimato"] .dashboard-card h3,
+[data-client="rimato"] .dashboard-card h4 {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+[data-client="rimato"] .dashboard-card p,
+[data-client="rimato"] .dashboard-card span {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+/* Fix for financial values in cards */
+[data-client="rimato"] .dashboard-finance__value,
+[data-client="rimato"] .dashboard-service-card__value,
+[data-client="rimato"] .dashboard-list__stat-value {
+  font-size: clamp(0.875rem, 2.5vw, 1.5rem);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  display: block;
+}
+
+/* Fix service card stats container */
+[data-client="rimato"] .dashboard-service-card__stats {
+  min-width: 0;
+  overflow: hidden;
+}
+
+[data-client="rimato"] .dashboard-service-card__stats > div {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+}
+
+/* Fix finance items */
+[data-client="rimato"] .dashboard-finance__item {
+  min-width: 0;
+  overflow: hidden;
+}
+
+[data-client="rimato"] .dashboard-finance__value {
+  display: block;
+  width: 100%;
 }
 
 /* Rimato Dashboard 2.0 - Tables & Lists */

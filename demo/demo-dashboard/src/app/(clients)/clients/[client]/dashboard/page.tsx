@@ -293,9 +293,9 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
                       </div>
                       <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>{project.progress}%</div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    <div style={{ textAlign: "right", minWidth: 0, flex: "0 0 auto" }}>
                       <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.25rem" }}>Waarde</div>
-                      <div style={{ fontSize: "1rem", fontWeight: 700, color: "#ED1D24" }}>
+                      <div style={{ fontSize: "clamp(0.875rem, 2vw, 1rem)", fontWeight: 700, color: "#ED1D24", wordBreak: "break-word", overflowWrap: "break-word" }}>
                         €{project.value.toLocaleString("nl-NL")}
                       </div>
                     </div>
@@ -352,9 +352,9 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
                       <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Projecten</div>
                       <div style={{ fontSize: "1rem", fontWeight: 700 }}>{clientItem.totalProjects}</div>
                     </div>
-                    <div>
+                    <div style={{ minWidth: 0, overflow: "hidden" }}>
                       <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Waarde</div>
-                      <div style={{ fontSize: "1rem", fontWeight: 700, color: "#ED1D24" }}>
+                      <div style={{ fontSize: "clamp(0.875rem, 2vw, 1rem)", fontWeight: 700, color: "#ED1D24", wordBreak: "break-word", overflowWrap: "break-word" }}>
                         €{clientItem.totalValue.toLocaleString("nl-NL")}
                       </div>
                     </div>
@@ -419,9 +419,9 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
                         <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.25rem" }}>Actieve projecten</div>
                         <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>{service.activeProjects}</div>
                       </div>
-                      <div>
+                      <div style={{ minWidth: 0, overflow: "hidden" }}>
                         <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.25rem" }}>Maandomzet</div>
-                        <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#ED1D24" }}>
+                        <div style={{ fontSize: "clamp(1rem, 3vw, 1.5rem)", fontWeight: 700, color: "#ED1D24", wordBreak: "break-word", overflowWrap: "break-word" }}>
                           €{service.monthlyRevenue.toLocaleString("nl-NL")}
                         </div>
                       </div>
@@ -486,28 +486,34 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
                 padding: "1.25rem", 
                 background: "rgba(255, 255, 255, 0.15)", 
                 borderRadius: "0.75rem",
-                backdropFilter: "blur(10px)"
+                backdropFilter: "blur(10px)",
+                minWidth: 0,
+                overflow: "hidden"
               }}>
                 <div style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "0.5rem" }}>Deze maand</div>
-                <div style={{ fontSize: "2rem", fontWeight: 700 }}>€{data.revenue.thisMonth.toLocaleString("nl-NL")}</div>
+                <div style={{ fontSize: "clamp(1.25rem, 4vw, 2rem)", fontWeight: 700, wordBreak: "break-word", overflowWrap: "break-word" }}>€{data.revenue.thisMonth.toLocaleString("nl-NL")}</div>
               </div>
               <div style={{ 
                 padding: "1.25rem", 
                 background: "rgba(255, 255, 255, 0.15)", 
                 borderRadius: "0.75rem",
-                backdropFilter: "blur(10px)"
+                backdropFilter: "blur(10px)",
+                minWidth: 0,
+                overflow: "hidden"
               }}>
                 <div style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "0.5rem" }}>Vorige maand</div>
-                <div style={{ fontSize: "2rem", fontWeight: 700 }}>€{data.revenue.lastMonth.toLocaleString("nl-NL")}</div>
+                <div style={{ fontSize: "clamp(1.25rem, 4vw, 2rem)", fontWeight: 700, wordBreak: "break-word", overflowWrap: "break-word" }}>€{data.revenue.lastMonth.toLocaleString("nl-NL")}</div>
               </div>
               <div style={{ 
                 padding: "1.25rem", 
                 background: "rgba(255, 255, 255, 0.15)", 
                 borderRadius: "0.75rem",
-                backdropFilter: "blur(10px)"
+                backdropFilter: "blur(10px)",
+                minWidth: 0,
+                overflow: "hidden"
               }}>
                 <div style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "0.5rem" }}>Dit jaar</div>
-                <div style={{ fontSize: "2rem", fontWeight: 700 }}>€{data.revenue.thisYear.toLocaleString("nl-NL")}</div>
+                <div style={{ fontSize: "clamp(1.25rem, 4vw, 2rem)", fontWeight: 700, wordBreak: "break-word", overflowWrap: "break-word" }}>€{data.revenue.thisYear.toLocaleString("nl-NL")}</div>
               </div>
               <div style={{ 
                 padding: "1.25rem", 
