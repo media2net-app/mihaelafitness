@@ -12,11 +12,13 @@ export default async function ClientsPage({ params }: ClientsPageProps) {
   const resolvedParams = await Promise.resolve(params);
   const client = findClient(resolvedParams.client);
 
-  if (!client || client.id !== "neumann") {
+  if (!client) {
     notFound();
   }
 
-  const allClients = [
+  // Neumann: bestaande klantenweergave
+  if (client.id === "neumann") {
+    const allClients = [
     ...neumannDashboardData.clients,
     {
       id: "5",
@@ -66,9 +68,9 @@ export default async function ClientsPage({ params }: ClientsPageProps) {
       package: "Revalidatie pakket",
       value: 1300,
     },
-  ];
+    ];
 
-  const stats = {
+    const stats = {
     total: allClients.length,
     active: allClients.filter((c) => c.status === "Actief").length,
     completed: allClients.filter((c) => c.status === "Voltooid").length,
@@ -76,9 +78,9 @@ export default async function ClientsPage({ params }: ClientsPageProps) {
     avgProgress: Math.round(
       allClients.reduce((sum, c) => sum + c.progress, 0) / allClients.length
     ),
-  };
+    };
 
-  return (
+    return (
     <div className="page-admin">
       <div className="page-header">
         <h1>Klanten & Trajecten</h1>
@@ -328,6 +330,27 @@ export default async function ClientsPage({ params }: ClientsPageProps) {
           </div>
           </Link>
         ))}
+      </div>
+    </div>
+    );
+  }
+
+  // Rimato (of andere): placeholder CRM-overzicht
+  return (
+    <div className="page-admin">
+      <div className="page-header">
+        <div>
+          <h1>CRM</h1>
+          <p style={{ color: "#64748b", marginTop: "0.5rem" }}>
+            360° klantprofielen, contract- en locatiebeheer
+          </p>
+        </div>
+      </div>
+      <div className="dashboard-card">
+        <h2>Overzicht</h2>
+        <p style={{ color: "#64748b" }}>
+          Deze module toont straks klantdossiers, contracten en locaties.
+        </p>
       </div>
     </div>
   );
