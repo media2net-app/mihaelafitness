@@ -14,6 +14,7 @@ export default async function LmraPage({ params }: PageProps) {
     <div className="page-admin">
       <div className="page-header">
         <div>
+          <div className="client-breadcrumb">Rimato • Operatie • LMRA & VCA</div>
           <h1>LMRA & VCA</h1>
           <p style={{ color: "#64748b", marginTop: "0.5rem" }}>
             Placeholder voor pre-start checklists en auditregistraties.

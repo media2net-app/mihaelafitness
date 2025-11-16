@@ -14,6 +14,7 @@ export default async function TijdGpsPage({ params }: PageProps) {
     <div className="page-admin">
       <div className="page-header">
         <div>
+          <div className="client-breadcrumb">Rimato • Operatie • Tijd & GPS</div>
           <h1>Tijd & GPS</h1>
           <p style={{ color: "#64748b", marginTop: "0.5rem" }}>
             Placeholder voor klokregistratie, geofencing en locatiehistorie.

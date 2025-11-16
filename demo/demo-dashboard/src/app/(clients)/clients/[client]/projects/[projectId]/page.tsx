@@ -20,6 +20,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     <div className="page-admin">
       <div className="page-header">
         <div>
+          <div className="client-breadcrumb">Rimato • Projectbeheer • Projectdetail</div>
           <h1>{project.name}</h1>
           <p style={{ color: "#64748b", marginTop: "0.5rem" }}>
             {project.client} • {project.type}

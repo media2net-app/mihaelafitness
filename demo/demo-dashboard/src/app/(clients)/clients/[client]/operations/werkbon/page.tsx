@@ -14,6 +14,7 @@ export default async function WerkbonPage({ params }: PageProps) {
     <div className="page-admin">
       <div className="page-header">
         <div>
+          <div className="client-breadcrumb">Rimato • Operatie • Werkbon</div>
           <h1>Digitale Werkbon</h1>
           <p style={{ color: "#64748b", marginTop: "0.5rem" }}>
             Placeholder voor werkbon-formulieren en ondertekening.

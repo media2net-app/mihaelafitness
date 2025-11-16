@@ -14,6 +14,7 @@ export default async function LeadIntakePage({ params }: PageProps) {
     <div className="page-admin">
       <div className="page-header">
         <div>
+          <div className="client-breadcrumb">Rimato • Leads • Lead Intake</div>
           <h1>Lead Intake</h1>
           <p style={{ color: "#64748b", marginTop: "0.5rem" }}>
             Gecentraliseerde intake vanuit web, mail en telefoon.
