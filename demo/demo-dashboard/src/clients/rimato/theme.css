@@ -140,7 +140,8 @@
 }
 
 [data-client="rimato"] .dashboard-metrics {
-  gap: 1.25rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 /* Rimato - Fix number overflow in metric cards */
@@ -148,20 +149,28 @@
   min-width: 0;
   overflow: hidden;
   word-wrap: break-word;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 [data-client="rimato"] .dashboard-metric__content {
   min-width: 0;
   flex: 1;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 [data-client="rimato"] .dashboard-metric__content h3 {
-  font-size: clamp(1.25rem, 4vw, 2rem);
+  font-size: clamp(1.1rem, 3vw, 1.5rem);
   line-height: 1.2;
   word-break: break-word;
   overflow-wrap: break-word;
   max-width: 100%;
+  margin: 0;
 }
 
 [data-client="rimato"] .dashboard-metric__content p {
@@ -177,7 +186,32 @@
 }
 
 [data-client="rimato"] .dashboard-grid {
-  gap: 1.75rem;
+  gap: 1.25rem;
+}
+
+/* Rimato - Responsive grid adjustments */
+@media (max-width: 1200px) {
+  [data-client="rimato"] .dashboard-metrics {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  [data-client="rimato"] .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  [data-client="rimato"] .dashboard-metrics {
+    grid-template-columns: 1fr !important;
+  }
+  
+  [data-client="rimato"] .dashboard-card[style*="gridColumn"] {
+    grid-column: span 1 !important;
+  }
+  
+  [data-client="rimato"] .dashboard-card[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* Rimato - Fix overflow in all dashboard cards */

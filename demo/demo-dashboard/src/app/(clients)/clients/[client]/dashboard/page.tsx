@@ -27,7 +27,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     return (
       <div className="dashboard-admin">
         {/* Key Metrics - Extended */}
-        <div className="dashboard-metrics" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+        <div className="dashboard-metrics" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem" }}>
           <div className="dashboard-metric-card">
             <div className="dashboard-metric__icon">
               <BarChart3 size={32} />
@@ -91,7 +91,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
         </div>
 
         {/* Main Content Grid */}
-        <div className="dashboard-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+        <div className="dashboard-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", gap: "1.25rem" }}>
           {/* Module Cards - Grid Layout */}
           <a href={`/clients/${client.id}/leads`} className="dashboard-card dashboard-card--hoverable" style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
@@ -252,7 +252,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
             </div>
             <div style={{ 
               display: "grid", 
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", 
+              gridTemplateColumns: "repeat(2, 1fr)", 
               gap: "1rem" 
             }}>
               {data.recentProjects.map((project) => (
@@ -315,7 +315,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
             </div>
             <div style={{ 
               display: "grid", 
-              gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", 
+              gridTemplateColumns: "repeat(2, 1fr)", 
               gap: "1rem" 
             }}>
               {data.clients.map((clientItem) => (
@@ -371,7 +371,7 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
             </div>
             <div style={{ 
               display: "grid", 
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", 
+              gridTemplateColumns: "repeat(2, 1fr)", 
               gap: "1rem" 
             }}>
               {data.services.map((service) => {
@@ -479,8 +479,8 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
             <h2 style={{ margin: "0 0 1.5rem", fontSize: "1.75rem" }}>Financiën Overzicht</h2>
             <div style={{ 
               display: "grid", 
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-              gap: "1.5rem" 
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", 
+              gap: "1rem" 
             }}>
               <div style={{ 
                 padding: "1.25rem", 
