@@ -26,8 +26,8 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     
     return (
       <div className="dashboard-admin">
-        {/* Key Metrics */}
-        <div className="dashboard-metrics">
+        {/* Key Metrics - Extended */}
+        <div className="dashboard-metrics" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <div className="dashboard-metric-card">
             <div className="dashboard-metric__icon">
               <BarChart3 size={32} />
@@ -68,106 +68,244 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
               <span className="dashboard-metric__sub">Kwaliteit</span>
             </div>
           </div>
+          <div className="dashboard-metric-card">
+            <div className="dashboard-metric__icon">
+              <Users size={32} />
+            </div>
+            <div className="dashboard-metric__content">
+              <h3>{data.stats.teamMembers}</h3>
+              <p>Medewerkers</p>
+              <span className="dashboard-metric__sub">Team</span>
+            </div>
+          </div>
+          <div className="dashboard-metric-card">
+            <div className="dashboard-metric__icon">
+              <TrendingUp size={32} />
+            </div>
+            <div className="dashboard-metric__content">
+              <h3>€{data.revenue.thisYear.toLocaleString("nl-NL")}</h3>
+              <p>Jaaromzet</p>
+              <span className="dashboard-metric__sub">Totaal</span>
+            </div>
+          </div>
         </div>
 
         {/* Main Content Grid */}
-        <div className="dashboard-grid">
-          {/* Modules overzicht */}
-          <section className="dashboard-card">
-            <div className="dashboard-card__header">
-              <h2>Rimato Operations Platform</h2>
+        <div className="dashboard-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          {/* Module Cards - Grid Layout */}
+          <a href={`/clients/${client.id}/leads`} className="dashboard-card dashboard-card--hoverable" style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+              <div style={{ 
+                padding: "1rem", 
+                background: "rgba(237, 29, 36, 0.1)", 
+                borderRadius: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <BarChart3 size={32} style={{ color: "#ED1D24" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>Leads & Sales</h2>
+                <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.9rem" }}>Intake, offertes en pipeline</p>
+              </div>
             </div>
-            <div className="dashboard-services">
-              <a href={`/clients/${client.id}/leads`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
-                <div className="dashboard-service__icon"><BarChart3 /></div>
-                <div>
-                  <h4>Leads & Sales</h4>
-                  <p>Intake, offertes en pipeline-tracking</p>
-                </div>
-              </a>
-              <a href={`/clients/${client.id}/clients`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
-                <div className="dashboard-service__icon"><Users /></div>
-                <div>
-                  <h4>CRM</h4>
-                  <p>360° klantprofielen en contracten</p>
-                </div>
-              </a>
-              <a href={`/clients/${client.id}/projects`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
-                <div className="dashboard-service__icon"><Wrench /></div>
-                <div>
-                  <h4>Projectbeheer</h4>
-                  <p>Planning, resources en compliance</p>
-                </div>
-              </a>
-              <a href={`/clients/${client.id}/operations`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
-                <div className="dashboard-service__icon"><ClipboardList /></div>
-                <div>
-                  <h4>Operatie</h4>
-                  <p>Werkbonnen, LMRA en GPS-registratie</p>
-                </div>
-              </a>
-              <a href={`/clients/${client.id}/reports`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
-                <div className="dashboard-service__icon"><TrendingUp /></div>
-                <div>
-                  <h4>Rapportage</h4>
-                  <p>Financieel & compliance dashboards</p>
-                </div>
-              </a>
+            <div style={{ 
+              padding: "1rem", 
+              background: "rgba(237, 29, 36, 0.05)", 
+              borderRadius: "0.5rem",
+              marginTop: "auto"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "0.85rem", color: "#64748b" }}>3 actieve leads</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#ED1D24" }}>Bekijk →</span>
+              </div>
             </div>
-          </section>
-          {/* Projecten Overzicht */}
-          <section className="dashboard-card dashboard-card--large">
+          </a>
+
+          <a href={`/clients/${client.id}/clients`} className="dashboard-card dashboard-card--hoverable" style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+              <div style={{ 
+                padding: "1rem", 
+                background: "rgba(237, 29, 36, 0.1)", 
+                borderRadius: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <Users size={32} style={{ color: "#ED1D24" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>CRM</h2>
+                <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.9rem" }}>360° klantprofielen</p>
+              </div>
+            </div>
+            <div style={{ 
+              padding: "1rem", 
+              background: "rgba(237, 29, 36, 0.05)", 
+              borderRadius: "0.5rem",
+              marginTop: "auto"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "0.85rem", color: "#64748b" }}>{data.stats.totalClients} klanten</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#ED1D24" }}>Bekijk →</span>
+              </div>
+            </div>
+          </a>
+
+          <a href={`/clients/${client.id}/projects`} className="dashboard-card dashboard-card--hoverable" style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+              <div style={{ 
+                padding: "1rem", 
+                background: "rgba(237, 29, 36, 0.1)", 
+                borderRadius: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <Wrench size={32} style={{ color: "#ED1D24" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>Projectbeheer</h2>
+                <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.9rem" }}>Planning & resources</p>
+              </div>
+            </div>
+            <div style={{ 
+              padding: "1rem", 
+              background: "rgba(237, 29, 36, 0.05)", 
+              borderRadius: "0.5rem",
+              marginTop: "auto"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "0.85rem", color: "#64748b" }}>{data.stats.activeProjects} actief</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#ED1D24" }}>Bekijk →</span>
+              </div>
+            </div>
+          </a>
+
+          <a href={`/clients/${client.id}/operations`} className="dashboard-card dashboard-card--hoverable" style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+              <div style={{ 
+                padding: "1rem", 
+                background: "rgba(237, 29, 36, 0.1)", 
+                borderRadius: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <ClipboardList size={32} style={{ color: "#ED1D24" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>Operatie</h2>
+                <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.9rem" }}>Werkbonnen & LMRA</p>
+              </div>
+            </div>
+            <div style={{ 
+              padding: "1rem", 
+              background: "rgba(237, 29, 36, 0.05)", 
+              borderRadius: "0.5rem",
+              marginTop: "auto"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Mobile app</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#ED1D24" }}>Bekijk →</span>
+              </div>
+            </div>
+          </a>
+
+          <a href={`/clients/${client.id}/reports`} className="dashboard-card dashboard-card--hoverable" style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+              <div style={{ 
+                padding: "1rem", 
+                background: "rgba(237, 29, 36, 0.1)", 
+                borderRadius: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <TrendingUp size={32} style={{ color: "#ED1D24" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 700 }}>Rapportage</h2>
+                <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.9rem" }}>Financieel & compliance</p>
+              </div>
+            </div>
+            <div style={{ 
+              padding: "1rem", 
+              background: "rgba(237, 29, 36, 0.05)", 
+              borderRadius: "0.5rem",
+              marginTop: "auto"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "0.85rem", color: "#64748b" }}>ISO & VCA**</span>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#ED1D24" }}>Bekijk →</span>
+              </div>
+            </div>
+          </a>
+          {/* Projecten Overzicht - Card Grid */}
+          <section className="dashboard-card" style={{ gridColumn: "span 2" }}>
             <div className="dashboard-card__header">
               <h2>Projecten Overzicht</h2>
               <a href={`/clients/${client.id}/projects`} className="dashboard-card__link">
                 Bekijk alle →
               </a>
             </div>
-            <div className="dashboard-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Project</th>
-                    <th>Klant</th>
-                    <th>Status</th>
-                    <th>Prioriteit</th>
-                    <th>Waarde</th>
-                    <th>Voortgang</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.recentProjects.map((project) => (
-                    <tr key={project.id}>
-                      <td>
-                        <strong>{project.name}</strong>
-                        <span className="dashboard-table__type">{project.type}</span>
-                      </td>
-                      <td>{project.client}</td>
-                      <td>
-                        <span className={`dashboard-badge dashboard-badge--${project.status.toLowerCase()}`}>
-                          {project.status}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`dashboard-priority dashboard-priority--${project.priority.toLowerCase()}`}>
-                          {project.priority}
-                        </span>
-                      </td>
-                      <td>€{project.value.toLocaleString("nl-NL")}</td>
-                      <td>
-                        <div className="dashboard-progress">
-                          <div className="dashboard-progress__bar" style={{ width: `${project.progress}%` }}></div>
-                          <span>{project.progress}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ 
+              display: "grid", 
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", 
+              gap: "1rem" 
+            }}>
+              {data.recentProjects.map((project) => (
+                <a 
+                  key={project.id}
+                  href={`/clients/${client.id}/projects/${project.id}`}
+                  className="dashboard-card dashboard-card--hoverable"
+                  style={{ 
+                    textDecoration: "none", 
+                    color: "inherit",
+                    padding: "1.25rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.75rem"
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem", fontWeight: 600 }}>{project.name}</h4>
+                      <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>{project.client}</p>
+                    </div>
+                    <span className={`dashboard-badge dashboard-badge--${project.status.toLowerCase()}`}>
+                      {project.status}
+                    </span>
+                  </div>
+                  <div style={{ 
+                    padding: "0.75rem", 
+                    background: "rgba(237, 29, 36, 0.05)", 
+                    borderRadius: "0.5rem",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.25rem" }}>Voortgang</div>
+                      <div className="dashboard-progress" style={{ height: "6px", marginBottom: "0.25rem" }}>
+                        <div className="dashboard-progress__bar" style={{ width: `${project.progress}%` }}></div>
+                      </div>
+                      <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>{project.progress}%</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.25rem" }}>Waarde</div>
+                      <div style={{ fontSize: "1rem", fontWeight: 700, color: "#ED1D24" }}>
+                        €{project.value.toLocaleString("nl-NL")}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              ))}
             </div>
           </section>
 
-          {/* Klanten CRM */}
+          {/* Klanten CRM - Card Grid */}
           <section className="dashboard-card">
             <div className="dashboard-card__header">
               <h2>Klanten CRM</h2>
@@ -175,56 +313,117 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
                 Bekijk alle →
               </a>
             </div>
-            <div className="dashboard-list">
+            <div style={{ 
+              display: "grid", 
+              gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", 
+              gap: "1rem" 
+            }}>
               {data.clients.map((clientItem) => (
-                <div key={clientItem.id} className="dashboard-list__item">
-                  <div className="dashboard-list__main">
-                    <h4>{clientItem.name}</h4>
-                    <p>{clientItem.contact}</p>
-                    <span className="dashboard-list__meta">{clientItem.type}</span>
-                  </div>
-                  <div className="dashboard-list__side">
-                    <div className="dashboard-list__stats">
-                      <span className="dashboard-list__stat-value">{clientItem.totalProjects}</span>
-                      <span className="dashboard-list__stat-label">Projecten</span>
-                    </div>
-                    <div className="dashboard-list__stats">
-                      <span className="dashboard-list__stat-value">€{clientItem.totalValue.toLocaleString("nl-NL")}</span>
-                      <span className="dashboard-list__stat-label">Waarde</span>
-                    </div>
+                <a 
+                  key={clientItem.id}
+                  href={`/clients/${client.id}/clients/${clientItem.id}`}
+                  className="dashboard-card dashboard-card--hoverable"
+                  style={{ 
+                    textDecoration: "none", 
+                    color: "inherit",
+                    padding: "1.25rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.75rem"
+                  }}
+                >
+                  <div>
+                    <h4 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem", fontWeight: 600 }}>{clientItem.name}</h4>
+                    <p style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", color: "#64748b" }}>{clientItem.contact}</p>
                     <span className={`dashboard-badge dashboard-badge--${clientItem.status.toLowerCase()}`}>
                       {clientItem.status}
                     </span>
                   </div>
-                </div>
+                  <div style={{ 
+                    padding: "0.75rem", 
+                    background: "rgba(237, 29, 36, 0.05)", 
+                    borderRadius: "0.5rem",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "0.5rem",
+                    marginTop: "auto"
+                  }}>
+                    <div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Projecten</div>
+                      <div style={{ fontSize: "1rem", fontWeight: 700 }}>{clientItem.totalProjects}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Waarde</div>
+                      <div style={{ fontSize: "1rem", fontWeight: 700, color: "#ED1D24" }}>
+                        €{clientItem.totalValue.toLocaleString("nl-NL")}
+                      </div>
+                    </div>
+                  </div>
+                </a>
               ))}
             </div>
           </section>
 
-          {/* Diensten Performance */}
-          <section className="dashboard-card">
+          {/* Diensten Performance - Enhanced Cards */}
+          <section className="dashboard-card" style={{ gridColumn: "span 2" }}>
             <div className="dashboard-card__header">
               <h2>Diensten Performance</h2>
             </div>
-            <div className="dashboard-services-grid">
+            <div style={{ 
+              display: "grid", 
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", 
+              gap: "1rem" 
+            }}>
               {data.services.map((service) => {
                 const iconMap: Record<string, React.ReactNode> = {
-                  "1": <Factory size={24} />,
-                  "2": <Droplets size={24} />,
-                  "3": <Building2 size={24} />,
+                  "1": <Factory size={32} />,
+                  "2": <Droplets size={32} />,
+                  "3": <Building2 size={32} />,
                 };
                 return (
-                  <div key={service.id} className="dashboard-service-card">
-                    <div className="dashboard-service-card__icon">{iconMap[service.id]}</div>
-                    <h4>{service.name}</h4>
-                    <div className="dashboard-service-card__stats">
+                  <div 
+                    key={service.id} 
+                    className="dashboard-card dashboard-card--hoverable"
+                    style={{ 
+                      padding: "1.5rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "1rem"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                      <div style={{ 
+                        padding: "1rem", 
+                        background: "rgba(237, 29, 36, 0.1)", 
+                        borderRadius: "0.75rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}>
+                        {iconMap[service.id]}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700 }}>{service.name}</h4>
+                        <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>{service.description}</p>
+                      </div>
+                    </div>
+                    <div style={{ 
+                      display: "grid", 
+                      gridTemplateColumns: "1fr 1fr", 
+                      gap: "1rem",
+                      padding: "1rem",
+                      background: "rgba(237, 29, 36, 0.05)",
+                      borderRadius: "0.5rem"
+                    }}>
                       <div>
-                        <span className="dashboard-service-card__value">{service.activeProjects}</span>
-                        <span className="dashboard-service-card__label">Actieve projecten</span>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.25rem" }}>Actieve projecten</div>
+                        <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>{service.activeProjects}</div>
                       </div>
                       <div>
-                        <span className="dashboard-service-card__value">€{service.monthlyRevenue.toLocaleString("nl-NL")}</span>
-                        <span className="dashboard-service-card__label">Maandomzet</span>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.25rem" }}>Maandomzet</div>
+                        <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#ED1D24" }}>
+                          €{service.monthlyRevenue.toLocaleString("nl-NL")}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -233,49 +432,97 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
             </div>
           </section>
 
-          {/* Aankomende Taken */}
+          {/* Aankomende Taken - Card Grid */}
           <section className="dashboard-card">
             <div className="dashboard-card__header">
               <h2>Aankomende Taken</h2>
             </div>
-            <div className="dashboard-tasks">
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               {data.upcomingTasks.map((task) => (
-                <div key={task.id} className="dashboard-task">
-                  <div className="dashboard-task__content">
-                    <h4>{task.task}</h4>
-                    <p>{task.project}</p>
-                    <span className="dashboard-task__assignee">
+                <div 
+                  key={task.id} 
+                  className="dashboard-card dashboard-card--hoverable"
+                  style={{ 
+                    padding: "1rem",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 600 }}>{task.task}</h4>
+                    <p style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", color: "#64748b" }}>{task.project}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#64748b" }}>
                       <User size={14} />
-                      {task.assignedTo}
-                    </span>
+                      <span>{task.assignedTo}</span>
+                    </div>
                   </div>
-                  <div className="dashboard-task__date">
-                    {new Date(task.dueDate).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
+                  <div style={{ 
+                    padding: "0.75rem 1rem", 
+                    background: "rgba(237, 29, 36, 0.1)", 
+                    borderRadius: "0.5rem",
+                    textAlign: "center",
+                    minWidth: "60px"
+                  }}>
+                    <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.25rem" }}>Deadline</div>
+                    <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "#ED1D24" }}>
+                      {new Date(task.dueDate).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* Financiën Overzicht */}
-          <section className="dashboard-card dashboard-card--primary">
-            <h2>Financiën Overzicht</h2>
-            <div className="dashboard-finance">
-              <div className="dashboard-finance__item">
-                <span className="dashboard-finance__label">Deze maand</span>
-                <span className="dashboard-finance__value">€{data.revenue.thisMonth.toLocaleString("nl-NL")}</span>
+          {/* Financiën Overzicht - Enhanced Card */}
+          <section className="dashboard-card dashboard-card--primary" style={{ gridColumn: "span 2" }}>
+            <h2 style={{ margin: "0 0 1.5rem", fontSize: "1.75rem" }}>Financiën Overzicht</h2>
+            <div style={{ 
+              display: "grid", 
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+              gap: "1.5rem" 
+            }}>
+              <div style={{ 
+                padding: "1.25rem", 
+                background: "rgba(255, 255, 255, 0.15)", 
+                borderRadius: "0.75rem",
+                backdropFilter: "blur(10px)"
+              }}>
+                <div style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "0.5rem" }}>Deze maand</div>
+                <div style={{ fontSize: "2rem", fontWeight: 700 }}>€{data.revenue.thisMonth.toLocaleString("nl-NL")}</div>
               </div>
-              <div className="dashboard-finance__item">
-                <span className="dashboard-finance__label">Vorige maand</span>
-                <span className="dashboard-finance__value">€{data.revenue.lastMonth.toLocaleString("nl-NL")}</span>
+              <div style={{ 
+                padding: "1.25rem", 
+                background: "rgba(255, 255, 255, 0.15)", 
+                borderRadius: "0.75rem",
+                backdropFilter: "blur(10px)"
+              }}>
+                <div style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "0.5rem" }}>Vorige maand</div>
+                <div style={{ fontSize: "2rem", fontWeight: 700 }}>€{data.revenue.lastMonth.toLocaleString("nl-NL")}</div>
               </div>
-              <div className="dashboard-finance__item">
-                <span className="dashboard-finance__label">Dit jaar</span>
-                <span className="dashboard-finance__value">€{data.revenue.thisYear.toLocaleString("nl-NL")}</span>
+              <div style={{ 
+                padding: "1.25rem", 
+                background: "rgba(255, 255, 255, 0.15)", 
+                borderRadius: "0.75rem",
+                backdropFilter: "blur(10px)"
+              }}>
+                <div style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "0.5rem" }}>Dit jaar</div>
+                <div style={{ fontSize: "2rem", fontWeight: 700 }}>€{data.revenue.thisYear.toLocaleString("nl-NL")}</div>
               </div>
-              <div className="dashboard-finance__growth">
-                <TrendingUp size={16} />
-                <span>+{data.revenue.growth}% groei</span>
+              <div style={{ 
+                padding: "1.25rem", 
+                background: "rgba(255, 255, 255, 0.2)", 
+                borderRadius: "0.75rem",
+                backdropFilter: "blur(10px)",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem"
+              }}>
+                <TrendingUp size={32} />
+                <div>
+                  <div style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "0.25rem" }}>Groei</div>
+                  <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>+{data.revenue.growth}%</div>
+                </div>
               </div>
             </div>
           </section>
