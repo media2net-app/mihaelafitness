@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { findClient, listClients, type ClientConfig } from "@/lib/clients";
 import { rimatoDashboardData, neumannDashboardData, vulcanDashboardData } from "@/lib/dashboard-data";
-import { BarChart3, Users, Euro, CheckCircle2, Star, TrendingUp, Factory, Droplets, Building2, Home, Users2, Trees, Laptop, Hospital, UserCog, User, MapPin, Clock, Wrench, Zap } from "lucide-react";
+import { BarChart3, Users, Euro, CheckCircle2, Star, TrendingUp, Factory, Droplets, Building2, Home, Users2, Trees, Laptop, Hospital, UserCog, User, MapPin, Clock, Wrench, Zap, ClipboardList } from "lucide-react";
 import type React from "react";
 
 type DashboardPageProps = {
@@ -72,6 +72,49 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
 
         {/* Main Content Grid */}
         <div className="dashboard-grid">
+          {/* Modules overzicht */}
+          <section className="dashboard-card">
+            <div className="dashboard-card__header">
+              <h2>Rimato Operations Platform</h2>
+            </div>
+            <div className="dashboard-services">
+              <a href={`/clients/${client.id}/leads`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
+                <div className="dashboard-service__icon"><BarChart3 /></div>
+                <div>
+                  <h4>Leads & Sales</h4>
+                  <p>Intake, offertes en pipeline-tracking</p>
+                </div>
+              </a>
+              <a href={`/clients/${client.id}/clients`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
+                <div className="dashboard-service__icon"><Users /></div>
+                <div>
+                  <h4>CRM</h4>
+                  <p>360° klantprofielen en contracten</p>
+                </div>
+              </a>
+              <a href={`/clients/${client.id}/projects`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
+                <div className="dashboard-service__icon"><Wrench /></div>
+                <div>
+                  <h4>Projectbeheer</h4>
+                  <p>Planning, resources en compliance</p>
+                </div>
+              </a>
+              <a href={`/clients/${client.id}/operations`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
+                <div className="dashboard-service__icon"><ClipboardList /></div>
+                <div>
+                  <h4>Operatie</h4>
+                  <p>Werkbonnen, LMRA en GPS-registratie</p>
+                </div>
+              </a>
+              <a href={`/clients/${client.id}/reports`} className="dashboard-service" style={{ textDecoration: "none", color: "inherit" }}>
+                <div className="dashboard-service__icon"><TrendingUp /></div>
+                <div>
+                  <h4>Rapportage</h4>
+                  <p>Financieel & compliance dashboards</p>
+                </div>
+              </a>
+            </div>
+          </section>
           {/* Projecten Overzicht */}
           <section className="dashboard-card dashboard-card--large">
             <div className="dashboard-card__header">
