@@ -33,7 +33,10 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--background);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(59, 130, 246, 0.12), transparent 40%),
+    radial-gradient(1000px 500px at 110% 10%, rgba(34, 197, 94, 0.08), transparent 40%),
+    linear-gradient(180deg, #f8fbff 0%, #eff4fb 30%, #edf2f7 100%);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
@@ -106,8 +109,10 @@ a:hover {
   flex-direction: column;
   gap: 2rem;
   padding: 2.5rem 2rem;
-  background: var(--client-sidebar-bg);
+  background: linear-gradient(180deg, rgba(16, 24, 40, 0.95), rgba(16, 24, 40, 0.85));
+  backdrop-filter: saturate(140%) blur(8px);
   color: var(--client-sidebar-text);
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.25);
 }
 
 .client-sidebar__branding {
@@ -225,10 +230,11 @@ a:hover {
   gap: 1rem;
   padding: 1.75rem;
   border-radius: 1.25rem;
-  background: var(--client-card-bg);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(10px);
   color: var(--client-card-text);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-  border: 1px solid var(--client-border);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.10);
+  border: 1px solid rgba(203, 213, 225, 0.6);
   min-height: fit-content;
   align-self: start;
 }
@@ -278,6 +284,7 @@ a.dashboard-card {
   background: linear-gradient(145deg, var(--client-brand), var(--client-accent));
   color: #ffffff;
   border: none;
+  box-shadow: 0 24px 48px rgba(16, 185, 129, 0.25);
 }
 
 .dashboard-card--primary .dashboard-highlights li::before {
@@ -1162,27 +1169,27 @@ a.dashboard-card {
 }
 
 .btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  padding: 0.8rem 1.6rem;
+  border-radius: 0.75rem;
   border: none;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
 .btn--primary {
-  background: var(--client-brand);
+  background: linear-gradient(135deg, var(--client-brand), var(--client-accent));
   color: #ffffff;
 }
 
 .btn--primary:hover {
-  background: var(--client-accent);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.25);
 }
 
 .btn--secondary {
@@ -1192,7 +1199,7 @@ a.dashboard-card {
 }
 
 .btn--secondary:hover {
-  background: var(--client-border);
+  background: rgba(203, 213, 225, 0.45);
 }
 
 .page-stats {
