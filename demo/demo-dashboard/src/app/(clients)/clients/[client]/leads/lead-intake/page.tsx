@@ -1,4 +1,4 @@
-\"use client\";
+'use client';
 import { useParams } from "next/navigation";
 import { rimatoDashboardData } from "@/lib/dashboard-data";
 import Link from "next/link";
