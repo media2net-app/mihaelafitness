@@ -1,16 +1,11 @@
-import { notFound } from "next/navigation";
-import { findClient } from "@/lib/clients";
+\"use client\";
+import { useParams } from "next/navigation";
 import { rimatoDashboardData } from "@/lib/dashboard-data";
 import Link from "next/link";
 
-type PageProps = { params: Promise<{ client: string }> | { client: string } };
-
-export default async function OffertegeneratorPage({ params }: PageProps) {
-  const resolvedParams = await Promise.resolve(params);
-  const client = findClient(resolvedParams.client);
-  if (!client || client.id !== "rimato") {
-    notFound();
-  }
+export default function OffertegeneratorPage() {
+  const params = useParams();
+  const clientId = (params?.client as string) || "rimato";
   const cfg = rimatoDashboardData.leads.offertegenerator;
   return (
     <div className="page-admin">
@@ -22,7 +17,7 @@ export default async function OffertegeneratorPage({ params }: PageProps) {
             Sjablonen per discipline en automatische kostencalculatie.
           </p>
         </div>
-        <Link href={`/clients/${client.id}/leads`} className="btn">
+        <Link href={`/clients/${clientId}/leads`} className="btn">
           ← Terug
         </Link>
       </div>
