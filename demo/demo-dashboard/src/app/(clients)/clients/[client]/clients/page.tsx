@@ -445,10 +445,6 @@ export default async function ClientsPage({ params }: ClientsPageProps) {
                     className="dashboard-action-btn" 
                     title="Bewerken"
                     type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
                   >
                     <Edit size={16} />
                   </button>
@@ -462,7 +458,6 @@ export default async function ClientsPage({ params }: ClientsPageProps) {
                   <a 
                     href={`mailto:${clientItem.email}`} 
                     style={{ color: 'inherit', textDecoration: 'none' }}
-                    onClick={(e) => e.stopPropagation()}
                   >
                     {clientItem.email}
                   </a>
