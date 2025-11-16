@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { findClient } from "@/lib/clients";
 import { FileText, Mail, Eye, Plus, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
 type ReportsPageProps = {
   params: Promise<{ client: string }> | { client: string };

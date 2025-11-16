@@ -235,6 +235,41 @@
   width: 100%;
 }
 
+/* Rimato - Focus states for clickable cards */
+[data-client="rimato"] .dashboard-card--hoverable:focus,
+[data-client="rimato"] .dashboard-card--hoverable:focus-visible {
+  outline: 2px solid rgba(237, 29, 36, 0.6);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(237, 29, 36, 0.2), 0 20px 40px rgba(237, 29, 36, 0.12);
+}
+
+[data-client="rimato"] a.dashboard-card:focus,
+[data-client="rimato"] a.dashboard-card:focus-visible {
+  outline: 2px solid rgba(237, 29, 36, 0.6);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(237, 29, 36, 0.2), 0 20px 40px rgba(237, 29, 36, 0.12);
+}
+
+[data-client="rimato"] .dashboard-service:focus,
+[data-client="rimato"] .dashboard-service:focus-visible {
+  outline: 2px solid rgba(237, 29, 36, 0.6);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(237, 29, 36, 0.2), 0 8px 24px rgba(237, 29, 36, 0.15);
+}
+
+[data-client="rimato"] .dashboard-table tbody tr:focus,
+[data-client="rimato"] .dashboard-table tbody tr:focus-visible {
+  outline: 2px solid rgba(237, 29, 36, 0.6);
+  outline-offset: -2px;
+}
+
+[data-client="rimato"] .dashboard-table tbody tr td a:focus,
+[data-client="rimato"] .dashboard-table tbody tr td a:focus-visible {
+  outline: 2px solid rgba(237, 29, 36, 0.6);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
 /* Rimato Dashboard 2.0 - Tables & Lists */
 [data-client="rimato"] .dashboard-table {
   background: rgba(255, 255, 255, 0.7);
