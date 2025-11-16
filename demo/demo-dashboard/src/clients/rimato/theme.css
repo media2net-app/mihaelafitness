@@ -37,3 +37,50 @@
   max-width: 100%;
   filter: brightness(0) invert(1);
 }
+
+/* Rimato Design 2.0 - Modern Glass & Gradient Effects */
+[data-client="rimato"] .client-shell {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(237, 29, 36, 0.12), transparent 40%),
+    radial-gradient(1000px 500px at 110% 10%, rgba(196, 26, 32, 0.08), transparent 40%),
+    linear-gradient(180deg, #fef2f2 0%, #fee2e2 30%, #fecaca 100%);
+}
+
+[data-client="rimato"] .client-sidebar {
+  background: linear-gradient(180deg, rgba(237, 29, 36, 0.98), rgba(196, 26, 32, 0.95));
+  backdrop-filter: saturate(140%) blur(8px);
+  box-shadow: 0 20px 40px rgba(237, 29, 36, 0.25);
+}
+
+[data-client="rimato"] .dashboard-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 40px rgba(237, 29, 36, 0.12);
+  border: 1px solid rgba(254, 202, 202, 0.6);
+}
+
+[data-client="rimato"] .dashboard-card--primary {
+  box-shadow: 0 24px 48px rgba(237, 29, 36, 0.3);
+}
+
+[data-client="rimato"] .btn {
+  padding: 0.8rem 1.6rem;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  transition: all 0.25s ease;
+  box-shadow: 0 8px 20px rgba(237, 29, 36, 0.15);
+}
+
+[data-client="rimato"] .btn--primary {
+  background: linear-gradient(135deg, #ED1D24, #c41a20);
+  box-shadow: 0 8px 20px rgba(237, 29, 36, 0.25);
+}
+
+[data-client="rimato"] .btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(237, 29, 36, 0.35);
+}
+
+[data-client="rimato"] .btn--secondary:hover {
+  background: rgba(254, 202, 202, 0.5);
+}
