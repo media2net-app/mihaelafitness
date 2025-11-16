@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { findClient } from "@/lib/clients";
-import { neumannDashboardData } from "@/lib/dashboard-data";
+import { neumannDashboardData, rimatoDashboardData } from "@/lib/dashboard-data";
 import { Edit, Calendar, Eye, Plus, Mail, Phone, Target } from "lucide-react";
 import Link from "next/link";
 
@@ -337,7 +337,6 @@ export default async function ClientsPage({ params }: ClientsPageProps) {
 
   // Rimato: CRM-overzicht met klantdata
   if (client.id === "rimato") {
-    const { rimatoDashboardData } = await import("@/lib/dashboard-data");
     const allClients = rimatoDashboardData.clients || [];
 
     const stats = {
