@@ -21,6 +21,12 @@ export const rimatoDashboardData = {
       value: 8500,
       progress: 75,
       assignedTeam: ["Jan Smit", "Piet Bakker"],
+      description: "Grondige reiniging van productielijn en vloer met veiligheidsafzetting.",
+      milestones: [
+        { id: "m1", title: "Voorinspectie", date: "2024-01-10", done: true },
+        { id: "m2", title: "Machine shutdown", date: "2024-01-15", done: true },
+        { id: "m3", title: "Eindcontrole", date: "2024-01-16", done: false },
+      ],
     },
     {
       id: "2",
@@ -34,6 +40,12 @@ export const rimatoDashboardData = {
       value: 12000,
       progress: 60,
       assignedTeam: ["Klaas Visser", "Henk de Vries"],
+      description: "Jaarcontract inspectie, reiniging en rapportage van wijkriolering.",
+      milestones: [
+        { id: "m1", title: "Planning routes", date: "2024-12-05", done: true },
+        { id: "m2", title: "Reiniging sector A", date: "2024-12-12", done: true },
+        { id: "m3", title: "Rapportage opleveren", date: "2024-12-16", done: false },
+      ],
     },
     {
       id: "3",
@@ -47,6 +59,12 @@ export const rimatoDashboardData = {
       value: 4500,
       progress: 0,
       assignedTeam: ["Lisa Jansen"],
+      description: "Stoomreiniging en nabehandeling met hydrofobe coating.",
+      milestones: [
+        { id: "m1", title: "Offerte akkoord", date: "2024-12-01", done: true },
+        { id: "m2", title: "Materieel reserveren", date: "2024-12-08", done: true },
+        { id: "m3", title: "Uitvoering", date: "2024-12-10", done: false },
+      ],
     },
     {
       id: "4",
@@ -60,8 +78,49 @@ export const rimatoDashboardData = {
       value: 6200,
       progress: 45,
       assignedTeam: ["Jan Smit"],
+      description: "Ontvetten en nabehandeling van betonnen vloeren in koelmagazijn.",
+      milestones: [
+        { id: "m1", title: "Voorinspectie", date: "2024-10-28", done: true },
+        { id: "m2", title: "Uitvoering fase 1", date: "2024-11-02", done: true },
+        { id: "m3", title: "Uitvoering fase 2", date: "2024-12-22", done: false },
+      ],
     },
   ],
+  leads: {
+    offertegenerator: {
+      disciplines: [
+        { id: "industriel", name: "Industriële reiniging", baseRate: 85, unit: "uur" },
+        { id: "riool", name: "Rioolbeheer", baseRate: 95, unit: "uur" },
+        { id: "gevel", name: "Gevelbeheer", baseRate: 75, unit: "uur" },
+      ],
+      parameters: [
+        { key: "oppervlakte_m2", label: "Oppervlakte (m²)" },
+        { key: "vervuiling", label: "Type vervuiling" },
+        { key: "uren", label: "Benodigde uren" },
+        { key: "materiaal", label: "Materiaal kostprijs" },
+      ],
+    },
+    intake: {
+      sources: ["Webformulier", "E-mail", "Telefoon"],
+      fields: [
+        { key: "bedrijf", label: "Bedrijf" },
+        { key: "contact", label: "Contactpersoon" },
+        { key: "email", label: "E-mail" },
+        { key: "telefoon", label: "Telefoon" },
+        { key: "dienst", label: "Discipline" },
+        { key: "beschrijving", label: "Korte omschrijving" },
+      ],
+    },
+    pipeline: {
+      stages: [
+        { id: "nieuw", name: "Nieuw" },
+        { id: "gekvalificeerd", name: "Gekwalificeerd" },
+        { id: "offerte", name: "Offerte verzonden" },
+        { id: "winst", name: "Winst" },
+        { id: "verlies", name: "Verlies" },
+      ],
+    },
+  },
   clients: [
     {
       id: "1",
