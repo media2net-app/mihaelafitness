@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { findClient } from "@/lib/clients";
+import { rimatoDashboardData } from "@/lib/dashboard-data";
 import Link from "next/link";
 
 type PageProps = { params: Promise<{ client: string }> | { client: string } };
@@ -10,6 +11,7 @@ export default async function PipelinePage({ params }: PageProps) {
   if (!client || client.id !== "rimato") {
     notFound();
   }
+  const { pipeline } = rimatoDashboardData.leads;
   return (
     <div className="page-admin">
       <div className="page-header">
@@ -24,11 +26,20 @@ export default async function PipelinePage({ params }: PageProps) {
           ← Terug
         </Link>
       </div>
-      <div className="dashboard-card">
-        <h2>Placeholder</h2>
-        <p style={{ color: "#64748b" }}>
-          Hier komt de kanban/gantt weergave met automatische opvolgtaken.
-        </p>
+      <div className="dashboard-grid" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
+        {pipeline.stages.map((stage) => (
+          <section key={stage.id} className="dashboard-card">
+            <div className="dashboard-card__header">
+              <h2 style={{ fontSize: "1rem" }}>{stage.name}</h2>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <div className="dashboard-list__item" style={{ background: "var(--client-surface)", borderRadius: "0.5rem", padding: "0.5rem 0.75rem" }}>
+                <strong>Voorbeeld lead</strong>
+                <div className="dashboard-table__meta">Acme BV • Gevelbeheer</div>
+              </div>
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   );
