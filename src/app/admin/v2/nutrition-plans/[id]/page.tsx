@@ -22,7 +22,12 @@ import {
   X,
   Search,
   ShoppingCart,
-  ChefHat as ChefIcon
+  ChefHat as ChefIcon,
+  Sunrise,
+  UtensilsCrossed,
+  Moon,
+  Cherry,
+  CircleDot
 } from 'lucide-react';
 import IngredientSelectorV2 from './IngredientSelectorV2';
 import { calculateDailyTotalsV3 } from '@/utils/dailyTotalsV3';
@@ -720,14 +725,15 @@ export default function NutritionPlanDetailV2Page() {
   };
 
   const getMealIcon = (mealType: string) => {
+    const iconClass = "w-4 h-4 sm:w-5 sm:h-5 text-gray-700";
     switch (mealType) {
-      case 'breakfast': return '🌅';
-      case 'morning-snack': return '🍎';
-      case 'lunch': return '🍽️';
-      case 'afternoon-snack': return '🥜';
-      case 'dinner': return '🌙';
-      case 'evening-snack': return '🍫';
-      default: return '🍽️';
+      case 'breakfast': return <Sunrise className={iconClass} />;
+      case 'morning-snack': return <Apple className={iconClass} />;
+      case 'lunch': return <UtensilsCrossed className={iconClass} />;
+      case 'afternoon-snack': return <CircleDot className={iconClass} />;
+      case 'dinner': return <Moon className={iconClass} />;
+      case 'evening-snack': return <Cherry className={iconClass} />;
+      default: return <UtensilsCrossed className={iconClass} />;
     }
   };
 
@@ -1117,7 +1123,7 @@ export default function NutritionPlanDetailV2Page() {
                         <tr key={mealType} className="hover:bg-gray-50">
                           <td className="px-4 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <span className="text-lg mr-2">{getMealIcon(mealType)}</span>
+                              <span className="mr-2 flex items-center">{getMealIcon(mealType)}</span>
                               <div className="text-sm font-medium text-gray-900">
                                 {mealType === 'morning-snack' ? 'Morning Snack' : 
                                  mealType === 'afternoon-snack' ? 'Afternoon Snack' : 
