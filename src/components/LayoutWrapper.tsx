@@ -11,8 +11,8 @@ interface LayoutWrapperProps {
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const pathname = usePathname();
   
-  // Don't show sidebar/header on login page, homepage, customer views, and V2 pages
-  if (pathname === '/login' || pathname === '/' || pathname.startsWith('/my-plan') || pathname.startsWith('/admin/v2')) {
+  // Don't show sidebar/header on login page, homepage, customer views, V2 pages, and homepage-2
+  if (pathname === '/login' || pathname === '/' || pathname === '/homepage-2' || pathname.startsWith('/my-plan') || pathname.startsWith('/admin/v2')) {
     return (
       <>
         {children}
@@ -20,9 +20,11 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
     );
   }
 
+  const isAdmin = pathname.startsWith('/admin');
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
-      {/* Mobile Header */}
+      {/* Mobile Header - Only show on mobile for admin, always for non-admin */}
       <Header />
       
       <div className="flex">

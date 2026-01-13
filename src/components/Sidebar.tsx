@@ -1,7 +1,38 @@
 'use client';
 
 import { useState } from 'react';
-import { LogOut, Globe, Home, User, Calendar, Target, Trophy, BookOpen, Users, Settings, Shield, Calculator, Dumbbell, Ruler, CheckSquare, DollarSign, UserPlus, Database, ChefHat, FileText, FileEdit } from 'lucide-react';
+import {
+  LogOut,
+  Globe,
+  Home,
+  User,
+  Calendar,
+  Target,
+  Trophy,
+  BookOpen,
+  Users,
+  Users2,
+  Settings,
+  Shield,
+  Calculator,
+  Dumbbell,
+  Ruler,
+  CheckSquare,
+  DollarSign,
+  UserPlus,
+  Database,
+  ChefHat,
+  FileText,
+  FileEdit,
+  MapPin,
+  Scale,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Apple
+} from 'lucide-react';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +41,7 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { language, setLanguage, t } = useLanguage();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const toggleLanguage = () => {
@@ -26,6 +57,7 @@ export default function Sidebar() {
     { path: '/dashboard', icon: Home, label: t.admin.dashboard.dashboard },
     { path: '/profile', icon: User, label: t.dashboard.profile },
     { path: '/schedule', icon: Calendar, label: t.dashboard.schedule },
+    { path: '/nutrition-plan', icon: Apple, label: 'Voedingsplan' },
     { path: '/goals', icon: Target, label: t.dashboard.goals },
     { path: '/achievements', icon: Trophy, label: t.dashboard.achievements },
     { path: '/academy', icon: BookOpen, label: t.dashboard.academy },
@@ -33,8 +65,10 @@ export default function Sidebar() {
   ];
 
   const adminItems = [
+    { path: '/admin/plan-2026', icon: Sparkles, label: 'Plan 2026', highlighted: true },
     { path: '/admin', icon: Shield, label: t.admin.dashboard.title },
     { path: '/admin/clients', icon: Users, label: t.admin.dashboard.clients },
+    { path: '/admin/groups', icon: Users2, label: 'Groups' },
     { path: '/admin/intakes', icon: UserPlus, label: 'Intakes' },
     { path: '/admin/online-coaching', icon: Users, label: 'Online Coaching' },
     { path: '/admin/schedule', icon: Calendar, label: t.admin.dashboard.schedule },
@@ -43,6 +77,8 @@ export default function Sidebar() {
     { path: '/admin/exercise-library', icon: Dumbbell, label: t.admin.dashboard.exerciseLibrary },
     { path: '/admin/voedingsplannen', icon: BookOpen, label: t.admin.dashboard.nutritionPlans },
     { path: '/admin/ingredienten', icon: BookOpen, label: t.admin.dashboard.ingredients },
+    { path: '/admin/ingredienten-v2', icon: Scale, label: 'Ingredienten V2' },
+    { path: '/admin/mealplan-mapping', icon: MapPin, label: 'Mealplan Mapping' },
     { path: '/admin/recepten', icon: ChefHat, label: 'Rețete' },
     { path: '/admin/voedingsplannen-api', icon: Database, label: 'API Planuri Nutriționale' },
     { path: '/admin/kcal-calculator-v2', icon: Calculator, label: 'KCAL Calculator V2' },
@@ -59,147 +95,101 @@ export default function Sidebar() {
 
   const isActive = (path: string) => pathname === path;
 
+  const sidebarWidthClasses = isCollapsed
+    ? 'w-24 min-w-[6rem]'
+    : 'w-80 min-w-[20rem]';
+
+  const navButtonClasses = (active: boolean) => [
+     'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200',
+     isCollapsed ? 'justify-center px-0' : '',
+     active
+       ? 'bg-[#E11C48] text-white shadow-lg shadow-[#E11C48]/40'
+      : 'text-white/70 hover:text-white hover:bg-[#E11C48] hover:shadow-lg hover:shadow-[#E11C48]/30'
+   ].join(' ');
+
+  const actionButtonClasses = [
+    'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200',
+    isCollapsed ? 'justify-center px-0' : '',
+    'text-white/70 hover:text-white hover:bg-white/20'
+  ].join(' ');
+
+  const CollapseIcon = isCollapsed ? ChevronRight : ChevronLeft;
+
+  // Only show sidebar for admin users
+  if (!isAdmin) {
+    return null;
+  }
+
   return (
     <aside
-      className="hidden lg:flex flex-col text-white shadow-xl sidebar-admin"
-      style={{
-        background: 'linear-gradient(to bottom, #f43f5e, #db2777)',
-        backgroundColor: '#f43f5e', // Fallback for browsers that don't support gradients
-        width: isCollapsed ? '80px' : '320px',
-        minWidth: isCollapsed ? '80px' : '320px',
-        maxWidth: isCollapsed ? '80px' : '320px'
-      }}
+      className={`hidden lg:flex flex-col bg-gradient-to-b from-[#E11C48] via-[#F36088] to-[#F9A8D9] text-white shadow-xl transition-all duration-300 ${sidebarWidthClasses}`}
     >
-      {/* Logo Section */}
-      <div className="p-6 border-b border-white/20" style={{ borderBottomColor: 'rgba(255, 255, 255, 0.2)' }}>
-        <div className="flex items-center">
-          <div 
-            className="w-10 h-10 rounded-lg flex items-center justify-center mr-3"
-            style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
-          >
-            <span className="text-lg font-bold text-white" style={{ color: '#ffffff' }}>MF</span>
-          </div>
-          {!isCollapsed && (
-            <div>
-              <h1 className="text-lg font-bold text-white" style={{ color: '#ffffff' }}>Mihaela Fitness</h1>
-              <p className="text-xs text-white/80" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Fitness Management</p>
+      <div className="border-b border-white/20 p-6">
+        <button
+          type="button"
+          onClick={() => router.push('/admin')}
+          className="flex w-full flex-col items-center gap-3 focus:outline-none"
+        >
+          {isCollapsed ? (
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-lg font-bold text-[#F06DAA] shadow-sm">
+              MF
             </div>
+          ) : (
+            <>
+              <div className="relative h-12 w-full">
+                <Image
+                  src="/logo/Middel 4.svg"
+                  alt="Mihaela Fitness Logo"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <p className="text-xs text-white/80">Fitness Management</p>
+            </>
           )}
-        </div>
+        </button>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
-        {currentItems.map((item, index) => {
-          const isActivePath = isActive(item.path);
+      <nav className="flex-1 space-y-2 p-4">
+        {currentItems.map((item) => {
+          const active = isActive(item.path);
+          const isHighlighted = (item as any).highlighted;
+          const highlightedClasses = isHighlighted
+            ? [
+                'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200',
+                isCollapsed ? 'justify-center px-0' : '',
+                active
+                  ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/40'
+                  : 'text-yellow-200 hover:text-white hover:bg-yellow-500/30 hover:shadow-lg hover:shadow-yellow-500/30'
+              ].join(' ')
+            : navButtonClasses(active);
           return (
             <button
               key={item.path}
               onClick={() => router.push(item.path)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 group`}
-              style={{
-                backgroundColor: isActivePath ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                color: isActivePath ? '#ffffff' : 'rgba(255, 255, 255, 0.8)',
-                boxShadow: isActivePath ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : 'none'
-              }}
-              onMouseEnter={(e) => {
-                if (!isActivePath) {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                  e.currentTarget.style.color = '#ffffff';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActivePath) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-                }
-              }}
+              className={highlightedClasses}
             >
-              <item.icon className="w-5 h-5 flex-shrink-0" style={{ color: 'inherit' }} />
-              {!isCollapsed && (
-                <span className="font-medium" style={{ color: 'inherit' }}>
-                  {item.label}
-                </span>
-              )}
+              <item.icon className={`h-5 w-5 flex-shrink-0 ${isHighlighted ? (active ? 'text-white' : 'text-yellow-200') : active ? 'text-white' : 'text-white/70'}`} />
+              {!isCollapsed && <span className={isHighlighted ? (active ? 'text-white' : 'text-yellow-200') : active ? 'text-white' : 'text-white/80'}>{item.label}</span>}
             </button>
           );
         })}
       </nav>
 
-      {/* Bottom Actions */}
-      <div className="p-4 space-y-2" style={{ borderTopColor: 'rgba(255, 255, 255, 0.2)', borderTopWidth: '1px', borderTopStyle: 'solid' }}>
-        {/* Language Toggle */}
-        <button
-          onClick={toggleLanguage}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200"
-          style={{
-            color: 'rgba(255, 255, 255, 0.8)',
-            backgroundColor: 'transparent'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#ffffff';
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-        >
-          <Globe className="w-5 h-5 flex-shrink-0" style={{ color: 'inherit' }} />
-          {!isCollapsed && (
-            <span className="font-medium" style={{ color: 'inherit' }}>
-              {language === 'en' ? 'RO' : 'EN'}
-            </span>
-          )}
+      <div className="space-y-2 border-t border-white/20 p-4">
+        <button onClick={toggleLanguage} className={actionButtonClasses}>
+          <Globe className="h-5 w-5 flex-shrink-0 text-white/80" />
+          {!isCollapsed && <span className="text-white/80">{language === 'en' ? 'Română' : 'English'}</span>}
         </button>
-
-        {/* Logout Button */}
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200"
-          style={{
-            color: 'rgba(255, 255, 255, 0.8)',
-            backgroundColor: 'transparent'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#ffffff';
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-        >
-          <LogOut className="w-5 h-5 flex-shrink-0" style={{ color: 'inherit' }} />
-          {!isCollapsed && (
-            <span className="font-medium" style={{ color: 'inherit' }}>
-              {t.dashboard.logout}
-            </span>
-          )}
+        <button onClick={handleLogout} className={actionButtonClasses}>
+          <LogOut className="h-5 w-5 flex-shrink-0 text-white/80" />
+          {!isCollapsed && <span className="text-white/80">{t.dashboard.logout}</span>}
         </button>
-
-        {/* Collapse Toggle */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="w-full flex items-center justify-center px-4 py-3 rounded-lg transition-all duration-200"
-          style={{
-            color: 'rgba(255, 255, 255, 0.8)',
-            backgroundColor: 'transparent'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#ffffff';
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
+          className={`flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 text-white/80 hover:bg-white/20 hover:text-white`}
         >
-          <div className="w-5 h-5">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'inherit' }}>
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </div>
+          <CollapseIcon className="h-5 w-5" />
         </button>
       </div>
     </aside>

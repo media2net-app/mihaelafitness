@@ -18,10 +18,7 @@ interface IngredientBreakdownProps {
 
 // Improved parsing function for meal descriptions
 function parseMealDescription(mealDescription: string): string[] {
-  console.log('Parsing meal description:', mealDescription);
-  
   if (!mealDescription || mealDescription.trim() === '') {
-    console.log('Empty meal description');
     return [];
   }
   
@@ -30,17 +27,14 @@ function parseMealDescription(mealDescription: string): string[] {
     try {
       const parsedIngredients = JSON.parse(mealDescription);
       if (Array.isArray(parsedIngredients)) {
-        console.log('Parsed JSON ingredients:', parsedIngredients);
         // Convert ingredient objects to ingredient strings for the API
         const ingredientStrings = parsedIngredients.map((ingredient: any) => {
           // Format: "quantity unit name" (e.g., "6 g Egg Whites", "2 g Eggs")
           return `${ingredient.quantity} ${ingredient.unit} ${ingredient.name}`;
         });
-        console.log('Converted to ingredient strings:', ingredientStrings);
         return ingredientStrings;
       }
     } catch (error) {
-      console.log('Failed to parse as JSON, falling back to text parsing:', error);
       // Fall through to text parsing
     }
   }
@@ -75,7 +69,6 @@ function parseMealDescription(mealDescription: string): string[] {
   
   // Check if there's any actual content left
   if (!cleaned || cleaned.length === 0) {
-    console.log('No content left after cleaning, returning empty array');
     return [];
   }
   
@@ -85,11 +78,9 @@ function parseMealDescription(mealDescription: string): string[] {
   if (recipeMatch) {
     const recipeName = recipeMatch[1];
     const recipeContent = recipeMatch[2];
-    console.log('Found recipe:', recipeName, 'with content:', recipeContent);
     
     // Split recipe content by commas and clean up
     const ingredients = recipeContent.split(',').map(ing => ing.trim()).filter(ing => ing.length > 0);
-    console.log('Parsed recipe ingredients:', ingredients);
     return ingredients;
   }
   
@@ -99,7 +90,6 @@ function parseMealDescription(mealDescription: string): string[] {
     if (afterColon) {
       // Split on commas and clean up
       const ingredients = afterColon.split(',').map(ing => ing.trim()).filter(ing => ing.length > 0);
-      console.log('Parsed ingredients from colon:', ingredients);
       return ingredients;
     }
   }
@@ -107,7 +97,6 @@ function parseMealDescription(mealDescription: string): string[] {
   // Handle patterns like "60g oats, 2 eggs, 1 banana" (without colon)
   if (cleaned.includes(',')) {
     const ingredients = cleaned.split(',').map(ing => ing.trim()).filter(ing => ing.length > 0);
-    console.log('Parsed ingredients from comma:', ingredients);
     return ingredients;
   }
   
@@ -119,8 +108,19 @@ function parseMealDescription(mealDescription: string): string[] {
     .map(part => part.trim())
     .filter(part => part.length > 0);
     
-  console.log('Parsed ingredients from plus:', ingredients);
   return ingredients;
+}
+
+// Helper function to remove quantity and unit from ingredient name
+function cleanIngredientName(name: string): string {
+  if (!name) return name;
+  
+  // Remove quantity and unit from the beginning of the name
+  // This handles cases like "60g Cucumber" -> "Cucumber"
+  return name
+    .replace(/^\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms|piece|pieces|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|scoop|scoops|buc|bucăți|felie|felii|lgț|lgă)\s+/i, '')
+    .replace(/^\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms|piece|pieces|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|scoop|scoops|buc|bucăți|felie|felii|lgț|lgă)$/i, '')
+    .trim();
 }
 
 export default function IngredientBreakdown({ mealDescription, mealType, planId, dayKey, mealTypeKey, editable = false, onPlanUpdated, onMacrosUpdated, ingredientTranslations = {} }: IngredientBreakdownProps) {
@@ -133,6 +133,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSaved = useRef<number[]>([]);
   const initialized = useRef(false);
+  const [deletingIngredientIndex, setDeletingIngredientIndex] = useState<number | null>(null);
   
   // Modal state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -140,19 +141,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredIngredients, setFilteredIngredients] = useState<any[]>([]);
   const [loadingIngredients, setLoadingIngredients] = useState(false);
-  // Debug log function (simplified)
-  const addDebugLog = useCallback((message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    const logMessage = `[${timestamp}] ${message}`;
-    console.log(logMessage);
-  }, []);
-
-  console.log('[IngredientBreakdown] Component rendered with:', { mealDescription, mealType, editable, planId, dayKey, mealTypeKey });
-  
-  // Add debug log only on mount
-  useEffect(() => {
-    addDebugLog(`Component mounted: ${mealType} - editable: ${editable} - planId: ${planId ? 'yes' : 'no'}`);
-  }, [addDebugLog, mealType, editable, planId]);
+  // Removed debug logging to improve performance
 
   // Note: Initialization is now handled directly in the main useEffect where ingredientData is set
 
@@ -217,9 +206,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
 
   // Auto-save with debounce when quantities change
   useEffect(() => {
-    addDebugLog(`Auto-save useEffect triggered: initialized=${initialized.current}, editAmounts=${JSON.stringify(editAmounts)}, ingredientDataLength=${ingredientData.length}`);
     if (!initialized.current) {
-      addDebugLog('Auto-save skipped: not initialized yet');
       return;
     }
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -245,12 +232,11 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             ingredientData[idx]?.displayName || 
             ''
           ).trim();
-          addDebugLog(`Making API call: name=${name}, displayName=${ingredientData[idx]?.displayName}, displayNameEn=${ingredientData[idx]?.displayNameEn}, newAmount=${current}, unit=${unit}, mealTypeKey=${mealTypeKey}, dayKey=${dayKey}`);
           updates.push(
             fetch(`/api/nutrition-plans/${planId}/update-ingredient`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ dayKey, mealType: mealTypeKey, name, newAmount: current, unit })
+              body: JSON.stringify({ dayKey, mealType: mealTypeKey, name, newAmount: current, unit, index: idx })
             })
               .then(async (res) => {
                 if (!res.ok) {
@@ -265,23 +251,17 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
               })
           );
         }
-        addDebugLog(`Auto-save check: updatesLength=${updates.length}, editAmounts=${JSON.stringify(editAmounts)}, lastSaved=${JSON.stringify(lastSaved.current)}`);
         if (updates.length === 0) {
           // Even if no API calls, we need to refresh the parent component
           // because the local totals have changed
           if (onPlanUpdated) {
             // Trigger a refresh by calling the callback with current plan data
             // This will force the parent to recalculate totals
-            addDebugLog('Triggering onPlanUpdated for local changes');
             try {
               onPlanUpdated(null); // Pass null to indicate local changes only
-              addDebugLog('onPlanUpdated(null) executed successfully');
             } catch (error) {
-              addDebugLog(`Error executing onPlanUpdated(null): ${error}`);
               console.error('Error executing onPlanUpdated(null):', error);
             }
-          } else {
-            addDebugLog('WARNING: onPlanUpdated is undefined (local changes)');
           }
           return;
         }
@@ -290,19 +270,11 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
         for (const p of updates) {
           try { const r = await p; if (r) latestPlan = r; } catch (e) { console.error(e); }
         }
-        if (latestPlan) {
-          addDebugLog('Calling onPlanUpdated with updated plan from API');
-          if (onPlanUpdated) {
-            try {
-              addDebugLog('Executing onPlanUpdated callback...');
-              onPlanUpdated(latestPlan);
-              addDebugLog('onPlanUpdated callback executed successfully');
-            } catch (error) {
-              addDebugLog(`Error executing onPlanUpdated: ${error}`);
-              console.error('Error executing onPlanUpdated:', error);
-            }
-          } else {
-            addDebugLog('WARNING: onPlanUpdated is undefined!');
+        if (latestPlan && onPlanUpdated) {
+          try {
+            onPlanUpdated(latestPlan);
+          } catch (error) {
+            console.error('Error executing onPlanUpdated:', error);
           }
         }
       } catch (e) {
@@ -350,8 +322,6 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
   useEffect(() => {
     const calculateMacros = async () => {
       try {
-        addDebugLog(`useEffect triggered: ${mealDescription ? mealDescription.substring(0, 50) + '...' : 'empty'}`);
-        
         // Check if we have JSON ingredients directly (from Text Converter)
         if (mealDescription.startsWith('[') && mealDescription.endsWith(']')) {
           try {
@@ -466,7 +436,15 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                       } else {
                         portion = '1 buc';
                       }
-                      const cleanName = result.nameRo || result.nameEn || result.ingredient;
+                      let cleanName = result.nameRo || result.nameEn || result.ingredient;
+                      
+                      // Remove quantity and unit from the name if present (e.g., "60g Cucumber" -> "Cucumber")
+                      // This prevents double display of quantities like "1 g 60g Cucumber"
+                      cleanName = cleanName
+                        .replace(/^\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms|piece|pieces|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|scoop|scoops)\s+/i, '')
+                        .replace(/^\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms|piece|pieces|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|scoop|scoops)$/i, '')
+                        .trim();
+                      
                       return {
                         name: cleanName,
                         displayName: cleanName,
@@ -502,7 +480,6 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                     setEditAmounts(seeded);
                     lastSaved.current = [...seeded];
                     initialized.current = true;
-                    addDebugLog('JSON mode fallback via API executed');
                     return;
                   }
                 } catch (e) {
@@ -519,11 +496,9 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
               setEditAmounts(seeded);
               lastSaved.current = [...seeded];
               initialized.current = true;
-              addDebugLog(`JSON mode initialized: seeded=${JSON.stringify(seeded)}, initialized=${initialized.current}`);
               return;
             }
           } catch (error) {
-            console.log('[IngredientBreakdown] Failed to parse JSON, falling back to string parsing:', error);
           }
         }
         setJsonMode(false);
@@ -547,21 +522,6 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
         }
 
         const data = await response.json();
-        console.log('🔍 [API Response] calculate-macros:', {
-          totalResults: data.results?.length,
-          sample: data.results?.slice(0, 2).map((r: any) => ({
-            ingredient: r.ingredient,
-            nameEn: r.nameEn,
-            nameRo: r.nameRo,
-            amount: r.amount,
-            unit: r.unit,
-            pieces: r.pieces,
-            calories: r.macros?.calories,
-            protein: r.macros?.protein,
-            carbs: r.macros?.carbs,
-            fat: r.macros?.fat
-          }))
-        });
         const results = data.results;
 
         // Process results with portion information from API
@@ -576,8 +536,12 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
             cleanName = parts[parts.length - 1].trim();
           }
           
-          // Keep the name as-is - no further cleaning
-          // Names like "1 Egg", "Avocado", "Whole Wheat Bread" stay intact
+          // Remove quantity and unit from the name if present (e.g., "60g Cucumber" -> "Cucumber")
+          // This prevents double display of quantities like "1 g 60g Cucumber"
+          cleanName = cleanName
+            .replace(/^\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms|piece|pieces|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|scoop|scoops)\s+/i, '')
+            .replace(/^\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms|piece|pieces|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|scoop|scoops)$/i, '')
+            .trim();
           
           // Create portion string - use parsed amount and unit from API
           let portion = '';
@@ -666,16 +630,6 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
           fat: Math.round(total.fat)
         };
 
-        console.log('📊 [Processed Data] Setting ingredientData:', {
-          count: ingredientResults.length,
-          sample: ingredientResults.slice(0, 2).map((i: any) => ({
-            name: i.name,
-            displayName: i.displayName,
-            calories: i.calories,
-            protein: i.protein,
-            portion: i.portion
-          }))
-        });
         setIngredientData(ingredientResults);
         setTotalMacros(roundedTotal);
         
@@ -687,7 +641,6 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
         setEditAmounts(seeded);
         lastSaved.current = [...seeded];
         initialized.current = true;
-        addDebugLog(`API mode initialized: seeded=${JSON.stringify(seeded)}, initialized=${initialized.current}`);
       } catch (error) {
         console.error('Error calculating macros:', error);
       } finally {
@@ -712,7 +665,7 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
   return (
     <>
     <div 
-      className="bg-gray-50 rounded-lg p-3 sm:p-4 lg:p-6 mt-3 sm:mt-4"
+      className="bg-gray-50 rounded-lg p-3 sm:p-4 lg:p-6 mt-3 sm:mt-4 relative"
       data-meal-type={mealTypeKey}
       data-day={dayKey}
       data-ingredients={JSON.stringify((() => {
@@ -741,15 +694,20 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
           };
         });
         
-        // Debug log to verify correct portions
-        if (result.length > 0) {
-          console.log(`[IngredientBreakdown] ${mealType} data-ingredients:`, result.map(r => `${r.portion} ${r.name}`).join(', '));
-        }
-        
         return result;
       })())}
       data-meal-totals={JSON.stringify(totalMacros)}
     >
+      {/* Loading Overlay */}
+      {deletingIngredientIndex !== null && (
+        <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 rounded-lg">
+          <div className="bg-white rounded-xl p-6 flex flex-col items-center gap-3 shadow-xl">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-600"></div>
+            <p className="text-gray-700 font-medium text-sm">Verwijderen van ingrediënt...</p>
+          </div>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <h4 className="font-bold text-gray-800 flex items-center text-sm sm:text-base lg:text-lg">
           <Utensils className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
@@ -868,7 +826,8 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                     {(() => {
                       const currentAmount = getCurrentAmount(index);
                       const unit = jsonMode ? (jsonIngredients[index]?.unit || 'g') : (ingredient.rawUnit || 'g');
-                      return `${Math.round(currentAmount)} ${unit} ${ingredient.displayName || ingredient.name}`;
+                      const cleanName = cleanIngredientName(ingredient.displayName || ingredient.name);
+                      return `${Math.round(currentAmount)} ${unit} ${cleanName}`;
                     })()}
                   </span>
                 </div>
@@ -888,14 +847,14 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                         tokens = updatedJson.map((ing: any) => {
                           const q = Math.round(Number(ing?.quantity || 0));
                           const u = String(ing?.unit || 'g');
-                          const n = String(ing?.name || '').trim();
+                          const n = cleanIngredientName(String(ing?.name || '').trim());
                           return `${q} ${u} ${n}`.trim();
                         }).filter(Boolean);
                       } else {
                         tokens = updatedLocal.map((row: any, idx: number) => {
                           const amt = Math.round(getCurrentAmount(idx));
                           const unit = String(row?.rawUnit || 'g');
-                          const name = String(row?.displayName || row?.name || '').trim();
+                          const name = cleanIngredientName(String(row?.displayName || row?.name || '').trim());
                           return `${amt} ${unit} ${name}`.trim();
                         }).filter(Boolean);
                       }
@@ -907,13 +866,12 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                         body: JSON.stringify({ dayKey, mealType: mealTypeKey, mealText })
                       });
                       if (!res.ok) {
-                        console.warn('set-meal save failed, keeping local state');
                         return;
                       }
                       const data = await res.json();
                       if (data?.plan && onPlanUpdated) onPlanUpdated(data.plan);
                     } catch (e) {
-                      console.error('Delete via set-meal failed', e);
+                      // Error handled silently
                     }
                   }}
                   className="text-red-500 hover:text-red-700 p-1 flex-shrink-0"
@@ -955,7 +913,6 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                         }
                         onChange={(e) => {
                           const val = Math.max(0, Number(e.target.value || 0));
-                          addDebugLog(`Ingredient changed: name=${ingredient.displayName}, oldValue=${editAmounts[index]}, newValue=${val}`);
                           setEditAmounts((prev) => {
                             const next = prev && prev.length ? [...prev] : Array.from({ length: ingredientData.length }, (_, i) => {
                               const m = String(ingredientData[i]?.portion || '').match(/^(\d+(?:\.[0-9]+)?)/);
@@ -1006,7 +963,8 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                   {(() => {
                     const currentAmount = getCurrentAmount(index);
                     const unit = jsonMode ? (jsonIngredients[index]?.unit || 'g') : (ingredient.rawUnit || 'g');
-                    return `${Math.round(currentAmount)} ${unit} ${ingredient.displayName || ingredient.name}`;
+                    const cleanName = cleanIngredientName(ingredient.displayName || ingredient.name);
+                    return `${Math.round(currentAmount)} ${unit} ${cleanName}`;
                   })()}
                 </span>
               </div>
@@ -1039,7 +997,6 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                       }
                       onChange={(e) => {
                         const val = Math.max(0, Number(e.target.value || 0));
-                        addDebugLog(`Ingredient changed: name=${ingredient.displayName}, oldValue=${editAmounts[index]}, newValue=${val}`);
                         setEditAmounts((prev) => {
                           const next = prev && prev.length ? [...prev] : Array.from({ length: ingredientData.length }, (_, i) => {
                             const m = String(ingredientData[i]?.portion || '').match(/^(\d+(?:\.[0-9]+)?)/);
@@ -1076,30 +1033,52 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
               <div className="col-span-1 text-center">
                 <button
                   onClick={async () => {
+                    setDeletingIngredientIndex(index);
                     try {
-                      // Optimistic UI removal
-                      const updatedLocal = ingredientData.filter((_, i) => i !== index);
-                      setIngredientData(updatedLocal);
-
-                      if (!planId || !dayKey || !mealTypeKey) return; // no server save possible
-
-                      // Build new meal string from remaining rows
+                      // Build new meal string from remaining rows BEFORE updating state
+                      // This ensures we use the correct amounts from the current state
                       let tokens: string[] = [];
+                      
                       if (jsonMode) {
                         const updatedJson = jsonIngredients.filter((_, i) => i !== index);
                         tokens = updatedJson.map((ing: any) => {
                           const q = Math.round(Number(ing?.quantity || 0));
                           const u = String(ing?.unit || 'g');
-                          const n = String(ing?.name || '').trim();
+                          const n = cleanIngredientName(String(ing?.name || '').trim());
                           return `${q} ${u} ${n}`.trim();
                         }).filter(Boolean);
                       } else {
-                        tokens = updatedLocal.map((row: any, idx: number) => {
-                          const amt = Math.round(getCurrentAmount(idx));
-                          const unit = String(row?.rawUnit || 'g');
-                          const name = String(row?.displayName || row?.name || '').trim();
-                          return `${amt} ${unit} ${name}`.trim();
-                        }).filter(Boolean);
+                        // Map through original indices, skipping the deleted one
+                        // Use getCurrentAmount which correctly handles editAmounts
+                        tokens = ingredientData
+                          .map((row: any, originalIdx: number) => {
+                            if (originalIdx === index) return null; // Skip deleted ingredient
+                            // Use getCurrentAmount with original index to get correct amount
+                            const amt = getCurrentAmount(originalIdx);
+                            const unit = String(row?.rawUnit || 'g');
+                            const name = cleanIngredientName(String(row?.displayName || row?.name || '').trim());
+                            return `${amt} ${unit} ${name}`.trim();
+                          })
+                          .filter((token): token is string => token !== null && token !== '');
+                      }
+
+                      if (!planId || !dayKey || !mealTypeKey) {
+                        setDeletingIngredientIndex(null);
+                        return; // no server save possible
+                      }
+
+                      // Now update state after we've built the tokens
+                      const updatedLocal = ingredientData.filter((_, i) => i !== index);
+                      setIngredientData(updatedLocal);
+                      
+                      // Also update editAmounts to remove the deleted index
+                      if (editAmounts.length > 0) {
+                        setEditAmounts(prev => prev.filter((_, i) => i !== index));
+                      }
+                      
+                      if (jsonMode) {
+                        const updatedJson = jsonIngredients.filter((_, i) => i !== index);
+                        setJsonIngredients(updatedJson);
                       }
 
                       const mealText = tokens.join(', ');
@@ -1109,19 +1088,52 @@ export default function IngredientBreakdown({ mealDescription, mealType, planId,
                         body: JSON.stringify({ dayKey, mealType: mealTypeKey, mealText })
                       });
                       if (!res.ok) {
-                        console.warn('set-meal save failed, keeping local state');
+                        setDeletingIngredientIndex(null);
                         return;
                       }
                       const data = await res.json();
-                      if (data?.plan && onPlanUpdated) onPlanUpdated(data.plan);
+                      
+                      // If all ingredients are removed, also clear cooking instructions
+                      if (!mealText.trim() && planId && dayKey && mealTypeKey) {
+                        try {
+                          const clearRes = await fetch(`/api/nutrition-plans/${planId}/set-cooking-instructions`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              dayKey,
+                              mealType: mealTypeKey,
+                              cookingInstructions: ''
+                            })
+                          });
+                          if (clearRes.ok) {
+                            const clearData = await clearRes.json();
+                            // Update plan with cleared instructions
+                            if (clearData?.plan && onPlanUpdated) {
+                              onPlanUpdated(clearData.plan);
+                            }
+                          }
+                        } catch (clearError) {
+                          // Still update with the meal data even if clearing instructions failed
+                          if (data?.plan && onPlanUpdated) onPlanUpdated(data.plan);
+                        }
+                      } else {
+                        if (data?.plan && onPlanUpdated) onPlanUpdated(data.plan);
+                      }
                     } catch (e) {
-                      console.error('Delete via set-meal failed', e);
+                      // Error handled silently
+                    } finally {
+                      setDeletingIngredientIndex(null);
                     }
                   }}
-                  className="text-red-500 hover:text-red-700 text-sm p-1"
+                  disabled={deletingIngredientIndex !== null}
+                  className="text-red-500 hover:text-red-700 text-sm p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Verwijder ingrediënt"
                 >
-                  <X className="w-4 h-4" />
+                  {deletingIngredientIndex === index ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                  ) : (
+                    <X className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>

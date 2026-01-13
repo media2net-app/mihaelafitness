@@ -148,3 +148,68 @@ export async function DELETE(
     }, { status: 500 });
   }
 }
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: planId } = await params;
+    const body = await request.json();
+    console.log('[API] PUT /api/nutrition-plans/[id] called with id:', planId);
+
+    const existingPlan = await prisma.nutritionPlan.findUnique({
+      where: { id: planId }
+    });
+
+    if (!existingPlan) {
+      return NextResponse.json(
+        { error: 'Nutrition plan not found' },
+        { status: 404 }
+      );
+    }
+
+    const allowedFields = [
+      'name',
+      'description',
+      'goal',
+      'status',
+      'calories',
+      'protein',
+      'carbs',
+      'fat',
+      'meals',
+      'weekMenu'
+    ] as const;
+
+    const updateData: Record<string, unknown> = {};
+    allowedFields.forEach((field) => {
+      if (field in body && body[field] !== undefined) {
+        updateData[field] = body[field];
+      }
+    });
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields provided for update' },
+        { status: 400 }
+      );
+    }
+
+    const updatedPlan = await prisma.nutritionPlan.update({
+      where: { id: planId },
+      data: updateData
+    });
+
+    return NextResponse.json(updatedPlan);
+  } catch (error) {
+    console.error('[API] Error updating nutrition plan:', error);
+    return NextResponse.json(
+      {
+        error: 'Failed to update nutrition plan',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}

@@ -24,12 +24,13 @@ import {
 import { useRouter } from 'next/navigation';
 
 // Nutrition Plan Card Component
-function NutritionPlanCard({ plan, onEdit, onDelete, onView, onCopy }: {
+function NutritionPlanCard({ plan, onEdit, onDelete, onView, onCopy, isDeleting }: {
   plan: any;
   onEdit: (plan: any) => void;
   onDelete: (plan: any) => void;
   onView: (plan: any) => void;
   onCopy: (plan: any) => void;
+  isDeleting?: boolean;
 }) {
   const getGoalColor = (goal: string) => {
     switch (goal?.toLowerCase()) {
@@ -41,7 +42,7 @@ function NutritionPlanCard({ plan, onEdit, onDelete, onView, onCopy }: {
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+    <div className={`bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -76,7 +77,11 @@ function NutritionPlanCard({ plan, onEdit, onDelete, onView, onCopy }: {
                 <Copy className="w-4 h-4" />
                 Duplicate
               </button>
-              <button onClick={() => onDelete(plan)} className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full">
+              <button 
+                onClick={() => onDelete(plan)} 
+                disabled={isDeleting}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <Trash2 className="w-4 h-4" />
                 Delete
               </button>
@@ -192,6 +197,7 @@ export default function NutritionPlansV2Page() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterGoal, setFilterGoal] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     loadNutritionPlans();
@@ -272,22 +278,30 @@ export default function NutritionPlansV2Page() {
   const handleDeletePlan = async (plan: any) => {
     try {
       if (confirm(`Are you sure you want to delete "${plan.name}"? This action cannot be undone.`)) {
-        const response = await fetch(`/api/nutrition-plans?id=${plan.id}`, {
-          method: 'DELETE'
-        });
-        
-        if (response.ok) {
-          // Remove plan from local state
-          setPlans(prev => prev.filter(p => p.id !== plan.id));
-          console.log('Nutrition plan deleted successfully');
-        } else {
-          console.error('Failed to delete nutrition plan:', response.statusText);
-          alert('Failed to delete nutrition plan. Please try again.');
+        setDeletingPlanId(plan.id);
+        try {
+          const response = await fetch(`/api/nutrition-plans?id=${plan.id}`, {
+            method: 'DELETE'
+          });
+          
+          if (response.ok) {
+            // Reload data from server to ensure consistency
+            // This ensures clientCount and other derived values are correct
+            await loadNutritionPlans();
+            console.log('Nutrition plan deleted successfully');
+          } else {
+            const errorData = await response.json().catch(() => ({ error: response.statusText }));
+            console.error('Failed to delete nutrition plan:', errorData);
+            alert(`Failed to delete nutrition plan: ${errorData.error || response.statusText}. Please try again.`);
+          }
+        } finally {
+          setDeletingPlanId(null);
         }
       }
     } catch (error) {
       console.error('Error deleting nutrition plan:', error);
       alert('Error deleting nutrition plan. Please try again.');
+      setDeletingPlanId(null);
     }
   };
 
@@ -439,6 +453,17 @@ export default function NutritionPlansV2Page() {
         </div>
       </div>
 
+      {/* Loading Overlay */}
+      {deletingPlanId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 flex flex-col items-center gap-4 shadow-xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+            <p className="text-gray-700 font-medium">Verwijderen van mealplan...</p>
+            <p className="text-sm text-gray-500">Even geduld alstublieft</p>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="px-4 sm:px-6 py-6 sm:py-8">
         {filteredPlans.length > 0 ? (
@@ -451,6 +476,7 @@ export default function NutritionPlansV2Page() {
                 onDelete={handleDeletePlan}
                 onView={handleViewPlan}
                 onCopy={handleCopyPlan}
+                isDeleting={deletingPlanId === plan.id}
               />
             ))}
           </div>

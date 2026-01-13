@@ -1,7 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiCache } from '@/lib/cache';
 
-export async function GET(request: NextRequest) {
+const buildGroupData = async (
+  users: Array<{ id: string; name: string; email: string }>
+) => {
+  if (!users.length) {
+    return [] as Array<{
+      id: string;
+      name: string;
+      members: Array<{ id: string; name: string; completedSessions: number; totalSessions: number; progress: string }>;
+    }>;
+  }
+
+  const groupSubscriptions = await prisma.pricingCalculation.findMany({
+    where: {
+      service: {
+        contains: 'Group Training'
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+
+  if (!groupSubscriptions.length) {
+    return [] as Array<{
+      id: string;
+      name: string;
+      members: Array<{ id: string; name: string; completedSessions: number; totalSessions: number; progress: string }>;
+    }>;
+  }
+
+  const groupCustomerIds = Array.from(
+    new Set(
+      groupSubscriptions.flatMap((sub) =>
+        sub.customerId?.split(',').map((id) => id.trim()).filter(Boolean) ?? []
+      )
+    )
+  );
+
+  const completedSessions = await prisma.trainingSession.groupBy({
+    by: ['customerId', 'status'],
+    where: {
+      customerId: {
+        in: groupCustomerIds
+      }
+    },
+    _count: {
+      _all: true
+    }
+  });
+
+  const completedMap = new Map<string, number>();
+  completedSessions.forEach((entry) => {
+    if (entry.status === 'completed') {
+      completedMap.set(entry.customerId, entry._count._all ?? 0);
+    }
+  });
+
+  const userMap = new Map(users.map((user) => [user.id, user.name]));
+
+  const groups = groupSubscriptions.map((subscription) => {
+    const ids = subscription.customerId
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+    const names = (subscription.customerName || '')
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean);
+
+    const duration = subscription.duration || 12;
+    const frequency = subscription.frequency || 3;
+    const totalSessionsFallback = duration * frequency;
+
+    const members = ids.map((id, index) => {
+      const completed = completedMap.get(id) || 0;
+      const name = names[index] || userMap.get(id) || 'Unknown';
+      const totalSessions = totalSessionsFallback > 0 ? totalSessionsFallback : completed;
+
+      return {
+        id,
+        name,
+        completedSessions: completed,
+        totalSessions,
+        progress: `${completed}/${totalSessions}`
+      };
+    });
+
+    const groupName = subscription.service.replace('Group Training', '').trim() || 'Group';
+
+    return {
+      id: subscription.id,
+      name: groupName,
+      members
+    };
+  });
+
+  return groups;
+};
+ 
+ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
@@ -14,65 +114,109 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get only essential user data for schedule calendar (no Customer Overview needed)
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        // Get schedule assignments for training day display
-        scheduleAssignments: {
-          where: {
-            isActive: true
-          },
-          include: {
-            workout: {
-              select: {
-                id: true,
-                name: true,
-                trainingType: true
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    });
+    // Check cache first (30 second TTL for schedule data)
+    const cacheKey = `schedule-desktop-${startDate}-${endDate}`;
+    const cached = apiCache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        },
+      });
+    }
 
-    // No pricing calculations needed - only used for Customer Overview
-
-    // Get training sessions for the specified date range (whole week)
     // Convert date strings to proper Date objects for comparison
     const startDateObj = new Date(startDate + 'T00:00:00.000Z');
     const endDateObj = new Date(endDate + 'T23:59:59.999Z');
     
-    const sessions = await prisma.trainingSession.findMany({
-      where: {
-        date: {
-          gte: startDateObj,
-          lte: endDateObj
+    // Parallel queries for better performance
+    const [sessions, allUsers] = await Promise.all([
+      // Get training sessions for the specified date range (whole week)
+      prisma.trainingSession.findMany({
+        where: {
+          date: {
+            gte: startDateObj,
+            lte: endDateObj
+          }
+        },
+        include: {
+          customer: {
+            select: { id: true, name: true, email: true }
+          }
+        },
+        orderBy: [
+          { date: 'asc' },
+          { startTime: 'asc' }
+        ]
+      }),
+      // Get only users who have sessions in this week (optimized)
+      prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          scheduleAssignments: {
+            where: {
+              isActive: true
+            },
+            include: {
+              workout: {
+                select: {
+                  id: true,
+                  name: true,
+                  trainingType: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: {
+          name: 'asc'
         }
-      },
-      include: {
-        customer: {
-          select: { id: true, name: true, email: true }
-        }
-      },
-      orderBy: [
-        { date: 'asc' },
-        { startTime: 'asc' }
-      ]
-    });
+      })
+    ]);
+
+    // Filter users to only those with sessions in this week (further optimization)
+    const customerIdsInWeek = new Set(sessions.map(s => s.customerId));
+    const users = allUsers.filter(u => customerIdsInWeek.has(u.id));
 
 
     // Transform sessions to ensure consistent date format
-    const transformedSessions = sessions.map(session => ({
+    // Handle date conversion properly to avoid timezone issues
+    const transformedSessions = sessions.map(session => {
+      // Convert database date to YYYY-MM-DD format using UTC to avoid timezone shifts
+      let dateStr: string;
+      
+      if (session.date instanceof Date) {
+        // Use UTC date parts to avoid timezone shifts
+        const year = session.date.getUTCFullYear();
+        const month = String(session.date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(session.date.getUTCDate()).padStart(2, '0');
+        dateStr = `${year}-${month}-${day}`;
+      } else if (typeof session.date === 'string') {
+        // If it's already a string in YYYY-MM-DD format, use it directly
+        dateStr = session.date.split('T')[0];
+      } else {
+        // Fallback: create a new Date and convert
+        const date = new Date(session.date);
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        dateStr = `${year}-${month}-${day}`;
+      }
+      
+      return {
       ...session,
-      date: session.date.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
+        date: dateStr,
       customerName: session.customer?.name || 'Unknown Customer'
-    }));
+      };
+    });
+
+    // Debug: Log sessions for Saturday Nov 8
+    const saturdaySessions = transformedSessions.filter(s => s.date === '2025-11-08' || s.date?.includes('2025-11-08'));
+    if (saturdaySessions.length > 0) {
+      console.log(`🔍 Desktop API: Found ${saturdaySessions.length} sessions for Saturday Nov 8:`, saturdaySessions.map(s => `${s.startTime}-${s.endTime} ${s.customerName}`));
+    }
 
     // Process users with only essential data for schedule calendar
     const customersWithData = users.map(user => ({
@@ -87,41 +231,45 @@ export async function GET(request: NextRequest) {
       }))
     }));
 
-    // Get all payments for customers in this week (optimized - one query instead of N queries)
+    // Parallel queries for payments and pricing (optimized)
     const customerIds = users.map(u => u.id);
-    const allPayments = await prisma.payment.findMany({
-      where: {
-        customerId: {
-          in: customerIds
-        }
-      },
-      select: {
-        id: true,
-        customerId: true,
-        amount: true,
-        paymentDate: true,
-        createdAt: true
-      },
-      orderBy: {
-        paymentDate: 'desc'
-      }
-    });
-
-    // Get all pricing calculations for these customers (for payment amount estimation)
-    const customerPricingCalculations = await prisma.pricingCalculation.findMany({
-      where: {
-        customerId: {
-          in: customerIds
-        }
-      },
-      select: {
-        customerId: true,
-        finalPrice: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    const [allPayments, customerPricingCalculations] = await Promise.all([
+      // Get all payments for customers in this week (optimized - one query instead of N queries)
+      prisma.payment.findMany({
+        where: {
+          customerId: {
+            in: customerIds
+          }
+        },
+        select: {
+          id: true,
+          customerId: true,
+          amount: true,
+          paymentDate: true,
+          createdAt: true
+        },
+        orderBy: {
+          paymentDate: 'desc'
+        },
+        take: 100 // Limit to recent payments for performance
+      }),
+      // Get all pricing calculations for these customers (for payment amount estimation)
+      prisma.pricingCalculation.findMany({
+        where: {
+          customerId: {
+            in: customerIds
+          }
+        },
+        select: {
+          customerId: true,
+          finalPrice: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 50 // Limit to recent calculations
+      })
+    ]);
 
     // Group payments by customer and calculate payment status
     const paymentsByCustomer = allPayments.reduce((acc, payment) => {
@@ -197,17 +345,33 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    // Build group data only if there are users (lazy evaluation)
+    const groups = users.length > 0 
+      ? await buildGroupData(users).catch((error) => {
+          console.error('Error building group data for schedule desktop:', error);
+          return [];
+        })
+      : [];
+
+    const responseData = {
       customers: customersWithData,
       sessions: transformedSessions,
-      paymentStatus: paymentStatus,
-      startDate: startDate,
-      endDate: endDate
+      paymentStatus,
+      groups
+    };
+
+    // Cache the response (30 second TTL)
+    apiCache.set(cacheKey, responseData, 30000);
+ 
+    return NextResponse.json(responseData, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      },
     });
   } catch (error) {
     console.error('Error fetching desktop schedule data:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch desktop schedule data' },
+      { error: 'Failed to fetch schedule data' },
       { status: 500 }
     );
   }

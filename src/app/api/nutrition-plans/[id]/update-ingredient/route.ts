@@ -35,6 +35,8 @@ interface Body {
   name: string; // ingredient display name
   newAmount: number; // numeric amount
   unit: string; // g|ml|tsp|tbsp|scoop|piece|pieces|slice
+  ingredientString?: string; // optional: exact ingredient string to match (for precise updates)
+  index?: number; // optional: index of ingredient to update (0-based)
 }
 
 function splitMeal(meal: string): string[] {
@@ -93,36 +95,98 @@ export async function POST(
     const isObjectMeal = mealData && typeof mealData === 'object' && ('ingredients' in mealData);
     const meal: string = typeof mealData === 'string' ? mealData : (isObjectMeal ? (mealData.ingredients || '') : '');
 
-    const parts = splitMeal(meal);
+    // Check if meal has a RECIPE prefix and extract it
+    const recipePrefixMatch = meal.match(/^(\[RECIPE:[^\]]+\]\s*)/);
+    const recipePrefix = recipePrefixMatch ? recipePrefixMatch[1] : '';
+    const mealWithoutPrefix = recipePrefix ? meal.substring(recipePrefix.length) : meal;
+
+    const parts = splitMeal(mealWithoutPrefix);
     const targetLower = name.toLowerCase().trim();
+    const ingredientString = body.ingredientString || '';
+    const targetIndex = body.index !== undefined ? body.index : -1;
     
     // Get all name variations (English, Romanian, etc.) for better matching
     const nameVariations = await findIngredientNames(name);
-    console.log('[update-ingredient] Searching for ingredient:', { name, targetLower, nameVariations, meal, partsCount: parts.length });
+    console.log('[update-ingredient] Searching for ingredient:', { name, targetLower, nameVariations, ingredientString, targetIndex, meal, partsCount: parts.length });
     console.log('[update-ingredient] Parts:', parts.map(p => ({ original: p, normalized: normalizeNamePart(p) })));
 
     let changed = false;
-    const updatedParts = parts.map((p) => {
+    let matchCount = 0; // Track how many matches we've found
+    
+    const updatedParts = parts.map((p, idx) => {
+      // If ingredientString is provided, use exact match first
+      if (ingredientString && p.trim() === ingredientString.trim()) {
+        changed = true;
+        console.log('[update-ingredient] Exact string match found! Updating:', p);
+        
+        // Update the exact match
+        if (p.includes('|')) {
+          const parts = p.split('|');
+          const idPart = parts[0];
+          const namePart = parts.slice(1).join('|');
+          const idMatch = idPart.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
+          if (idMatch) {
+            const ingredientId = idMatch[2];
+            return `${newAmount}${unit} ${ingredientId}|${namePart}`.trim();
+          }
+        }
+        const recipeFormatMatch = p.match(/^(\d+(?:\.\d+)?)\s*(g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms)\s+(.+)$/i);
+        if (recipeFormatMatch) {
+          const originalName = recipeFormatMatch[3].trim();
+          return `${newAmount}${unit} ${originalName}`.trim();
+        }
+        if (unit.toLowerCase() === 'piece' || unit.toLowerCase() === 'pieces') {
+          return `${newAmount} ${name}`.trim();
+        }
+        return `${newAmount}${unit} ${name}`.trim();
+      }
+      
       const pName = normalizeNamePart(p);
       // Check if normalized part name matches any variation of the target name
       const matches = nameVariations.some(variation => {
         const normalizedVariation = normalizeNamePart(variation);
         return pName === normalizedVariation;
-      });
+      }) || pName === targetLower;
+      
+      // If index is provided, only update at that specific index if name also matches
+      if (targetIndex >= 0) {
+        if (idx === targetIndex && matches) {
+          changed = true;
+          console.log('[update-ingredient] Match at specified index! Updating:', p);
+        } else {
+          return p; // Don't update this one
+        }
+      } 
+      // If no index specified, only update first match
+      else {
+        if (matches && matchCount === 0) {
+          matchCount++;
+          changed = true;
+          console.log('[update-ingredient] First match found! Updating:', p);
+        } else {
+          return p; // Don't update this one
+        }
+      }
       
       console.log('[update-ingredient] Comparing:', { 
+        idx,
         pName, 
         targetLower, 
         nameVariations: nameVariations.map(v => normalizeNamePart(v)),
-        match: matches 
+        match: matches,
+        matchCount,
+        targetIndex,
+        shouldUpdate: (targetIndex >= 0 && idx === targetIndex && matches) || (targetIndex < 0 && matches && matchCount === 1)
       });
       
-      if (matches || pName === targetLower) {
-        changed = true;
-        console.log('[update-ingredient] Match found! Updating:', p);
-        
-        // Check if the original part has an ID format
-        if (p.includes('|')) {
+      // Only proceed if we've already determined this should be updated
+      const shouldUpdate = (targetIndex >= 0 && idx === targetIndex && matches) || (targetIndex < 0 && matches && matchCount === 1);
+      if (!shouldUpdate) {
+        return p;
+      }
+      
+      // Check if the original part has an ID format
+      if (p.includes('|')) {
           // Extract ID and reconstruct with new amount
           const parts = p.split('|');
           const idPart = parts[0];
@@ -163,12 +227,13 @@ export async function POST(
           console.log('[update-ingredient] Standard format updated:', { old: p, new: updated });
           return updated;
         }
-      }
+      
       return p;
     });
 
-    const newMeal = updatedParts.join(', ');
-    console.log('[update-ingredient] Result:', { changed, oldMeal: meal, newMeal });
+    // Reconstruct meal string with RECIPE prefix if it existed
+    const newMeal = recipePrefix + updatedParts.join(', ');
+    console.log('[update-ingredient] Result:', { changed, oldMeal: meal, newMeal, recipePrefix });
     
     if (!changed) {
       // If not found, return original without error to avoid breaking UI

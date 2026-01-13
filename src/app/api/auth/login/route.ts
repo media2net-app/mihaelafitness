@@ -73,24 +73,53 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check for admin accounts with specific passwords
+    // Check if user is an admin (hardcoded admin emails)
+    const isAdmin = email === 'info@mihaelafitness.com' || email === 'chiel@media2net.nl';
     let isValidPassword = false;
+    let userRole = 'client'; // Default role is client
     
-    console.log('🔍 Checking password for:', email);
+    console.log('🔍 Checking password for:', email, 'isAdmin:', isAdmin);
     
+    if (isAdmin) {
+      // Admin accounts with specific passwords
     if (email === 'info@mihaelafitness.com' && password === 'Miki210591') {
       isValidPassword = true;
-      console.log('✅ Valid password for Mihaela');
+        userRole = 'admin';
+        console.log('✅ Valid password for Mihaela (admin)');
     } else if (email === 'chiel@media2net.nl' && password === 'W4t3rk0k3r^') {
       isValidPassword = true;
-      console.log('✅ Valid password for Chiel');
+        userRole = 'admin';
+        console.log('✅ Valid password for Chiel (admin)');
+      } else {
+        console.log('❌ Invalid password for admin account');
+        return NextResponse.json(
+          { error: 'Invalid credentials' },
+          { status: 401 }
+        )
+      }
     } else {
-      console.log('❌ Invalid password or email');
-      // For other users, reject login (no demo mode in production)
+      // Client accounts - check password from database
+      if (!user.password) {
+        console.log('❌ No password set for client account');
+        return NextResponse.json(
+          { error: 'Password not set. Please contact your trainer to set up your account.' },
+          { status: 401 }
+        )
+      }
+      
+      // Verify password using bcrypt
+      isValidPassword = await bcrypt.compare(password, user.password);
+      
+      if (isValidPassword) {
+        userRole = 'client';
+        console.log('✅ Valid password for client:', email);
+      } else {
+        console.log('❌ Invalid password for client');
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       )
+      }
     }
     
     if (!isValidPassword) {
@@ -107,13 +136,14 @@ export async function POST(request: NextRequest) {
       { 
         userId: user.id, 
         email: user.email,
-        role: user.plan // Using plan as role for demo
+        role: userRole, // 'admin' or 'client'
+        plan: user.plan
       },
       JWT_SECRET,
       { expiresIn: '7d' } // Extended to 7 days for better mobile persistence
     )
 
-    console.log('✅ Login successful for:', user.email);
+    console.log('✅ Login successful for:', user.email, 'role:', userRole);
     
     return NextResponse.json({
       success: true,
@@ -123,7 +153,8 @@ export async function POST(request: NextRequest) {
         name: user.name,
         email: user.email,
         plan: user.plan,
-        status: user.status
+        status: user.status,
+        role: userRole // Include role in response
       }
     })
 

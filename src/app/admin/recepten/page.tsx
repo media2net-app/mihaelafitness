@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChefHat, Plus, Search, Edit, Trash2, Clock, Users, Utensils, X, Filter, XCircle } from 'lucide-react';
+import { ChefHat, Plus, Search, Edit, Trash2, Clock, Users, Utensils, X, Filter, XCircle, Image as ImageIcon } from 'lucide-react';
+import Image from 'next/image';
 
 interface Ingredient {
   id: string;
@@ -37,7 +38,44 @@ interface Recipe {
   totalCarbs: number;
   totalFat: number;
   labels?: string[];
+  mealType?: string;
 }
+
+const mealTypeOptions = [
+  { value: 'all', label: 'Alle maaltijden' },
+  { value: 'breakfast', label: 'Ontbijt' },
+  { value: 'morning-snack', label: 'Ochtendsnack' },
+  { value: 'lunch', label: 'Lunch' },
+  { value: 'afternoon-snack', label: 'Middagsnack' },
+  { value: 'dinner', label: 'Diner' },
+  { value: 'evening-snack', label: 'Avondsnack' },
+  { value: 'dessert', label: 'Dessert' },
+  { value: 'other', label: 'Overig' }
+] as const;
+
+const mealTypeLabels: Record<string, string> = {
+  breakfast: 'Ontbijt',
+  'morning-snack': 'Ochtendsnack',
+  lunch: 'Lunch',
+  'afternoon-snack': 'Middagsnack',
+  dinner: 'Diner',
+  'evening-snack': 'Avondsnack',
+  dessert: 'Dessert',
+  snack: 'Snack',
+  other: 'Overig'
+};
+
+const mealTypeBadgeClasses: Record<string, string> = {
+  breakfast: 'bg-amber-100 text-amber-800',
+  'morning-snack': 'bg-yellow-100 text-yellow-800',
+  lunch: 'bg-sky-100 text-sky-800',
+  'afternoon-snack': 'bg-lime-100 text-lime-800',
+  dinner: 'bg-rose-100 text-rose-800',
+  'evening-snack': 'bg-purple-100 text-purple-800',
+  dessert: 'bg-pink-100 text-pink-800',
+  snack: 'bg-emerald-100 text-emerald-800',
+  other: 'bg-gray-100 text-gray-700'
+};
 
 export default function ReceptenPage() {
   const router = useRouter();
@@ -50,6 +88,8 @@ export default function ReceptenPage() {
   const [maxPrepTime, setMaxPrepTime] = useState<number | null>(null);
   const [caloriesRange, setCaloriesRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
   const [showFilters, setShowFilters] = useState(false);
+  const [mealTypeFilter, setMealTypeFilter] = useState<string>('all');
+  const [mealTypeUpdating, setMealTypeUpdating] = useState<Record<string, boolean>>({});
 
 
   useEffect(() => {
@@ -82,6 +122,7 @@ export default function ReceptenPage() {
               totalCarbs: dbRecipe.totalCarbs,
               totalFat: dbRecipe.totalFat,
               labels: dbRecipe.labels || [],
+              mealType: dbRecipe.mealType || 'other',
               ingredients: dbRecipe.ingredients.map((dbIng: any) => {
                 // Find matching ingredient in database
                 let existingIngredient = null;
@@ -108,13 +149,28 @@ export default function ReceptenPage() {
                   }
                 }
                 
+                // Safely parse apiMatch - it might be a string, object, or null
+                let parsedApiMatch = null;
+                if (dbIng.apiMatch) {
+                  if (typeof dbIng.apiMatch === 'string') {
+                    try {
+                      parsedApiMatch = JSON.parse(dbIng.apiMatch);
+                    } catch (e) {
+                      console.error('Error parsing apiMatch:', e);
+                      parsedApiMatch = null;
+                    }
+                  } else if (typeof dbIng.apiMatch === 'object') {
+                    parsedApiMatch = dbIng.apiMatch;
+                  }
+                }
+                
                 return {
                   name: dbIng.name,
                   quantity: dbIng.quantity,
                   unit: dbIng.unit,
                   exists: exists,
                   availableInApi: dbIng.availableInApi || false,
-                  apiMatch: dbIng.apiMatch ? JSON.parse(dbIng.apiMatch) : null,
+                  apiMatch: parsedApiMatch,
                   ingredient: existingIngredient
                 };
               })
@@ -156,14 +212,83 @@ export default function ReceptenPage() {
     const matchesCalories = (!caloriesRange.min || recipe.totalCalories >= caloriesRange.min) &&
       (!caloriesRange.max || recipe.totalCalories <= caloriesRange.max);
     
-    return matchesSearch && matchesLabels && matchesPrepTime && matchesCalories;
+    const matchesMealType = mealTypeFilter === 'all' || (recipe.mealType || 'other') === mealTypeFilter;
+    
+    return matchesSearch && matchesLabels && matchesPrepTime && matchesCalories && matchesMealType;
   });
+
+  const handleQuickMealTypeChange = async (recipeId: string, newMealType: string) => {
+    const previousType = recipes.find(r => r.id === recipeId)?.mealType || 'other';
+    if (previousType === newMealType) return;
+    
+    setRecipes(prev => prev.map(recipe =>
+      recipe.id === recipeId ? { ...recipe, mealType: newMealType } : recipe
+    ));
+    setMealTypeUpdating(prev => ({ ...prev, [recipeId]: true }));
+
+    try {
+      const response = await fetch(`/api/recipes/${recipeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mealType: newMealType })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update meal type');
+      }
+    } catch (error) {
+      console.error('Error updating meal type:', error);
+      alert('Opslaan mislukt. Probeer het opnieuw.');
+      setRecipes(prev => prev.map(recipe =>
+        recipe.id === recipeId ? { ...recipe, mealType: previousType } : recipe
+      ));
+    } finally {
+      setMealTypeUpdating(prev => ({ ...prev, [recipeId]: false }));
+    }
+  };
 
   // Get all unique labels from recipes
   const allLabels = Array.from(new Set(recipes.flatMap(r => r.labels || []))).sort();
 
   const handleRecipeClick = (recipeId: string) => {
     router.push(`/admin/recepten/${recipeId}`);
+  };
+
+  // Function to get recipe image path
+  const getRecipeImage = (recipeName: string) => {
+    // Normalize recipe name to match file naming convention
+    // Convert to lowercase, replace spaces with hyphens, remove special characters
+    const normalizedName = recipeName
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
+    
+    // Known images mapping
+    const knownImages: Record<string, string> = {
+      'blueberry-pancakes': '/recipes/blueberry-pancakes_RC.jpg',
+      'blueberry-pancake': '/recipes/blueberry-pancakes_RC.jpg',
+    };
+    
+    // Check exact match first
+    if (knownImages[normalizedName]) {
+      return knownImages[normalizedName];
+    }
+    
+    // Check without trailing 's'
+    const nameWithoutS = normalizedName.replace(/s$/, '');
+    if (knownImages[nameWithoutS]) {
+      return knownImages[nameWithoutS];
+    }
+    
+    // Check if name contains key words (for partial matches)
+    for (const [key, path] of Object.entries(knownImages)) {
+      if (normalizedName.includes(key) || key.includes(normalizedName)) {
+        return path;
+      }
+    }
+    
+    // Return null to indicate no image found (will show placeholder)
+    return null;
   };
 
   const handleCreateRecipe = async () => {
@@ -426,8 +551,28 @@ export default function ReceptenPage() {
         )}
       </div>
 
+      {/* Meal Type Filter */}
+      <div className="mb-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">Categorie filter</h3>
+        <div className="flex flex-wrap gap-2">
+          {mealTypeOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setMealTypeFilter(option.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                mealTypeFilter === option.value
+                  ? 'bg-indigo-500 text-white border-indigo-500 shadow-sm'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Recipes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredRecipes.length === 0 ? (
           <div className="col-span-full text-center py-12">
             <ChefHat className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -435,15 +580,37 @@ export default function ReceptenPage() {
             <p className="text-gray-500">Create your first recipe to get started</p>
           </div>
         ) : (
-          filteredRecipes.map((recipe) => (
+          filteredRecipes.map((recipe) => {
+            const recipeImage = getRecipeImage(recipe.name);
+            
+            return (
             <div
               key={recipe.id}
               onClick={() => handleRecipeClick(recipe.id)}
-              className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-200 cursor-pointer"
+              className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-200 cursor-pointer"
             >
+              {/* Recipe Image Header */}
+              <div className="relative w-full h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+                {recipeImage ? (
+                  <Image
+                    src={recipeImage}
+                    alt={recipe.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-gray-400">
+                    <ImageIcon className="w-12 h-12 mb-2" />
+                    <span className="text-sm font-medium">No photo</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-6">
               {/* Recipe Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
+              <div className="flex items-start justify-between mb-4 gap-4">
+                <div className="flex-1 min-w-0">
                   <h3 className="text-xl font-semibold text-gray-800 mb-2">{recipe.name}</h3>
                   <p className="text-gray-600 text-sm mb-3">{recipe.description}</p>
                   
@@ -460,25 +627,56 @@ export default function ReceptenPage() {
                   </div>
                 </div>
                 
-                <div className="flex gap-2">
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // TODO: Implement edit functionality
-                    }}
-                    className="p-2 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                <div className="flex flex-col items-end gap-3">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${mealTypeBadgeClasses[recipe.mealType || 'other']}`}
                   >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // TODO: Implement delete functionality
-                    }}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    {mealTypeLabels[recipe.mealType || 'other']}
+                  </span>
+                  <div
+                    className="w-32"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    <select
+                      value={recipe.mealType || 'other'}
+                      onChange={(e) => handleQuickMealTypeChange(recipe.id, e.target.value)}
+                      className="w-full text-xs font-medium border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                      disabled={mealTypeUpdating[recipe.id]}
+                    >
+                      {mealTypeOptions
+                        .filter((opt) => opt.value !== 'all')
+                        .map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                    </select>
+                    {mealTypeUpdating[recipe.id] && (
+                      <p className="text-[11px] text-gray-400 mt-1">Opslaan...</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRecipeClick(recipe.id);
+                      }}
+                      className="p-2 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                      title="Open recipe"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // TODO: Implement delete functionality
+                      }}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete recipe"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -551,8 +749,10 @@ export default function ReceptenPage() {
                   )}
                 </div>
               </div>
+              </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 

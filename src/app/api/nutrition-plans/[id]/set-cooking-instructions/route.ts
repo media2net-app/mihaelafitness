@@ -52,27 +52,32 @@ export async function POST(
     // Get current meal data
     const currentMealData = currentDayMenu[mealType];
 
+    // Normalize cookingInstructions: treat undefined/null as empty string, but preserve empty strings
+    const normalizedInstructions = cookingInstructions !== undefined && cookingInstructions !== null 
+      ? String(cookingInstructions) 
+      : '';
+
     // Create new meal data structure
     let newMealData;
     if (typeof currentMealData === 'string') {
       // Old structure: convert to new structure
       newMealData = {
         ingredients: currentMealData,
-        cookingInstructions: cookingInstructions || ''
+        cookingInstructions: normalizedInstructions
       };
       console.log('🍳 [API] Converted from old string structure');
     } else if (currentMealData && typeof currentMealData === 'object') {
-      // New structure: update cooking instructions
+      // New structure: update cooking instructions (always overwrite, even if empty)
       newMealData = {
         ...currentMealData,
-        cookingInstructions: cookingInstructions || ''
+        cookingInstructions: normalizedInstructions
       };
       console.log('🍳 [API] Updated existing object structure');
     } else {
       // No existing data: create new structure
       newMealData = {
         ingredients: '',
-        cookingInstructions: cookingInstructions || ''
+        cookingInstructions: normalizedInstructions
       };
       console.log('🍳 [API] Created new structure');
     }

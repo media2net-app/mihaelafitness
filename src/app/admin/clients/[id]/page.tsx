@@ -1,9 +1,479 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calculator, Edit, Trash2, Download, Share2, Eye, X, Ruler, TrendingUp, Plus, Clock, Target, Award, Camera, Upload, Image as ImageIcon, BookOpen, DollarSign } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calculator, Edit, Trash2, Download, Share2, Eye, X, Ruler, TrendingUp, Plus, Clock, Target, Award, Camera, Upload, Image as ImageIcon, BookOpen, DollarSign, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
+
+
+// Period Tracking Component
+function PeriodTrackingTab({ 
+  customerId,
+  joinDate, 
+  trainingFrequency, 
+  trainingSessions 
+}: { 
+  customerId: string;
+  joinDate: string | Date; 
+  trainingFrequency: number;
+  trainingSessions: Array<{
+    id: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    type: string;
+    status: string;
+    notes?: string;
+  }>;
+}) {
+  const [frequencyHistory, setFrequencyHistory] = useState<Array<{frequency: number, effectiveFrom: string}>>([]);
+  const [periodAdjustments, setPeriodAdjustments] = useState<Record<number, string>>({});
+  const [editingPeriod, setEditingPeriod] = useState<number | null>(null);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load frequency history
+        const historyResponse = await fetch(`/api/training-frequency-history?customerId=${customerId}`);
+        if (historyResponse.ok) {
+          const history = await historyResponse.json();
+          setFrequencyHistory(history);
+        }
+
+        // Load period adjustments
+        const adjustmentsResponse = await fetch(`/api/period-adjustments?customerId=${customerId}`);
+        if (adjustmentsResponse.ok) {
+          const adjustments = await adjustmentsResponse.json();
+          const adjustmentsMap: Record<number, string> = {};
+          adjustments.forEach((adj: any) => {
+            adjustmentsMap[adj.periodNumber] = adj.customStartDate;
+          });
+          setPeriodAdjustments(adjustmentsMap);
+        }
+      } catch (error) {
+        console.error('Error loading period data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [customerId]);
+
+  // Get the training frequency that was active at a specific date
+  const getFrequencyForDate = (date: Date): number => {
+    // Sort history by effectiveFrom date (newest first)
+    const sortedHistory = [...frequencyHistory].sort((a, b) => 
+      new Date(b.effectiveFrom).getTime() - new Date(a.effectiveFrom).getTime()
+    );
+
+    // Find the most recent frequency change that was effective before or on this date
+    for (const entry of sortedHistory) {
+      if (new Date(entry.effectiveFrom) <= date) {
+        return entry.frequency;
+      }
+    }
+
+    // If no history entry found, use current frequency (for backwards compatibility)
+    return trainingFrequency;
+  };
+
+  const handleSavePeriodStartDate = async (periodNumber: number) => {
+    if (!editStartDate) {
+      alert('Selecteer alstublieft een startdatum');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/period-adjustments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId,
+          periodNumber,
+          customStartDate: editStartDate
+        })
+      });
+
+      if (response.ok) {
+        const adjustment = await response.json();
+        setPeriodAdjustments({
+          ...periodAdjustments,
+          [periodNumber]: adjustment.customStartDate
+        });
+        setEditingPeriod(null);
+        setEditStartDate('');
+        
+        // Show success message with calculated end date
+        const endDate = adjustment.customEndDate 
+          ? new Date(adjustment.customEndDate).toLocaleDateString('nl-NL')
+          : 'berekend';
+        alert(`Periode ${periodNumber} aangepast!\nStartdatum: ${new Date(editStartDate).toLocaleDateString('nl-NL')}\nEinddatum: ${endDate}\nVerwachte sessies: ${adjustment.expectedSessions || 'berekend'}`);
+        
+        window.location.reload(); // Reload to recalculate periods
+      } else {
+        const error = await response.json();
+        const errorMessage = error.error || 'Failed to save period adjustment';
+        
+        // Show helpful error message
+        if (error.code === 'SCHEMA_NOT_UPDATED' || error.code === 'SCHEMA_ERROR' || error.code === 'MODEL_NOT_FOUND') {
+          alert(`Database schema moet worden bijgewerkt.\n\nVoer uit in de terminal:\nnpx prisma generate && npx prisma db push\n\nDaarna de pagina verversen.`);
+        } else {
+          alert(`Fout: ${errorMessage}`);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error saving period adjustment:', error);
+      alert(`Fout: ${error.message || 'Kon periode aanpassing niet opslaan'}`);
+    }
+  };
+
+  // Calculate periods (each period is 4 weeks)
+  const calculatePeriods = () => {
+    const startDate = new Date(joinDate);
+    startDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    const periods: Array<{
+      periodNumber: number;
+      startDate: Date;
+      endDate: Date;
+      expectedSessions: number;
+      sessions: typeof trainingSessions;
+      scheduled: number;
+      completed: number;
+      missed: number;
+      frequency: number;
+    }> = [];
+    
+    let currentPeriodStart = new Date(startDate);
+    let periodNumber = 1;
+    
+    // Calculate all periods from start date until today (and one future period)
+    while (currentPeriodStart <= today || periods.length === 0 || periodNumber <= Math.ceil((today.getTime() - startDate.getTime()) / (28 * 24 * 60 * 60 * 1000)) + 1) {
+      // Check if there's a custom start date for this period
+      if (periodAdjustments[periodNumber]) {
+        currentPeriodStart = new Date(periodAdjustments[periodNumber]);
+        currentPeriodStart.setHours(0, 0, 0, 0);
+      }
+
+      const periodEnd = new Date(currentPeriodStart);
+      periodEnd.setDate(periodEnd.getDate() + 27); // 28 days - 1 (0-indexed)
+      periodEnd.setHours(23, 59, 59, 999);
+      
+      // Get sessions in this period
+      const periodSessions = trainingSessions.filter(session => {
+        const sessionDate = new Date(session.date);
+        sessionDate.setHours(0, 0, 0, 0);
+        return sessionDate >= currentPeriodStart && sessionDate <= periodEnd;
+      });
+      
+      // Get the frequency that was active during this period (use start date of period)
+      const periodFrequency = getFrequencyForDate(currentPeriodStart);
+      
+      // Expected sessions per period: trainingFrequency * 4 weeks
+      const expectedSessions = periodFrequency * 4;
+      
+      // Count scheduled, completed, and missed sessions
+      const scheduled = periodSessions.filter(s => s.status === 'scheduled').length;
+      const completed = periodSessions.filter(s => s.status === 'completed').length;
+      // Missed = scheduled sessions that should have been completed but weren't (past date + not completed/cancelled)
+      const now = new Date();
+      const missed = periodSessions.filter(s => {
+        const sessionDate = new Date(s.date);
+        return sessionDate < now && 
+               (s.status === 'scheduled' || s.status === 'no-show' || (s.status === 'cancelled' && new Date(s.date) < now));
+      }).length;
+      
+      periods.push({
+        periodNumber,
+        startDate: new Date(currentPeriodStart),
+        endDate: new Date(periodEnd),
+        expectedSessions,
+        sessions: periodSessions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+        scheduled,
+        completed,
+        missed,
+        frequency: periodFrequency
+      });
+      
+      // Move to next period
+      currentPeriodStart = new Date(periodEnd);
+      currentPeriodStart.setDate(currentPeriodStart.getDate() + 1);
+      currentPeriodStart.setHours(0, 0, 0, 0);
+      periodNumber++;
+      
+      // Limit to reasonable number of periods (max 20)
+      if (periodNumber > 20) break;
+    }
+    
+    return periods;
+  };
+  
+  const periods = calculatePeriods();
+  const currentPeriodIndex = periods.findIndex(p => {
+    const now = new Date();
+    return now >= p.startDate && now <= p.endDate;
+  });
+  const currentPeriod = currentPeriodIndex >= 0 ? periods[currentPeriodIndex] : null;
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-rose-500"></div>
+          <p className="text-sm text-gray-600">Loading period data...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <div>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-2">Period Overview</h3>
+        <p className="text-sm text-gray-600">
+          Each period lasts 4 weeks. Frequency may vary per period based on training history.
+        </p>
+      </div>
+      
+      {/* Current Period Highlight */}
+      {currentPeriod && (
+        <div className="bg-gradient-to-r from-rose-500 to-pink-600 rounded-xl p-4 sm:p-6 text-white">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="text-sm sm:text-base font-medium mb-1">Current Period</div>
+              <div className="text-xl sm:text-2xl font-bold">Period {currentPeriod.periodNumber}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs sm:text-sm opacity-90">Missed Sessions</div>
+              <div className="text-2xl sm:text-3xl font-bold">{currentPeriod.missed}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-4">
+            <div className="bg-white/20 rounded-lg p-3">
+              <div className="text-xs sm:text-sm opacity-90">Expected</div>
+              <div className="text-lg sm:text-xl font-bold">{currentPeriod.expectedSessions}</div>
+            </div>
+            <div className="bg-white/20 rounded-lg p-3">
+              <div className="text-xs sm:text-sm opacity-90">Scheduled</div>
+              <div className="text-lg sm:text-xl font-bold">{currentPeriod.scheduled}</div>
+            </div>
+            <div className="bg-white/20 rounded-lg p-3">
+              <div className="text-xs sm:text-sm opacity-90">Completed</div>
+              <div className="text-lg sm:text-xl font-bold">{currentPeriod.completed}</div>
+            </div>
+            <div className="bg-white/20 rounded-lg p-3">
+              <div className="text-xs sm:text-sm opacity-90">Missed</div>
+              <div className="text-lg sm:text-xl font-bold">{currentPeriod.missed}</div>
+            </div>
+          </div>
+          <div className="mt-4 text-xs sm:text-sm opacity-90">
+            {currentPeriod.startDate.toLocaleDateString('en-US')} - {currentPeriod.endDate.toLocaleDateString('en-US')}
+          </div>
+        </div>
+      )}
+      
+      {/* All Periods */}
+      <div className="space-y-4">
+        <h4 className="text-sm sm:text-base font-semibold text-gray-800">All Periods</h4>
+        {periods.map((period) => {
+          const isCurrent = period.periodNumber === currentPeriod?.periodNumber;
+          const isPast = period.endDate < new Date();
+          const isFuture = period.startDate > new Date();
+          
+          return (
+            <div
+              key={period.periodNumber}
+              className={`border rounded-xl p-4 sm:p-6 ${
+                isCurrent
+                  ? 'border-rose-500 bg-rose-50'
+                  : isPast
+                  ? 'border-gray-200 bg-gray-50'
+                  : 'border-blue-200 bg-blue-50'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h5 className="text-base sm:text-lg font-bold text-gray-800">
+                      Period {period.periodNumber}
+                    </h5>
+                    {isCurrent && (
+                      <span className="px-2 py-1 bg-rose-500 text-white text-xs font-medium rounded-full">
+                        Current
+                      </span>
+                    )}
+                    {isFuture && (
+                      <span className="px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-full">
+                        Future
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      {period.startDate.toLocaleDateString('en-US')} - {period.endDate.toLocaleDateString('en-US')}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setEditingPeriod(period.periodNumber);
+                        setEditStartDate(period.startDate.toISOString().split('T')[0]);
+                      }}
+                      className="p-1 text-gray-400 hover:text-rose-500 transition-colors"
+                      title="Edit period start date"
+                    >
+                      <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </button>
+                  </div>
+                  {editingPeriod === period.periodNumber && (
+                    <div className="mt-2 p-3 bg-white border border-rose-200 rounded-lg">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Aangepaste Startdatum (einddatum wordt automatisch berekend: +4 weken)
+                      </label>
+                      <div className="mb-2 text-xs text-gray-600">
+                        Huidige frequentie voor deze periode: {period.frequency}x per week
+                        <br />
+                        Verwacht aantal sessies: {period.frequency * 4}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="date"
+                          value={editStartDate}
+                          onChange={(e) => setEditStartDate(e.target.value)}
+                          className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                        />
+                        <button
+                          onClick={() => handleSavePeriodStartDate(period.periodNumber)}
+                          className="px-3 py-1 bg-rose-500 text-white text-xs rounded hover:bg-rose-600 transition-colors"
+                        >
+                          Opslaan
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingPeriod(null);
+                            setEditStartDate('');
+                          }}
+                          className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 transition-colors"
+                        >
+                          Annuleren
+                        </button>
+                      </div>
+                      {editStartDate && (
+                        <div className="mt-2 text-xs text-gray-600">
+                          Einddatum wordt: {new Date(new Date(editStartDate).getTime() + 27 * 24 * 60 * 60 * 1000).toLocaleDateString('nl-NL')}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-4 gap-2 sm:gap-4">
+                  <div className="text-center">
+                    <div className="text-xs sm:text-sm text-gray-600 mb-1">Frequency</div>
+                    <div className="text-base sm:text-lg font-bold text-purple-600">{period.frequency}x/week</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs sm:text-sm text-gray-600 mb-1">Expected</div>
+                    <div className="text-base sm:text-lg font-bold text-gray-800">{period.expectedSessions}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs sm:text-sm text-gray-600 mb-1">Scheduled</div>
+                    <div className="text-base sm:text-lg font-bold text-blue-600">{period.scheduled}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs sm:text-sm text-gray-600 mb-1">Completed</div>
+                    <div className="text-base sm:text-lg font-bold text-green-600">{period.completed}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs sm:text-sm text-gray-600 mb-1">Missed</div>
+                    <div className={`text-base sm:text-lg font-bold ${period.missed > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                      {period.missed}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Sessions in this period */}
+              {period.sessions.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h6 className="text-xs sm:text-sm font-semibold text-gray-700 mb-3">Sessions in this period:</h6>
+                  <div className="space-y-2">
+                    {period.sessions.map((session) => {
+                      const sessionDate = new Date(session.date);
+                      const isPastDate = sessionDate < new Date();
+                      const isMissed = isPastDate && (session.status === 'scheduled' || session.status === 'no-show');
+                      
+                      return (
+                        <div
+                          key={session.id}
+                          className={`flex items-center justify-between p-2 sm:p-3 rounded-lg text-xs sm:text-sm ${
+                            session.status === 'completed'
+                              ? 'bg-green-100 border border-green-200'
+                              : isMissed
+                              ? 'bg-red-100 border border-red-200'
+                              : session.status === 'cancelled'
+                              ? 'bg-gray-100 border border-gray-200'
+                              : 'bg-blue-50 border border-blue-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            {session.status === 'completed' ? (
+                              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
+                            ) : isMissed ? (
+                              <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+                            )}
+                            <div>
+                              <div className="font-medium text-gray-800">
+                                {sessionDate.toLocaleDateString('en-US', {
+                                  weekday: 'short',
+                                  day: 'numeric',
+                                  month: 'short'
+                                })}
+                              </div>
+                              <div className="text-gray-600">{session.startTime} - {session.endTime}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              session.status === 'completed'
+                                ? 'bg-green-200 text-green-800'
+                                : isMissed
+                                ? 'bg-red-200 text-red-800'
+                                : session.status === 'scheduled'
+                                ? 'bg-blue-200 text-blue-800'
+                                : session.status === 'cancelled'
+                                ? 'bg-gray-200 text-gray-800'
+                                : 'bg-yellow-200 text-yellow-800'
+                            }`}>
+                              {isMissed ? 'Missed' : session.status}
+                            </span>
+                            {session.type && (
+                              <span className="text-xs text-gray-600 hidden sm:inline">{session.type}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              {period.sessions.length === 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200 text-center text-xs sm:text-sm text-gray-500">
+                  No sessions in this period
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // Workout Plan Tab Component
 function WorkoutPlanTab({ customerId }: { customerId: string }) {
@@ -105,8 +575,6 @@ function EditMeasurementForm({ measurement, onSave, onCancel }: { measurement: a
     thigh: measurement.thigh || '',
     arm: measurement.arm || '',
     neck: measurement.neck || '',
-    bodyFat: measurement.bodyFat || '',
-    muscleMass: measurement.muscleMass || '',
     bmi: measurement.bmi || '',
     notes: measurement.notes || ''
   });
@@ -220,28 +688,6 @@ function EditMeasurementForm({ measurement, onSave, onCancel }: { measurement: a
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Body Fat (%)</label>
-          <input
-            type="number"
-            step="0.1"
-            value={formData.bodyFat}
-            onChange={(e) => setFormData({...formData, bodyFat: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-            placeholder="%"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Muscle Mass (kg)</label>
-          <input
-            type="number"
-            step="0.1"
-            value={formData.muscleMass}
-            onChange={(e) => setFormData({...formData, muscleMass: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-            placeholder="kg"
-          />
-        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -346,27 +792,47 @@ function EditMeasurementForm({ measurement, onSave, onCancel }: { measurement: a
 }
 
 // Photo Upload Form Component
-function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: { 
+function PhotoUploadForm({ 
+  customerId, 
+  onSave, 
+  onCancel, 
+  existingPhotos,
+  editingPhoto 
+}: { 
   customerId: string, 
   onSave: (photos: any[]) => void, 
   onCancel: () => void,
-  existingPhotos: any[]
+  existingPhotos: any[],
+  editingPhoto?: {week: number, position: string, existingPhoto: any} | null
 }) {
   const { t } = useLanguage();
+  
   // Calculate next week based on existing photos
   const getNextWeek = () => {
+    if (editingPhoto) return editingPhoto.week;
     if (existingPhotos.length === 0) return 1;
     const maxWeek = Math.max(...existingPhotos.map(p => p.week));
     return maxWeek + 1;
   };
 
+  // Get existing photo notes for the week
+  const getExistingNotes = () => {
+    if (editingPhoto) {
+      const weekPhoto = existingPhotos.find(p => p.week === editingPhoto.week && p.notes);
+      return weekPhoto?.notes || '';
+    }
+    return '';
+  };
+
   const [formData, setFormData] = useState({
     week: getNextWeek(),
-    date: new Date().toISOString().split('T')[0],
+    date: editingPhoto?.existingPhoto?.date 
+      ? new Date(editingPhoto.existingPhoto.date).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0],
     frontPhoto: null as File | null,
     sidePhoto: null as File | null,
     backPhoto: null as File | null,
-    notes: ''
+    notes: getExistingNotes()
   });
 
   const [uploading, setUploading] = useState(false);
@@ -384,70 +850,143 @@ function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: {
     e.preventDefault();
     
     if (!formData.frontPhoto && !formData.sidePhoto && !formData.backPhoto) {
-      alert('Please select at least one photo to upload');
+      alert('Selecteer minimaal één foto om te uploaden');
       return;
     }
 
     setUploading(true);
     setUploadProgress(0);
-    setUploadStatus('Preparing upload...');
+    setUploadStatus('Voorbereiden upload...');
 
     try {
       const uploadedPhotos: any[] = [];
-      const photos = [
-        { file: formData.frontPhoto, position: 'front' },
-        { file: formData.sidePhoto, position: 'side' },
-        { file: formData.backPhoto, position: 'back' }
-      ].filter(p => p.file);
-
-      for (let i = 0; i < photos.length; i++) {
-        setUploadStatus(`Uploading ${photos[i].position} photo... (${i + 1}/${photos.length})`);
-        
-        const uploadFormData = new FormData();
-        uploadFormData.append('file', photos[i].file!);
-        uploadFormData.append('customerId', customerId);
-        uploadFormData.append('week', formData.week.toString());
-        uploadFormData.append('date', formData.date);
-        uploadFormData.append('position', photos[i].position);
-        uploadFormData.append('notes', formData.notes);
-
-        console.log('Uploading photo with data:', {
-          customerId,
-          week: formData.week,
-          date: formData.date,
-          position: photos[i].position,
-          notes: formData.notes,
-          fileName: photos[i].file!.name
-        });
-
-        const response = await fetch('/api/customer-photos', {
-          method: 'POST',
-          body: uploadFormData,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error(`Upload failed for ${photos[i].position} photo:`, errorData);
-          throw new Error(`Upload failed for ${photos[i].position} photo: ${errorData.error || 'Unknown error'}`);
+      const failedUploads: string[] = [];
+      // If editing a specific photo, only upload that one
+      let photos: Array<{file: File, position: string}> = [];
+      
+      if (editingPhoto) {
+        // Only upload the photo for the position being edited
+        const photoFile = editingPhoto.position === 'front' ? formData.frontPhoto :
+                         editingPhoto.position === 'side' ? formData.sidePhoto :
+                         formData.backPhoto;
+        if (photoFile) {
+          photos = [{ file: photoFile, position: editingPhoto.position }];
         }
+      } else {
+        // Normal upload - all selected photos
+        photos = [
+          { file: formData.frontPhoto, position: 'front' },
+          { file: formData.sidePhoto, position: 'side' },
+          { file: formData.backPhoto, position: 'back' }
+        ].filter(p => p.file) as Array<{file: File, position: string}>;
+      }
 
-        const result = await response.json();
-        console.log(`Successfully uploaded ${photos[i].position} photo:`, result);
-        uploadedPhotos.push(result);
+      if (photos.length === 0) {
+        alert('Selecteer minimaal één foto om te uploaden');
+        setUploading(false);
+        return;
+      }
+
+      // Upload photos with better error handling - continue even if one fails
+      for (let i = 0; i < photos.length; i++) {
+        setUploadStatus(`Uploaden ${photos[i].position} foto... (${i + 1}/${photos.length})`);
+        setUploadProgress((i / photos.length) * 100);
+        
+        try {
+          // Compress image if needed
+          let fileToUpload = photos[i].file!;
+          const sizeMB = fileToUpload.size / (1024 * 1024);
+          
+          if (sizeMB > 1) {
+            try {
+              const { compressImage } = await import('@/lib/image-compression');
+              fileToUpload = await compressImage(fileToUpload, {
+                maxWidth: 1920,
+                maxHeight: 1920,
+                quality: 0.85,
+                maxSizeMB: 2
+              });
+              console.log(`Compressed ${photos[i].position} photo: ${sizeMB.toFixed(2)}MB -> ${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`);
+            } catch (compressionError) {
+              console.warn('Compression failed, using original file:', compressionError);
+            }
+          }
+          
+          // If replacing existing photo, delete old one first
+          if (editingPhoto && editingPhoto.existingPhoto && editingPhoto.position === photos[i].position) {
+            try {
+              await fetch(`/api/customer-photos?photoId=${editingPhoto.existingPhoto.id}`, {
+                method: 'DELETE'
+              });
+              console.log(`Deleted old ${photos[i].position} photo before upload`);
+            } catch (deleteError) {
+              console.warn('Could not delete old photo, continuing with upload:', deleteError);
+            }
+          }
+
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', fileToUpload);
+          uploadFormData.append('customerId', customerId);
+          uploadFormData.append('week', formData.week.toString());
+          uploadFormData.append('date', formData.date);
+          uploadFormData.append('position', photos[i].position);
+          uploadFormData.append('notes', formData.notes);
+
+          // Create abort controller for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+          const response = await fetch('/api/customer-photos', {
+            method: 'POST',
+            body: uploadFormData,
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Upload mislukt' }));
+            console.error(`Upload failed for ${photos[i].position} photo:`, errorData);
+            failedUploads.push(photos[i].position);
+            continue; // Continue with next photo instead of throwing
+          }
+
+          const result = await response.json();
+          console.log(`Successfully uploaded ${photos[i].position} photo:`, result);
+          uploadedPhotos.push(result);
+        } catch (uploadError: any) {
+          if (uploadError.name === 'AbortError') {
+            console.error(`Upload timeout for ${photos[i].position} photo`);
+            failedUploads.push(`${photos[i].position} (timeout)`);
+          } else {
+            console.error(`Upload error for ${photos[i].position} photo:`, uploadError);
+            failedUploads.push(photos[i].position);
+          }
+          // Continue with next photo
+        }
+        
         setUploadProgress(((i + 1) / photos.length) * 100);
       }
 
-      setUploadStatus('Upload complete!');
-      setTimeout(() => {
+      if (uploadedPhotos.length > 0) {
+        setUploadStatus('Upload voltooid!');
+        if (failedUploads.length > 0) {
+          alert(`${uploadedPhotos.length} foto(s) geüpload. ${failedUploads.length} foto(s) mislukt: ${failedUploads.join(', ')}`);
+        }
+        setTimeout(() => {
+          setUploading(false);
+          onSave(uploadedPhotos);
+          onCancel();
+          window.location.reload();
+        }, 1000);
+      } else {
         setUploading(false);
-        onSave(uploadedPhotos);
-        onCancel();
-        window.location.reload();
-      }, 1000);
+        alert(`Alle uploads zijn mislukt. Probeer het opnieuw.`);
+      }
 
     } catch (error: any) {
       console.error('Upload error:', error);
-      alert('Upload failed. Please try again.');
+      alert('Upload mislukt. Probeer het opnieuw.');
       setUploading(false);
     }
   };
@@ -482,8 +1021,9 @@ function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: {
             type="number"
             value={formData.week}
             onChange={(e) => setFormData({...formData, week: parseInt(e.target.value) || 1})}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             required
+            disabled={!!editingPhoto}
           />
         </div>
         <div>
@@ -498,64 +1038,112 @@ function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: {
         </div>
       </div>
 
-      <div className="space-y-3 sm:space-y-4">
+      {editingPhoto ? (
+        // Show only the photo being edited/replaced
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Front View Photo</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleFileChange('front', e.target.files?.[0] || null)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-          />
-          {formData.frontPhoto && (
-            <div className="mt-2">
-              <img
-                src={URL.createObjectURL(formData.frontPhoto)}
-                alt={t.dashboard.frontPreview}
-                className="w-24 h-24 sm:w-32 sm:h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
-              />
-            </div>
-          )}
+          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              {editingPhoto.existingPhoto 
+                ? `Replace ${editingPhoto.position} photo for Week ${editingPhoto.week}`
+                : `Add ${editingPhoto.position} photo for Week ${editingPhoto.week}`
+              }
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
+              {editingPhoto.position} View Photo {editingPhoto.existingPhoto && '(replace)'}
+            </label>
+            {editingPhoto.existingPhoto && (
+              <div className="mb-3">
+                <p className="text-xs text-gray-500 mb-2">Current photo:</p>
+                <img
+                  src={editingPhoto.existingPhoto.imageUrl}
+                  alt={`Current ${editingPhoto.position} photo`}
+                  className="w-32 h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
+                  loading="lazy"
+                />
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleFileChange(editingPhoto.position, e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+              required
+            />
+            {formData[`${editingPhoto.position}Photo` as keyof typeof formData] && (
+              <div className="mt-2">
+                <p className="text-xs text-gray-500 mb-2">New photo:</p>
+                <img
+                  src={URL.createObjectURL(formData[`${editingPhoto.position}Photo` as keyof typeof formData] as File)}
+                  alt={`New ${editingPhoto.position} preview`}
+                  className="w-32 h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Side View Photo</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleFileChange('side', e.target.files?.[0] || null)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-          />
-          {formData.sidePhoto && (
-            <div className="mt-2">
-              <img
-                src={URL.createObjectURL(formData.sidePhoto)}
-                alt={t.dashboard.sidePreview}
-                className="w-24 h-24 sm:w-32 sm:h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
-              />
-            </div>
-          )}
+      ) : (
+        // Show all three photo inputs for new upload
+        <div className="space-y-3 sm:space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Front View Photo</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleFileChange('front', e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+            />
+            {formData.frontPhoto && (
+              <div className="mt-2">
+                <img
+                  src={URL.createObjectURL(formData.frontPhoto)}
+                  alt={t.dashboard.frontPreview}
+                  className="w-24 h-24 sm:w-32 sm:h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Side View Photo</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleFileChange('side', e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+            />
+            {formData.sidePhoto && (
+              <div className="mt-2">
+                <img
+                  src={URL.createObjectURL(formData.sidePhoto)}
+                  alt={t.dashboard.sidePreview}
+                  className="w-24 h-24 sm:w-32 sm:h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Back View Photo</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleFileChange('back', e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+            />
+            {formData.backPhoto && (
+              <div className="mt-2">
+                <img
+                  src={URL.createObjectURL(formData.backPhoto)}
+                  alt={t.dashboard.backPreview}
+                  className="w-24 h-24 sm:w-32 sm:h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Back View Photo</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleFileChange('back', e.target.files?.[0] || null)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-          />
-          {formData.backPhoto && (
-            <div className="mt-2">
-              <img
-                src={URL.createObjectURL(formData.backPhoto)}
-                alt={t.dashboard.backPreview}
-                className="w-24 h-24 sm:w-32 sm:h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
-              />
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
@@ -574,14 +1162,18 @@ function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: {
           onClick={onCancel}
           className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base"
         >
-          Cancel
+          Annuleren
         </button>
         <button
           type="submit"
-          disabled={!formData.frontPhoto && !formData.sidePhoto && !formData.backPhoto}
+          disabled={
+            editingPhoto 
+              ? !formData[`${editingPhoto.position}Photo` as keyof typeof formData]
+              : !formData.frontPhoto && !formData.sidePhoto && !formData.backPhoto
+          }
           className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
         >
-          Upload Photos
+          {editingPhoto ? (editingPhoto.existingPhoto ? 'Replace Photo' : 'Add Photo') : 'Upload Photos'}
         </button>
       </div>
     </form>
@@ -662,25 +1254,439 @@ export default function ClientDetailPage() {
   const [showAddMeasurementModal, setShowAddMeasurementModal] = useState(false);
   const [showEditMeasurementModal, setShowEditMeasurementModal] = useState(false);
   const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
-  const [showPhotoGalleryModal, setShowPhotoGalleryModal] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState<{week: number, position: string, existingPhoto: any} | null>(null);
   const [editingMeasurement, setEditingMeasurement] = useState<any>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<any>(null);
-  const [galleryPhotos, setGalleryPhotos] = useState<any[]>([]);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showEditClientModal, setShowEditClientModal] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState<'weight' | 'chest' | 'waist' | 'hips' | 'thigh' | 'arm' | 'neck'>('weight');
+
+  const photoWeeks = useMemo(() => {
+    if (!customerPhotos.length) {
+      return [];
+    }
+
+    return Array.from(new Set(customerPhotos.map(photo => photo.week))).sort((a, b) => a - b);
+  }, [customerPhotos]);
+
+  const firstPhotoWeek = photoWeeks[0];
+  const lastPhotoWeek = photoWeeks[photoWeeks.length - 1];
+  const hasPhotoComparison = typeof firstPhotoWeek === 'number';
+  const comparisonPhotoWeek = typeof lastPhotoWeek === 'number'
+    ? lastPhotoWeek
+    : typeof firstPhotoWeek === 'number'
+      ? firstPhotoWeek
+      : undefined;
+
+  const renderVisualProgress = () => {
+    if (!hasPhotoComparison) {
+      return null;
+    }
+
+    const baseWeek = firstPhotoWeek as number;
+    const comparisonWeek = (comparisonPhotoWeek ?? baseWeek) as number;
+
+    return (
+      <div className="mt-4 sm:mt-6 border-t border-gray-100 pt-4 sm:pt-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-4">
+          <h5 className="text-sm sm:text-base font-semibold text-gray-800">Visual Progress</h5>
+          <p className="text-xs text-gray-500">
+            Week {baseWeek}
+            {comparisonWeek !== baseWeek ? ` vs Week ${comparisonWeek}` : ''}
+          </p>
+        </div>
+        <div className="space-y-4">
+          {['front', 'side', 'back'].map((position) => {
+            const firstWeekPhoto = customerPhotos.find(photo => photo.week === baseWeek && photo.position === position);
+            const latestWeekPhoto = customerPhotos.find(photo => photo.week === comparisonWeek && photo.position === position);
+
+            return (
+              <div key={position} className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-gray-700 capitalize">{position} view</span>
+                  {comparisonWeek !== baseWeek && (
+                    <span className="text-xs text-gray-500">Week {baseWeek} → Week {comparisonWeek}</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  {[
+                    { label: `Week ${baseWeek}`, photo: firstWeekPhoto },
+                    { label: `Week ${comparisonWeek}`, photo: latestWeekPhoto }
+                  ].map(({ label, photo }, index) => (
+                    <div key={`${position}-${label}-${index}`} className="flex flex-col gap-2">
+                      <div className="text-sm font-medium text-gray-700">{label}</div>
+                      {photo ? (
+                        <div
+                          className="relative group rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-rose-300"
+                          onClick={() => handleOpenPhotoGallery(photo)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              handleOpenPhotoGallery(photo);
+                            }
+                          }}
+                        >
+                          <img
+                            src={photo.imageUrl}
+                            alt={`${position} view ${label.toLowerCase()}`}
+                            className="w-full h-[22rem] sm:h-[26rem] object-cover sm:object-contain bg-white cursor-pointer transition-transform duration-200 group-hover:scale-[1.02]"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl pointer-events-none flex items-end justify-end p-3">
+                            <Eye className="w-6 h-6 text-white drop-shadow" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-[22rem] sm:h-[26rem] bg-white rounded-2xl border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm">
+                          No photo
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Render progress chart
+  const renderProgressChart = () => {
+    if (measurements.length === 0) return null;
+
+    // Sort measurements by date
+    const sortedMeasurements = [...measurements].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Metric configuration
+    const metricConfig = {
+      weight: { label: 'Weight', unit: 'kg', field: 'weight' },
+      chest: { label: 'Chest', unit: 'cm', field: 'chest' },
+      waist: { label: 'Waist', unit: 'cm', field: 'waist' },
+      hips: { label: 'Hips', unit: 'cm', field: 'hips' },
+      thigh: { label: 'Thigh', unit: 'cm', field: 'thigh' },
+      arm: { label: 'Arm', unit: 'cm', field: 'arm' },
+      neck: { label: 'Neck', unit: 'cm', field: 'neck' }
+    };
+
+    const config = metricConfig[selectedMetric];
+    if (!config) return null;
+
+    // Prepare data for chart
+    const chartData = sortedMeasurements.map(m => ({
+      date: new Date(m.date),
+      value: parseFloat(m[config.field as keyof typeof m] as string) || 0,
+      week: m.week || 0
+    })).filter(d => d.value > 0);
+
+    if (chartData.length === 0) return null;
+
+    // Chart dimensions - responsive
+    const chartWidth = 1000;
+    const chartHeight = 300;
+    const padding = { top: 25, right: 30, bottom: 60, left: 70 }; // More padding for mobile readability
+    const graphWidth = chartWidth - padding.left - padding.right;
+    const graphHeight = chartHeight - padding.top - padding.bottom;
+
+    // Calculate min/max for scaling with some padding
+    const values = chartData.map(d => d.value).filter(v => v > 0);
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+    const valueRange = maxValue - minValue || 1;
+    
+    // Add 10% padding to range
+    const valuePadding = valueRange * 0.1;
+    const displayMinValue = minValue - valuePadding;
+    const displayMaxValue = maxValue + valuePadding;
+    const displayValueRange = displayMaxValue - displayMinValue;
+
+    // Scale functions
+    const scaleX = (index: number) => 
+      padding.left + (index / (chartData.length - 1 || 1)) * graphWidth;
+    const scaleY = (value: number) => 
+      padding.top + ((displayMaxValue - value) / displayValueRange) * graphHeight;
+
+    // Generate smooth path for line
+    const dataPoints = chartData
+      .map((d, i) => ({ x: scaleX(i), y: scaleY(d.value), value: d.value }))
+      .filter(p => p.value > 0);
+    
+    const linePath = dataPoints.length > 0 
+      ? dataPoints.map((p, i) => i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`).join(' ')
+      : '';
+
+    // Generate area under line
+    const areaPath = linePath 
+      ? `${linePath} L ${dataPoints[dataPoints.length - 1].x} ${padding.top + graphHeight} L ${dataPoints[0].x} ${padding.top + graphHeight} Z`
+      : '';
+
+    // Y-axis tick values
+    const ticks = 5;
+    const tickValues = Array.from({ length: ticks }, (_, i) => 
+      displayMinValue + (displayValueRange / (ticks - 1)) * i
+    );
+
+    return (
+      <div className="mt-4 sm:mt-6 border-t border-gray-100 pt-4 sm:pt-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h5 className="text-sm sm:text-base font-semibold text-gray-800">Progress Chart</h5>
+          
+          {/* Metric Filters */}
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(metricConfig).map(([key, metric]) => (
+              <button
+                key={key}
+                onClick={() => setSelectedMetric(key as typeof selectedMetric)}
+                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                  selectedMetric === key
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {metric.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-2 sm:p-6 border border-gray-200 shadow-sm">
+          <div className="relative w-full" style={{ maxWidth: '100%', overflow: 'hidden' }}>
+            <div className="w-full" style={{ height: '250px', maxHeight: '250px' }} className="sm:h-[300px]">
+              <svg 
+                viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
+                className="w-full h-full"
+                preserveAspectRatio="xMidYMid meet"
+                style={{ maxWidth: '100%' }}
+              >
+                {/* Background grid */}
+                <defs>
+                  <linearGradient id="weightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.05" />
+                  </linearGradient>
+                </defs>
+
+                {/* Grid lines - horizontal */}
+                {tickValues.map((value, i) => (
+                  <g key={`grid-${i}`}>
+                    <line
+                      x1={padding.left}
+                      y1={scaleY(value)}
+                      x2={chartWidth - padding.right}
+                      y2={scaleY(value)}
+                      stroke="#e5e7eb"
+                      strokeWidth="1"
+                      strokeDasharray="2,2"
+                    />
+                  </g>
+                ))}
+
+                {/* Y-axis line */}
+                <line
+                  x1={padding.left}
+                  y1={padding.top}
+                  x2={padding.left}
+                  y2={chartHeight - padding.bottom}
+                  stroke="#d1d5db"
+                  strokeWidth="2"
+                />
+
+                {/* X-axis line */}
+                <line
+                  x1={padding.left}
+                  y1={chartHeight - padding.bottom}
+                  x2={chartWidth - padding.right}
+                  y2={chartHeight - padding.bottom}
+                  stroke="#d1d5db"
+                  strokeWidth="2"
+                />
+
+                {/* Area under line */}
+                {areaPath && (
+                  <path
+                    d={areaPath}
+                    fill="url(#weightGradient)"
+                  />
+                )}
+
+                {/* Line - thicker on mobile */}
+                {linePath && (
+                  <path
+                    d={linePath}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+
+                {/* Data points with hover effect - larger on mobile */}
+                {dataPoints.map((p, i) => (
+                  <g key={`point-${i}`}>
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r="6"
+                      fill="#3b82f6"
+                      stroke="white"
+                      strokeWidth="2.5"
+                      className="hover:r-7 transition-all"
+                    />
+                    <text
+                      x={p.x}
+                      y={p.y - 12}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill="#3b82f6"
+                      fontWeight="600"
+                      className="opacity-0 sm:opacity-0 hover:opacity-100 transition-opacity"
+                    >
+                      {p.value.toFixed(1)}{config.unit}
+                    </text>
+                  </g>
+                ))}
+
+                {/* Y-axis labels (left) - larger on mobile */}
+                {tickValues.map((value, i) => (
+                  <g key={`label-${i}`}>
+                    <text
+                      x={padding.left - 12}
+                      y={scaleY(value) + 5}
+                      textAnchor="end"
+                      fontSize="13"
+                      fill="#6b7280"
+                      fontWeight="600"
+                      className="text-sm"
+                    >
+                      {value.toFixed(1)}
+                    </text>
+                    <text
+                      x={padding.left - 12}
+                      y={scaleY(value) + 18}
+                      textAnchor="end"
+                      fontSize="10"
+                      fill="#9ca3af"
+                      fontWeight="500"
+                    >
+                      {config.unit}
+                    </text>
+                  </g>
+                ))}
+
+                {/* X-axis labels with dates - larger on mobile */}
+                {chartData.map((d, i) => {
+                  // Show more labels on mobile for better readability
+                  const maxLabels = chartData.length <= 7 ? chartData.length : 5;
+                  const showLabel = i === 0 || i === chartData.length - 1 || i % Math.ceil(chartData.length / maxLabels) === 0;
+                  if (!showLabel) return null;
+                  return (
+                    <g key={`x-label-${i}`}>
+                      <line
+                        x1={scaleX(i)}
+                        y1={chartHeight - padding.bottom}
+                        x2={scaleX(i)}
+                        y2={chartHeight - padding.bottom + 6}
+                        stroke="#9ca3af"
+                        strokeWidth="1.5"
+                      />
+                      <text
+                        x={scaleX(i)}
+                        y={chartHeight - padding.bottom + 22}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fill="#6b7280"
+                        fontWeight="600"
+                      >
+                        W{d.week}
+                      </text>
+                      <text
+                        x={scaleX(i)}
+                        y={chartHeight - padding.bottom + 36}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fill="#9ca3af"
+                        fontWeight="500"
+                      >
+                        {d.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          </div>
+          
+          {/* Enhanced Legend - larger on mobile */}
+          <div className="flex items-center justify-center gap-4 sm:gap-6 mt-4 sm:mt-6 flex-wrap px-2">
+            <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-50 rounded-lg">
+              <div className="w-5 h-1.5 sm:w-4 sm:h-1 bg-blue-500 rounded-full"></div>
+              <span className="text-sm sm:text-sm font-semibold text-gray-700">{config.label} ({config.unit})</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Delete a single photo
+  const [photoToDelete, setPhotoToDelete] = useState<{id: string, week: number, position: string} | null>(null);
+  const [showDeletePhotoModal, setShowDeletePhotoModal] = useState(false);
+
+  const handleDeletePhotoClick = (photo: {id: string, week: number, position: string}) => {
+    setPhotoToDelete(photo);
+    setShowDeletePhotoModal(true);
+  };
+
+  const handleDeletePhotoConfirm = async () => {
+    if (!photoToDelete || !clientId) return;
+
+    try {
+      const res = await fetch(`/api/customer-photos?photoId=${photoToDelete.id}`, { 
+        method: 'DELETE' 
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Verwijderen mislukt');
+        return;
+      }
+
+      // Refresh photos after deletion
+      const refreshed = await fetch(`/api/customer-photos?customerId=${clientId}`);
+      if (refreshed.ok) {
+        const refreshedPhotos = await refreshed.json();
+        setCustomerPhotos(refreshedPhotos);
+        setPhotos(refreshedPhotos);
+      }
+      
+      setShowDeletePhotoModal(false);
+      setPhotoToDelete(null);
+    } catch (e) {
+      console.error('Delete photo error', e);
+      alert('Verwijderen mislukt');
+    }
+  };
 
   // Delete an entire week of photos and renumber subsequent weeks
   const deleteWeekAndRenumber = async (week: number) => {
     if (!clientId) return;
-    if (!confirm(`Delete all photos for Week ${week}? Week numbers after this will shift down by 1.`)) return;
+    
+    // Show confirmation modal instead of simple confirm
+    if (!window.confirm(`Weet je zeker dat je alle foto's voor Week ${week} wilt verwijderen?\n\nWeek nummers na deze week worden automatisch met 1 verlaagd.\n\nDeze actie kan niet ongedaan worden gemaakt.`)) {
+      return;
+    }
 
     try {
       const res = await fetch(`/api/customer-photos?customerId=${clientId}&week=${week}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Failed to delete week');
+        alert(data.error || 'Verwijderen mislukt');
         return;
       }
       // Refresh photos after deletion/renumbering
@@ -690,10 +1696,10 @@ export default function ClientDetailPage() {
         setCustomerPhotos(refreshedPhotos);
         setPhotos(refreshedPhotos);
       }
-      alert(`Deleted Week ${week}. Updated ${data.shiftedCount || 0} subsequent photos.`);
+      alert(`Week ${week} verwijderd. ${data.shiftedCount || 0} volgende foto's bijgewerkt.`);
     } catch (e) {
       console.error('Delete week error', e);
-      alert('Delete failed');
+      alert('Verwijderen mislukt');
     }
   };
 
@@ -736,7 +1742,35 @@ export default function ClientDetailPage() {
     const loadClientData = async () => {
       try {
         setLoading(true);
+        const startTime = performance.now();
         console.log('Loading client data for ID:', clientId);
+        
+        // Try optimized API endpoint first
+        try {
+          const { cachedFetch } = await import('@/lib/cache');
+          const clientData = await cachedFetch(`/api/clients/${clientId}`, {}, 30000); // 30 second cache
+
+          const duration = performance.now() - startTime;
+          console.log(`📊 Client data loaded in ${Math.round(duration)}ms`);
+
+          if (clientData && !clientData.error) {
+            // Set all data from the combined response
+            setClient(clientData);
+            setMeasurements(clientData.measurements || []);
+            setCustomerPhotos(clientData.customerPhotos || []);
+            setPhotos(clientData.customerPhotos || []); // Legacy compatibility
+            setCustomerPricing(clientData.pricingCalculations || []);
+            setTrainingSessions(clientData.trainingSessions || []);
+            setNutritionPlans(clientData.customerNutritionPlans || []);
+            setPayments(clientData.payments || []);
+            return; // Success, exit early
+          }
+        } catch (optimizedError) {
+          console.warn('Optimized API failed, falling back to individual calls:', optimizedError);
+        }
+
+        // Fallback to individual API calls if optimized route fails
+        console.log('Using fallback: individual API calls');
         
         // Load client data
         const clientResponse = await fetch(`/api/users/${clientId}`);
@@ -744,109 +1778,46 @@ export default function ClientDetailPage() {
           throw new Error(`Failed to load client: ${clientResponse.status}`);
         }
         const clientData = await clientResponse.json();
-        console.log('Client data loaded:', clientData);
         setClient(clientData);
 
-        // Load measurements
-        try {
-          const measurementsResponse = await fetch(`/api/customer-measurements?customerId=${clientId}`);
-          if (measurementsResponse.ok) {
-            const measurementsData = await measurementsResponse.json();
-            console.log('Measurements loaded:', measurementsData.length);
-            setMeasurements(measurementsData);
-          } else {
-            console.log('No measurements found or error:', measurementsResponse.status);
-            setMeasurements([]);
-          }
-        } catch (error) {
-          console.error('Error loading measurements:', error);
-          setMeasurements([]);
+        // Load all other data in parallel
+        const [measurementsRes, photosRes, pricingRes, sessionsRes, nutritionRes, paymentsRes] = await Promise.all([
+          fetch(`/api/customer-measurements?customerId=${clientId}`).catch(() => ({ ok: false })),
+          fetch(`/api/customer-photos?customerId=${clientId}`).catch(() => ({ ok: false })),
+          fetch(`/api/pricing-calculations?customerId=${clientId}`).catch(() => ({ ok: false })),
+          fetch(`/api/training-sessions?customerId=${clientId}`).catch(() => ({ ok: false })),
+          fetch(`/api/customer-nutrition-plans?customerId=${clientId}`).catch(() => ({ ok: false })),
+          fetch(`/api/payments?customerId=${clientId}`).catch(() => ({ ok: false }))
+        ]);
+
+        if (measurementsRes.ok) {
+          const data = await measurementsRes.json();
+          setMeasurements(data);
+        }
+        if (photosRes.ok) {
+          const data = await photosRes.json();
+          setCustomerPhotos(data);
+          setPhotos(data);
+        }
+        if (pricingRes.ok) {
+          const data = await pricingRes.json();
+          setCustomerPricing(data);
+        }
+        if (sessionsRes.ok) {
+          const data = await sessionsRes.json();
+          setTrainingSessions(data);
+        }
+        if (nutritionRes.ok) {
+          const data = await nutritionRes.json();
+          setNutritionPlans(data);
+        }
+        if (paymentsRes.ok) {
+          const data = await paymentsRes.json();
+          setPayments(data);
         }
 
-        // Load customer photos (structured by week and position)
-        try {
-          console.log('Loading photos for customer ID:', clientId);
-          const customerPhotosResponse = await fetch(`/api/customer-photos?customerId=${clientId}`);
-          if (customerPhotosResponse.ok) {
-            const customerPhotosData = await customerPhotosResponse.json();
-            console.log('Customer photos loaded:', customerPhotosData.length);
-            console.log('Photos data:', customerPhotosData);
-            setCustomerPhotos(customerPhotosData);
-            setPhotos(customerPhotosData); // Also set for legacy compatibility
-          } else {
-            console.log('No photos found or error:', customerPhotosResponse.status);
-            setCustomerPhotos([]);
-            setPhotos([]);
-          }
-        } catch (error) {
-          console.error('Error loading photos:', error);
-          setCustomerPhotos([]);
-          setPhotos([]);
-        }
-
-        // Load customer pricing
-        try {
-          const pricingResponse = await fetch(`/api/pricing-calculations?customerId=${clientId}`);
-          if (pricingResponse.ok) {
-            const pricingData = await pricingResponse.json();
-            console.log('Customer pricing loaded:', pricingData.length);
-            setCustomerPricing(pricingData);
-          } else {
-            console.log('No pricing found or error:', pricingResponse.status);
-            setCustomerPricing([]);
-          }
-        } catch (error) {
-          console.error('Error loading pricing:', error);
-          setCustomerPricing([]);
-        }
-
-        // Load training sessions
-        try {
-          const sessionsResponse = await fetch(`/api/training-sessions?customerId=${clientId}`);
-          if (sessionsResponse.ok) {
-            const sessionsData = await sessionsResponse.json();
-            console.log('Training sessions loaded:', sessionsData.length);
-            setTrainingSessions(sessionsData);
-          } else {
-            console.log('No training sessions found or error:', sessionsResponse.status);
-            setTrainingSessions([]);
-          }
-        } catch (error) {
-          console.error('Error loading training sessions:', error);
-          setTrainingSessions([]);
-        }
-
-        // Load nutrition plans
-        try {
-          const nutritionPlansResponse = await fetch(`/api/customer-nutrition-plans?customerId=${clientId}`);
-          if (nutritionPlansResponse.ok) {
-            const nutritionPlansData = await nutritionPlansResponse.json();
-            console.log('Nutrition plans loaded:', nutritionPlansData.length);
-            setNutritionPlans(nutritionPlansData);
-          } else {
-            console.log('No nutrition plans found or error:', nutritionPlansResponse.status);
-            setNutritionPlans([]);
-          }
-        } catch (error) {
-          console.error('Error loading nutrition plans:', error);
-          setNutritionPlans([]);
-        }
-
-        // Load payments (temporarily disabled until database migration)
-        try {
-          const paymentsResponse = await fetch(`/api/payments?customerId=${clientId}`);
-          if (paymentsResponse.ok) {
-            const paymentsData = await paymentsResponse.json();
-            console.log('Payments loaded:', paymentsData.length);
-            setPayments(paymentsData);
-          } else {
-            console.log('No payments found or error:', paymentsResponse.status);
-            setPayments([]);
-          }
-        } catch (error) {
-          console.error('Error loading payments:', error);
-          setPayments([]);
-        }
+        const duration = performance.now() - startTime;
+        console.log(`📊 Client data loaded (fallback) in ${Math.round(duration)}ms`);
 
       } catch (error) {
         console.error('Error loading client data:', error);
@@ -892,26 +1863,22 @@ export default function ClientDetailPage() {
     }
   }, [selectedPhoto, customerPhotos]);
 
-  const handleOpenPhotoGallery = (photo: any) => {
-    console.log('🖼️ Opening photo gallery for photo:', photo);
-    console.log('🖼️ Current customerPhotos:', customerPhotos);
-    
-    // Sort all photos by week and position for better navigation
+  const handleOpenPhotoGallery = (photo?: any) => {
+    if (!customerPhotos.length) {
+      return;
+    }
+
     const sortedPhotos = [...customerPhotos].sort((a, b) => {
-      if (a.week !== b.week) return b.week - a.week; // Newest weeks first
+      if (a.week !== b.week) return b.week - a.week;
       const positions = ['front', 'side', 'back'];
       return positions.indexOf(a.position) - positions.indexOf(b.position);
     });
-    
-    console.log('🖼️ Sorted photos:', sortedPhotos);
-    
-    setGalleryPhotos(sortedPhotos);
-    setCurrentPhotoIndex(sortedPhotos.findIndex(p => p.id === photo.id));
-    setSelectedPhoto(photo);
-    setShowPhotoGalleryModal(true);
-    
-    console.log('🖼️ Modal should be open now');
-    console.log('🖼️ showPhotoGalleryModal state:', true);
+
+    if (photo) {
+      setSelectedPhoto(photo);
+    } else {
+      setSelectedPhoto(sortedPhotos[0]);
+    }
   };
 
   const handleAddMeasurement = async (formData: any) => {
@@ -1083,7 +2050,34 @@ export default function ClientDetailPage() {
                 </span>
               </div>
               <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800 truncate">{client.name}</h2>
+                  {/* Current Period Badge */}
+                  {client.joinDate && client.trainingFrequency && (() => {
+                    const joinDate = new Date(client.joinDate);
+                    joinDate.setHours(0, 0, 0, 0);
+                    const now = new Date();
+                    now.setHours(23, 59, 59, 999);
+                    const daysSinceJoin = Math.floor((now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
+                    const currentPeriodNumber = Math.floor(daysSinceJoin / 28) + 1;
+                    const periodStart = new Date(joinDate);
+                    periodStart.setDate(periodStart.getDate() + (currentPeriodNumber - 1) * 28);
+                    periodStart.setHours(0, 0, 0, 0);
+                    const periodEnd = new Date(periodStart);
+                    periodEnd.setDate(periodEnd.getDate() + 27);
+                    periodEnd.setHours(23, 59, 59, 999);
+                    
+                    return (
+                      <span 
+                        className="px-2.5 py-1 bg-rose-100 text-rose-700 text-xs font-medium rounded-full border border-rose-200 flex items-center gap-1"
+                        title={`Current Period ${currentPeriodNumber}: ${periodStart.toLocaleDateString('en-US')} - ${periodEnd.toLocaleDateString('en-US')}`}
+                      >
+                        <Clock className="w-3 h-3" />
+                        Period {currentPeriodNumber}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <p className="text-sm sm:text-base text-gray-600 truncate">{client.email}</p>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-600">
                   <div className="flex items-center gap-1">
@@ -1124,7 +2118,7 @@ export default function ClientDetailPage() {
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-2 sm:p-4 mb-4 sm:mb-8">
-          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-8 gap-1 sm:gap-2">
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-9 gap-1 sm:gap-2">
             {[
               { id: 'overview', label: 'Overview', icon: Target, shortLabel: 'Overview' },
               { id: 'measurements', label: 'Measurements', icon: Ruler, shortLabel: 'Measure' },
@@ -1132,6 +2126,7 @@ export default function ClientDetailPage() {
               { id: 'progress', label: 'Progress', icon: TrendingUp, shortLabel: 'Progress' },
               { id: 'workout', label: 'Workout Plan', icon: Dumbbell, shortLabel: 'Workout' },
               { id: 'schedule', label: 'Training Schedule', icon: Calendar, shortLabel: 'Schedule' },
+              { id: 'periods', label: 'Periods', icon: Clock, shortLabel: 'Periods' },
               { id: 'nutrition', label: 'Nutrition Calculator', icon: Apple, shortLabel: 'Nutrition' },
               { id: 'pricing', label: 'Pricing', icon: DollarSign, shortLabel: 'Pricing' }
             ].map(tab => (
@@ -1285,7 +2280,7 @@ export default function ClientDetailPage() {
                     className="text-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
                     onClick={() => {
                       console.log('Progress Photos card clicked, customerPhotos:', customerPhotos);
-                      setShowPhotoGalleryModal(true);
+                      handleOpenPhotoGallery();
                     }}
                   >
                     <div className="text-lg sm:text-xl font-bold text-gray-800">{customerPhotos.length}</div>
@@ -1297,6 +2292,11 @@ export default function ClientDetailPage() {
                     <div className="text-xs text-gray-500">Nutrition Plans</div>
                   </div>
                 </div>
+                
+                {/* Progress Chart */}
+                {measurements.length > 0 && renderProgressChart()}
+                
+                {renderVisualProgress()}
               </div>
             </div>
           )}
@@ -1364,14 +2364,6 @@ export default function ClientDetailPage() {
                           <span className="font-medium">{measurement.bmi}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Body Fat:</span>
-                          <span className="font-medium">{measurement.bodyFat}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Muscle Mass:</span>
-                          <span className="font-medium">{measurement.muscleMass} kg</span>
-                        </div>
-                        <div className="flex justify-between">
                           <span className="text-gray-500">Chest:</span>
                           <span className="font-medium">{measurement.chest} cm</span>
                         </div>
@@ -1418,27 +2410,17 @@ export default function ClientDetailPage() {
             <div className="space-y-4 sm:space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800">Progress Photos</h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      console.log('🧪 Test button clicked');
-                      setShowPhotoGalleryModal(true);
-                    }}
-                    className="bg-blue-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 text-sm"
-                  >
-                    <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Test Gallery</span>
-                    <span className="sm:hidden">Test</span>
-                  </button>
-                  <button
-                    onClick={() => setShowPhotoUploadModal(true)}
-                    className="bg-rose-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors flex items-center gap-2 text-sm"
-                  >
-                    <Upload className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Upload Photos</span>
-                    <span className="sm:hidden">Upload</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    setEditingPhoto(null);
+                    setShowPhotoUploadModal(true);
+                  }}
+                  className="bg-rose-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors flex items-center gap-2 text-sm"
+                >
+                  <Upload className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Upload Photos</span>
+                  <span className="sm:hidden">Upload</span>
+                </button>
               </div>
 
               {customerPhotos.length > 0 ? (
@@ -1454,27 +2436,71 @@ export default function ClientDetailPage() {
                           Delete Week
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                         {['front', 'side', 'back'].map(position => {
                           const photo = customerPhotos.find(p => p.week === week && p.position === position);
                           return (
                             <div key={position} className="text-center">
-                              <h5 className="text-sm font-medium text-gray-600 mb-2 capitalize">{position} View</h5>
+                              <h5 className="text-sm sm:text-base font-medium text-gray-700 mb-3 capitalize">{position} View</h5>
                               {photo ? (
                                 <div className="relative group">
                                   <img
                                     src={photo.imageUrl}
                                     alt={`${position} view week ${week}`}
-                                    className="w-full h-48 object-contain bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                                    className="w-full h-56 sm:h-64 md:h-48 object-contain bg-gray-50 rounded-lg border-2 border-gray-200 cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
                                     onClick={() => handleOpenPhotoGallery(photo)}
+                                    loading="lazy"
                                   />
-                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
-                                    <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  {/* Action buttons - always visible on mobile, hover on desktop */}
+                                  <div className="absolute top-3 right-3 flex flex-col sm:flex-row gap-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenPhotoGallery(photo);
+                                      }}
+                                      className="bg-black/70 backdrop-blur-md text-white p-2.5 sm:p-2 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-black/90 active:bg-black shadow-lg"
+                                      title="Bekijk foto"
+                                    >
+                                      <Eye className="w-5 h-5 sm:w-4 sm:h-4" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingPhoto({ week, position, existingPhoto: photo });
+                                        setShowPhotoUploadModal(true);
+                                      }}
+                                      className="bg-blue-500 text-white p-2.5 sm:p-2 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-blue-600 active:bg-blue-700 shadow-lg"
+                                      title="Replace Photo"
+                                    >
+                                      <Upload className="w-5 h-5 sm:w-4 sm:h-4" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeletePhotoClick({ id: photo.id, week, position });
+                                      }}
+                                      className="bg-red-500 text-white p-2.5 sm:p-2 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-red-600 active:bg-red-700 shadow-lg"
+                                      title="Foto verwijderen"
+                                    >
+                                      <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
+                                    </button>
                                   </div>
                                 </div>
                               ) : (
-                                <div className="w-full h-48 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                                  <span className="text-gray-400 text-sm">No {position} photo</span>
+                                <div className="relative">
+                                  <div className="w-full h-56 sm:h-64 md:h-48 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center">
+                                    <span className="text-gray-400 text-sm sm:text-base mb-3">No {position} photo</span>
+                                    <button
+                                      onClick={() => {
+                                        setEditingPhoto({ week, position, existingPhoto: null });
+                                        setShowPhotoUploadModal(true);
+                                      }}
+                                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 active:bg-blue-700 text-sm sm:text-base font-medium flex items-center gap-2 shadow-md"
+                                    >
+                                      <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                                      Add Photo
+                                    </button>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -1516,7 +2542,6 @@ export default function ClientDetailPage() {
                       
                       const weightDiff = last.weight && first.weight ? last.weight - first.weight : 0;
                       const bmiDiff = last.bmi && first.bmi ? last.bmi - first.bmi : 0;
-                      const bodyFatDiff = last.bodyFat && first.bodyFat ? last.bodyFat - first.bodyFat : 0;
                       
                       return (
                         <>
@@ -1551,22 +2576,6 @@ export default function ClientDetailPage() {
                               {first.bmi} → {last.bmi}
                             </div>
                           </div>
-                          
-                          <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-3 sm:p-4 border border-purple-200">
-                            <div className="flex items-center justify-between mb-1 sm:mb-2">
-                              <h4 className="font-semibold text-purple-800 text-sm sm:text-base">Body Fat Change</h4>
-                              <TrendingUp className={`w-4 h-4 sm:w-5 sm:h-5 ${bodyFatDiff >= 0 ? 'text-red-500' : 'text-green-500'}`} />
-                            </div>
-                            <div className="text-lg sm:text-2xl font-bold text-purple-900">
-                              {bodyFatDiff > 0 ? '+' : ''}{bodyFatDiff.toFixed(1)}%
-                            </div>
-                            <div className="text-xs sm:text-sm text-purple-600">
-                              Week 1 → Week {sortedMeasurements.length}
-                            </div>
-                            <div className="text-xs text-purple-500 mt-1">
-                              {first.bodyFat}% → {last.bodyFat}%
-                            </div>
-                          </div>
                         </>
                       );
                     })()}
@@ -1586,7 +2595,7 @@ export default function ClientDetailPage() {
                               <span className="text-sm text-gray-500">{new Date(measurement.date).toLocaleDateString()}</span>
                             </div>
                             
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                               <div className="text-center">
                                 <div className="text-lg font-bold text-gray-800">{measurement.weight} kg</div>
                                 <div className="text-xs text-gray-500">Weight</div>
@@ -1603,26 +2612,6 @@ export default function ClientDetailPage() {
                                 {prevMeasurement && (
                                   <div className={`text-xs ${measurement.bmi - prevMeasurement.bmi >= 0 ? 'text-red-500' : 'text-green-500'}`}>
                                     {measurement.bmi - prevMeasurement.bmi > 0 ? '+' : ''}{(measurement.bmi - prevMeasurement.bmi).toFixed(1)}
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-gray-800">{measurement.bodyFat}%</div>
-                                <div className="text-xs text-gray-500">Body Fat</div>
-                                {prevMeasurement && (
-                                  <div className={`text-xs ${measurement.bodyFat - prevMeasurement.bodyFat >= 0 ? 'text-red-500' : 'text-green-500'}`}>
-                                    {measurement.bodyFat - prevMeasurement.bodyFat > 0 ? '+' : ''}{(measurement.bodyFat - prevMeasurement.bodyFat).toFixed(1)}%
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-gray-800">{measurement.muscleMass} kg</div>
-                                <div className="text-xs text-gray-500">Muscle Mass</div>
-                                {prevMeasurement && (
-                                  <div className={`text-xs ${measurement.muscleMass - prevMeasurement.muscleMass >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {measurement.muscleMass - prevMeasurement.muscleMass > 0 ? '+' : ''}{(measurement.muscleMass - prevMeasurement.muscleMass).toFixed(1)} kg
                                   </div>
                                 )}
                               </div>
@@ -1968,6 +2957,16 @@ export default function ClientDetailPage() {
           <WorkoutPlanTab customerId={Array.isArray(params.id) ? params.id[0] : params.id || ''} />
         )}
 
+        {/* Period Tracking Tab */}
+        {activeTab === 'periods' && client && (
+          <PeriodTrackingTab
+            customerId={client.id}
+            joinDate={client.joinDate}
+            trainingFrequency={client.trainingFrequency || 3}
+            trainingSessions={trainingSessions}
+          />
+        )}
+
         {/* Pricing & Payments Tab */}
         {activeTab === 'pricing' && (
           <div className="space-y-4 sm:space-y-6">
@@ -2213,9 +3212,18 @@ export default function ClientDetailPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
             <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-800">Upload Progress Photos</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800">
+                  {editingPhoto 
+                    ? (editingPhoto.existingPhoto 
+                        ? `Replace Photo - Week ${editingPhoto.week}` 
+                        : `Add Photo - Week ${editingPhoto.week}`)
+                    : 'Upload Progress Photos'}
+                </h2>
                 <button
-                  onClick={() => setShowPhotoUploadModal(false)}
+                  onClick={() => {
+                    setShowPhotoUploadModal(false);
+                    setEditingPhoto(null);
+                  }}
                   className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <X className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -2225,103 +3233,59 @@ export default function ClientDetailPage() {
                 customerId={clientId}
                 onSave={(photos) => {
                   console.log('Photos saved:', photos);
-                  setCustomerPhotos([...customerPhotos, ...photos]);
-                  setPhotos([...photos, ...photos]); // Also update legacy photos
-                  setShowPhotoUploadModal(false);
+                  window.location.reload(); // Reload to refresh all photos
                 }}
-                onCancel={() => setShowPhotoUploadModal(false)}
+                onCancel={() => {
+                  setShowPhotoUploadModal(false);
+                  setEditingPhoto(null);
+                }}
                 existingPhotos={customerPhotos}
+                editingPhoto={editingPhoto}
               />
             </div>
           </div>
         )}
 
-        {showPhotoGalleryModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50">
-            <div className="relative w-full max-w-6xl max-h-[90vh] bg-black rounded-2xl overflow-hidden">
-              {/* Header */}
-              <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/70 to-transparent p-6">
-                <div className="flex items-center justify-between">
-                  <div className="text-white">
-                    <h2 className="text-2xl font-bold">Photo Gallery</h2>
-                    <p className="text-sm text-gray-300">
-                      {customerPhotos.length} photos • {Array.from(new Set(customerPhotos.map(p => p.week))).length} weeks
-                    </p>
-                  </div>
+        {/* Delete Photo Confirmation Modal */}
+        {showDeletePhotoModal && photoToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800">Foto verwijderen</h2>
                 <button
-                  onClick={() => setShowPhotoGalleryModal(false)}
-                  className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
+                  onClick={() => {
+                    setShowDeletePhotoModal(false);
+                    setPhotoToDelete(null);
+                  }}
+                  className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
-            </div>
-
-              {/* Photo Grid */}
-              <div className="p-6 pt-20 pb-4 overflow-y-auto max-h-[90vh]">
-                {Array.from(new Set(customerPhotos.map(p => p.week))).sort((a, b) => b - a).map(week => (
-                  <div key={week} className="mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-semibold text-white">Week {week}</h3>
-                      <button
-                        className="text-red-400 hover:text-red-300 text-sm"
-                        onClick={() => deleteWeekAndRenumber(week)}
-                      >
-                        Delete Week
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {['front', 'side', 'back'].map(position => {
-                        const photo = customerPhotos.find(p => p.week === week && p.position === position);
-                        return (
-                          <div key={position} className="relative group">
-                            <div className="bg-gray-800 rounded-lg p-4">
-                              <h4 className="text-lg font-medium text-white mb-3 capitalize flex items-center gap-2">
-                                <div className={`w-3 h-3 rounded-full ${
-                                  position === 'front' ? 'bg-green-500' :
-                                  position === 'side' ? 'bg-blue-500' : 'bg-purple-500'
-                                }`}></div>
-                                {position} View
-                              </h4>
-                              {photo ? (
-                                <div className="relative">
-                                  <img
-                                    src={photo.imageUrl}
-                                    alt={`${position} view week ${week}`}
-                                    className="w-full h-64 object-contain bg-gray-900 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                    onClick={() => {
-                                      // Open individual photo view
-                                      setSelectedPhoto(photo);
-                                      setShowPhotoGalleryModal(false);
-                                      // The individual photo viewer will be shown automatically when selectedPhoto is set
-                                    }}
-                                  />
-                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
-                                    <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                                  </div>
-                                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                                    {new Date(photo.date).toLocaleDateString()}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="w-full h-64 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600 flex items-center justify-center">
-                                  <div className="text-center text-gray-400">
-                                    <div className="w-12 h-12 mx-auto mb-2 opacity-50">
-                                      <svg fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                                      </svg>
-                                    </div>
-                                    <p className="text-sm">No {position} photo</p>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+              <div className="mb-6">
+                <p className="text-gray-700 mb-4">
+                  Weet je zeker dat je de <strong>{photoToDelete.position}</strong> foto voor <strong>Week {photoToDelete.week}</strong> wilt verwijderen?
+                </p>
+                <p className="text-sm text-red-600 font-medium">
+                  Deze actie kan niet ongedaan worden gemaakt.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeletePhotoModal(false);
+                    setPhotoToDelete(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Annuleren
+                </button>
+                <button
+                  onClick={handleDeletePhotoConfirm}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Verwijderen
+                </button>
               </div>
             </div>
           </div>
@@ -2432,24 +3396,36 @@ export default function ClientDetailPage() {
               <form onSubmit={async (e) => {
                 e.preventDefault();
                 try {
+                  // Ensure trainingFrequency is a number
+                  const dataToSend = {
+                    ...editFormData,
+                    trainingFrequency: typeof editFormData.trainingFrequency === 'string' 
+                      ? parseInt(editFormData.trainingFrequency, 10) 
+                      : Number(editFormData.trainingFrequency) || 1
+                  };
+                  
+                  console.log('Sending update data:', dataToSend);
+                  
                   const response = await fetch(`/api/users/${clientId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(editFormData)
+                    body: JSON.stringify(dataToSend)
                   });
                   
                   if (response.ok) {
                     const updatedClient = await response.json();
                     setClient(updatedClient);
                     setShowEditClientModal(false);
-                    alert('Client updated successfully!');
+                    // Reload the page to refresh all data
+                    window.location.reload();
                   } else {
                     const errorData = await response.json();
+                    console.error('Update error:', errorData);
                     alert(`Error updating client: ${errorData.error || 'Unknown error'}`);
                   }
                 } catch (error: any) {
                   console.error('Error updating client:', error);
-                  alert(`Error updating client: ${error.message}`);
+                  alert(`Error updating client: ${error.message || 'Please try again'}`);
                 }
               }} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

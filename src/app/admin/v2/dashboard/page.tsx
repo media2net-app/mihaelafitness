@@ -29,7 +29,8 @@ function StatsCard({
   change, 
   icon: Icon, 
   color, 
-  trend = 'up' 
+  trend = 'up',
+  onClick
 }: {
   title: string;
   value: string | number;
@@ -37,6 +38,7 @@ function StatsCard({
   icon: any;
   color: string;
   trend?: 'up' | 'down' | 'neutral';
+  onClick?: () => void;
 }) {
   const getTrendColor = () => {
     switch (trend) {
@@ -46,8 +48,8 @@ function StatsCard({
     }
   };
 
-  return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+  const CardContent = (
+    <>
       <div className="flex items-center justify-between mb-4">
         <div className={`p-3 rounded-xl ${color}`}>
           <Icon className="w-6 h-6 text-white" />
@@ -60,6 +62,23 @@ function StatsCard({
       </div>
       <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{value}</div>
       <div className="text-sm text-gray-500">{title}</div>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md hover:scale-[1.02] transition-all duration-200 active:scale-[0.98] text-left w-full cursor-pointer"
+      >
+        {CardContent}
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+      {CardContent}
     </div>
   );
 }
@@ -197,6 +216,10 @@ function UpcomingSessionsCard({ upcomingSessions }: { upcomingSessions: any[] })
 
 export default function DashboardV2Page() {
   const router = useRouter();
+  
+  const handleCardClick = (route: string) => {
+    router.push(route);
+  };
   const { t } = useLanguage();
   
   const [loading, setLoading] = useState(true);
@@ -226,13 +249,15 @@ export default function DashboardV2Page() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      const startTime = performance.now();
       console.log('🔄 Loading dashboard data...');
-      const response = await fetch(`/api/dashboard/stats?t=${Date.now()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data');
-      }
-      const data = await response.json();
-      console.log('📊 Dashboard data received:', data);
+      
+      // Use cached fetch for better performance
+      const { cachedFetch } = await import('@/lib/cache');
+      const data = await cachedFetch('/api/dashboard/stats', {}, 60000); // 1 minute cache
+      
+      const duration = performance.now() - startTime;
+      console.log(`📊 Dashboard data loaded in ${Math.round(duration)}ms`);
       setStats(data);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -325,7 +350,7 @@ export default function DashboardV2Page() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 lg:gap-6">
             {console.log('🎯 Rendering stats:', stats)}
             <StatsCard
               title="Total Clients"
@@ -334,6 +359,7 @@ export default function DashboardV2Page() {
               icon={Users}
               color="bg-blue-500"
               trend="up"
+              onClick={() => handleCardClick('/admin/clients')}
             />
             <StatsCard
               title="Active Clients"
@@ -342,6 +368,7 @@ export default function DashboardV2Page() {
               icon={CheckCircle}
               color="bg-emerald-500"
               trend="up"
+              onClick={() => handleCardClick('/admin/clients')}
             />
             <StatsCard
               title="Total Sessions"
@@ -350,6 +377,7 @@ export default function DashboardV2Page() {
               icon={Dumbbell}
               color="bg-purple-500"
               trend="up"
+              onClick={() => handleCardClick('/admin/v2/schedule')}
             />
             <StatsCard
               title="Monthly Revenue"
@@ -358,6 +386,7 @@ export default function DashboardV2Page() {
               icon={DollarSign}
               color="bg-green-500"
               trend="up"
+              onClick={() => handleCardClick('/admin/v2/payments')}
             />
             <StatsCard
               title="Nutrition Plans"
@@ -366,6 +395,7 @@ export default function DashboardV2Page() {
               icon={ChefHat}
               color="bg-orange-500"
               trend="up"
+              onClick={() => handleCardClick('/admin/v2/nutrition-plans')}
             />
             <StatsCard
               title="Workouts"
@@ -374,6 +404,7 @@ export default function DashboardV2Page() {
               icon={Activity}
               color="bg-red-500"
               trend="neutral"
+              onClick={() => handleCardClick('/admin/v2/training-schedules')}
             />
           </div>
         </div>
@@ -385,7 +416,7 @@ export default function DashboardV2Page() {
           {/* Quick Actions */}
           <div className="lg:col-span-2">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Quick Actions</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 sm:gap-6">
               {quickActions.map((action, index) => (
                 <QuickActionCard
                   key={index}

@@ -26,9 +26,14 @@ export default function MobileNutritionPlansPage() {
   const [voedingsplannen, setVoedingsplannen] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [planToRename, setPlanToRename] = useState<any>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renamingPlan, setRenamingPlan] = useState(false);
   
   // New plan form state
   const [newPlanForm, setNewPlanForm] = useState({
@@ -44,44 +49,45 @@ export default function MobileNutritionPlansPage() {
   const [selectedIngredients, setSelectedIngredients] = useState([]);
   const [creatingPlan, setCreatingPlan] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        
-        // Load nutrition plans without weekMenu for better performance
-        const plans = await nutritionService.getAllNutritionPlans(false);
-        setVoedingsplannen(plans);
-        
-        // Load customers
-        const customersResponse = await fetch('/api/users');
-        const customersData = await customersResponse.json();
-        // Handle the new API response structure with users array and pagination
-        if (customersData.users && Array.isArray(customersData.users)) {
-          setCustomers(customersData.users);
-        } else if (Array.isArray(customersData)) {
-          // Fallback for old API structure
-          setCustomers(customersData);
-        } else {
-          console.warn('Expected /api/users to return an object with users array. Got:', customersData);
-          setCustomers([]);
-        }
-      } catch (error) {
-        console.error('Error loading data:', error);
-        setVoedingsplannen([]);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load nutrition plans without weekMenu for better performance
+      const plans = await nutritionService.getAllNutritionPlans(false);
+      setVoedingsplannen(plans);
+      
+      // Load customers
+      const customersResponse = await fetch('/api/users');
+      const customersData = await customersResponse.json();
+      // Handle the new API response structure with users array and pagination
+      if (customersData.users && Array.isArray(customersData.users)) {
+        setCustomers(customersData.users);
+      } else if (Array.isArray(customersData)) {
+        // Fallback for old API structure
+        setCustomers(customersData);
+      } else {
+        console.warn('Expected /api/users to return an object with users array. Got:', customersData);
         setCustomers([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setVoedingsplannen([]);
+      setCustomers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadData();
   }, []);
 
   const filteredPlans = voedingsplannen.filter(plan => {
     const matchesGoal = selectedGoal === 'all' || plan.goal === selectedGoal;
+    const descriptionText = (plan.description || '').toLowerCase();
     const matchesSearch = plan.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         plan.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         descriptionText.includes(searchTerm.toLowerCase());
     
     // Filter by customer name
     const matchesCustomer = selectedCustomer === 'all' || 
@@ -106,12 +112,17 @@ export default function MobileNutritionPlansPage() {
 
   const handleDeletePlan = async (plan: any) => {
     if (window.confirm('Are you sure you want to delete this nutrition plan?')) {
+      setDeletingPlanId(plan.id);
       try {
         await nutritionService.deleteNutritionPlan(plan.id);
-        setVoedingsplannen(voedingsplannen.filter(p => p.id !== plan.id));
+        // Reload data from server to ensure consistency
+        // This ensures customerNutritionPlans and other derived values are correct
+        await loadData();
       } catch (error) {
         console.error('Error deleting nutrition plan:', error);
         alert('Error deleting nutrition plan');
+      } finally {
+        setDeletingPlanId(null);
       }
     }
   };
@@ -247,6 +258,34 @@ export default function MobileNutritionPlansPage() {
     }
   };
 
+  const handleRenamePlan = (plan: any) => {
+    setPlanToRename(plan);
+    setRenameValue(plan?.name || '');
+    setShowRenameModal(true);
+  };
+
+  const handleConfirmRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!planToRename || !renameValue.trim()) return;
+    setRenamingPlan(true);
+    try {
+      const updated = await nutritionService.updateNutritionPlan(planToRename.id, {
+        name: renameValue.trim()
+      });
+      setVoedingsplannen(prev =>
+        prev.map(plan => (plan.id === planToRename.id ? { ...plan, ...updated } : plan))
+      );
+      setShowRenameModal(false);
+      setPlanToRename(null);
+      setRenameValue('');
+    } catch (error) {
+      console.error('Error renaming nutrition plan:', error);
+      alert('Failed to rename nutrition plan');
+    } finally {
+      setRenamingPlan(false);
+    }
+  };
+
   const handleRemoveAssignment = async (plan: any, assignment: any) => {
     if (window.confirm('Are you sure you want to remove this assignment?')) {
       try {
@@ -303,6 +342,17 @@ export default function MobileNutritionPlansPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Loading Overlay */}
+      {deletingPlanId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 flex flex-col items-center gap-4 shadow-xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+            <p className="text-gray-700 font-medium">Verwijderen van mealplan...</p>
+            <p className="text-sm text-gray-500">Even geduld alstublieft</p>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Nutrition Plans</h1>
@@ -437,7 +487,8 @@ export default function MobileNutritionPlansPage() {
                   </button>
                   <button
                     onClick={() => handleDeletePlan(plan)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                    disabled={deletingPlanId !== null}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -483,7 +534,10 @@ export default function MobileNutritionPlansPage() {
                   <Eye className="w-4 h-4" />
                   View Plan
                 </button>
-                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200">
+                <button
+                  onClick={() => handleRenamePlan(plan)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200"
+                >
                   <Edit className="w-4 h-4" />
                 </button>
               </div>
@@ -624,6 +678,70 @@ export default function MobileNutritionPlansPage() {
                     </>
                   ) : (
                     'Create Plan'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Plan Modal */}
+      {showRenameModal && planToRename && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">Rename Nutrition Plan</h3>
+                <p className="text-sm text-gray-500 mt-1">{planToRename.name}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowRenameModal(false);
+                  setPlanToRename(null);
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmRename} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">New Plan Name</label>
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  placeholder="Enter plan name"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRenameModal(false);
+                    setPlanToRename(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={renamingPlan || !renameValue.trim()}
+                  className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {renamingPlan ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
                   )}
                 </button>
               </div>

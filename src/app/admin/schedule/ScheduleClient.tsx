@@ -142,7 +142,7 @@ export default function ScheduleClient({
     const timeInMinutes = timeToMinutes(timeSlot);
     const dayOfWeek = new Date(date).getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     
-    // Lunch break: 12:30-13:00 (always applies)
+    // Lunch break: 12:30-13:00 (always applies except Friday and Saturday)
     const lunchBreakStart = 12 * 60 + 30;  // 12:30
     const lunchBreakEnd = 13 * 60 + 0;     // 13:00
     
@@ -155,11 +155,9 @@ export default function ScheduleClient({
       return true; // All time slots unavailable on Sunday
     }
     
-    // Friday (5) and Saturday (6): lunch break and evening break apply
+    // Friday (5) and Saturday (6): no breaks (removed as requested)
     if (dayOfWeek === 5 || dayOfWeek === 6) {
-      const isLunchBreak = timeInMinutes > lunchBreakStart && timeInMinutes < lunchBreakEnd;
-      const isEveningBreak = timeInMinutes >= eveningBreakStart && timeInMinutes < eveningBreakEnd;
-      return isLunchBreak || isEveningBreak;
+      return false; // No breaks on Friday and Saturday
     }
     
     // Monday (1) to Thursday (4): only lunch break applies
@@ -179,9 +177,11 @@ export default function ScheduleClient({
     const startTimeInMinutes = startHours * 60 + startMinutes;
     const endTimeInMinutes = startTimeInMinutes + (duration * 60);
     
-    // Check for conflicts with existing sessions
+    // Check for conflicts with existing scheduled sessions only
     return !sessions.some(session => {
       if (session.date !== date) return false;
+      // Only consider scheduled sessions for conflicts (ignore cancelled/completed)
+      if (session.status !== 'scheduled') return false;
       
       const [sessionStartHours, sessionStartMinutes] = session.startTime.split(':').map(Number);
       const [sessionEndHours, sessionEndMinutes] = session.endTime.split(':').map(Number);
@@ -207,8 +207,29 @@ export default function ScheduleClient({
     const loadScheduleData = async () => {
       try {
         // Use optimized API endpoint that gets all data in one request
-        const startDate = currentWeekDates[0].toISOString().split('T')[0];
-        const endDate = currentWeekDates[5].toISOString().split('T')[0];
+        // Include all 6 days: Monday (0) through Saturday (5)
+        // Use consistent date formatting to avoid timezone issues
+        const mondayDate = currentWeekDates[0];
+        const saturdayDate = currentWeekDates[5] || currentWeekDates[currentWeekDates.length - 1];
+        
+        // Format dates using local date parts to avoid timezone shifts
+        const formatDateForAPI = (date: Date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+        
+        const startDate = formatDateForAPI(mondayDate);
+        const endDate = formatDateForAPI(saturdayDate);
+        
+        console.log(`🔍 ScheduleClient: Loading schedule data: startDate=${startDate}, endDate=${endDate}`);
+        console.log(`📅 Week dates array:`, currentWeekDates.map(d => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }));
         
         const response = await fetch(`/api/schedule/overview?startDate=${startDate}&endDate=${endDate}`);
         const data = await response.json();
@@ -227,6 +248,25 @@ export default function ScheduleClient({
               customerName: (session.customerName || 'Unknown Customer').replace(/ completed?/gi, '').trim()
             };
           });
+          
+          // Debug: Log sessions for Saturday Nov 8 - ALWAYS log to console
+          console.log(`🔍 ScheduleClient: Loading schedule data for ${startDate} to ${endDate}`);
+          console.log(`📊 Total sessions received from API: ${data.sessions?.length || 0}`);
+          console.log(`📋 Raw sessions data:`, data.sessions);
+          
+          const saturdaySessions = transformedSessions.filter((s: any) => s.date === '2025-11-08' || s.date?.includes('2025-11-08'));
+          console.log(`🔍 Sessions matching '2025-11-08':`, saturdaySessions);
+          
+          // Also check for any sessions with dates close to Nov 8
+          const allDates = transformedSessions.map((s: any) => s.date).filter((d: string, i: number, arr: string[]) => arr.indexOf(d) === i);
+          console.log(`📅 All unique dates in sessions:`, allDates);
+          
+          if (saturdaySessions.length > 0) {
+            console.log(`✅ ScheduleClient: Found ${saturdaySessions.length} sessions for Saturday Nov 8:`, saturdaySessions.map((s: any) => `${s.startTime}-${s.endTime} ${s.customerName} (${s.status})`));
+          } else {
+            console.log(`⚠️ ScheduleClient: No sessions found for Saturday Nov 8. Total sessions loaded: ${transformedSessions.length}`);
+            console.log(`📋 Checking date formats - First 5 sessions:`, transformedSessions.slice(0, 5).map((s: any) => ({ date: s.date, startTime: s.startTime, customer: s.customerName })));
+          }
           
           setSessions(transformedSessions);
           
@@ -282,13 +322,39 @@ export default function ScheduleClient({
   };
 
   const getSessionsForDayAndTime = useCallback((date: Date, timeSlot: string) => {
-    const dateStr = date.toISOString().split('T')[0];
+    // Use consistent date formatting - get local date parts to avoid timezone issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
     
-    // Debug logs removed for performance
+    // Debug: Log for Saturday November 8 - ALWAYS log
+    if (dateStr === '2025-11-08') {
+      console.log(`🔍 getSessionsForDayAndTime: Looking for sessions on ${dateStr} at ${timeSlot}`);
+      console.log(`📊 Total sessions in state:`, sessions.length);
+      
+      // Check all sessions and their dates
+      const saturdaySessions = sessions.filter(s => {
+        const match = s.date === dateStr || s.date?.includes('2025-11-08') || s.date?.includes('2025-11-07');
+        if (match) {
+          console.log(`📋 Session date match:`, { sessionDate: s.date, lookingFor: dateStr, customer: s.customerName, time: s.startTime });
+        }
+        return match;
+      });
+      console.log(`📋 Sessions potentially for ${dateStr}:`, saturdaySessions.map(s => ({ date: s.date, time: s.startTime, customer: s.customerName })));
+    }
     
     // Get all training sessions (scheduled, completed, cancelled, no-show)
     const actualSessions = sessions.filter(session => {
-      if (session.date !== dateStr) {
+      // Normalize session date to match format
+      const sessionDateStr = session.date;
+      
+      // Debug: Log date comparison for Saturday
+      if (dateStr === '2025-11-08') {
+        console.log(`🔍 Comparing dates: sessionDate="${sessionDateStr}" vs lookingFor="${dateStr}" - Match: ${sessionDateStr === dateStr}`);
+      }
+      
+      if (sessionDateStr !== dateStr) {
         return false;
       }
       
@@ -298,12 +364,17 @@ export default function ScheduleClient({
       const timeSlotMinutes = timeToMinutes(timeSlot);
       
       // Show session if it's active during this time slot (starts before or at timeSlot, ends after timeSlot)
-      return sessionStartMinutes <= timeSlotMinutes && sessionEndMinutes > timeSlotMinutes;
+      const isActive = sessionStartMinutes <= timeSlotMinutes && sessionEndMinutes > timeSlotMinutes;
+      
+      if (dateStr === '2025-11-08' && isActive) {
+        console.log(`✅ FOUND ACTIVE SESSION: ${session.startTime}-${session.endTime} for ${timeSlot} - ${session.customerName} (${session.status})`);
+      }
+      
+      return isActive;
     });
 
-    // DEBUG: Log sessions found for specific time slot
-    if (dateStr === '2025-10-03' && timeSlot === '14:00') {
-      // Debug logs removed for performance
+    if (dateStr === '2025-11-08' && timeSlot === '08:30') {
+      console.log(`📊 FINAL RESULT for ${dateStr} at ${timeSlot}:`, actualSessions.length, 'sessions found:', actualSessions.map(s => `${s.startTime}-${s.endTime} ${s.customerName}`));
     }
 
     return actualSessions;

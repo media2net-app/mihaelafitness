@@ -104,39 +104,41 @@ export async function POST(request: NextRequest) {
       const createdSessions = [];
       
       for (const sessionData of data.sessions) {
-        // Block Fridays
+        // Block Sundays only (Sunday = 0)
         const sessionDateObj = new Date(sessionData.date);
-        if (sessionDateObj.getDay() === 5) {
+        if (sessionDateObj.getDay() === 0) {
           return NextResponse.json(
-            { error: 'Fridays are closed. Please choose another day.' },
+            { error: 'Sundays are closed. Please choose another day.' },
             { status: 400 }
           );
         }
-        // Check for conflicting sessions
-        const conflictingSession = await prisma.trainingSession.findFirst({
+        // Check for conflicting sessions (only scheduled sessions)
+        // Use date range to handle timezone issues properly
+        const targetDate = new Date(sessionData.date);
+        const startOfDay = new Date(targetDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(targetDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        // Fetch scheduled sessions and check overlap in JavaScript
+        const scheduledSessions = await prisma.trainingSession.findMany({
           where: {
-            date: new Date(sessionData.date),
-            OR: [
-              {
-                AND: [
-                  { startTime: { lte: sessionData.startTime } },
-                  { endTime: { gt: sessionData.startTime } }
-                ]
-              },
-              {
-                AND: [
-                  { startTime: { lt: sessionData.endTime } },
-                  { endTime: { gte: sessionData.endTime } }
-                ]
-              },
-              {
-                AND: [
-                  { startTime: { gte: sessionData.startTime } },
-                  { endTime: { lte: sessionData.endTime } }
-                ]
-              }
-            ]
+            date: {
+              gte: startOfDay,
+              lte: endOfDay
+            },
+            status: 'scheduled'
+          },
+          select: {
+            id: true,
+            startTime: true,
+            endTime: true
           }
+        });
+        
+        // Check for overlaps using string time comparison
+        const conflictingSession = scheduledSessions.find(session => {
+          return sessionData.startTime < session.endTime && sessionData.endTime > session.startTime;
         });
 
         if (!conflictingSession) {
@@ -164,47 +166,98 @@ export async function POST(request: NextRequest) {
     }
     
     // Handle single session
-    // Block Fridays
+    // Block Sundays only (Sunday = 0)
     const singleDateObj = new Date(data.date);
-    if (singleDateObj.getDay() === 5) {
+    if (singleDateObj.getDay() === 0) {
       return NextResponse.json(
-        { error: 'Fridays are closed. Please choose another day.' },
+        { error: 'Sundays are closed. Please choose another day.' },
         { status: 400 }
       );
     }
-    // Check for conflicting sessions
-    const conflictingSession = await prisma.trainingSession.findFirst({
+    // Check for conflicting sessions (only scheduled sessions)
+    // Use date range to handle timezone issues properly
+    const targetDate = new Date(data.date);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    // Simplified overlap check: two time ranges overlap if 
+    // startTime < otherEndTime AND endTime > otherStartTime
+    // Fetch scheduled sessions and check overlap in JavaScript for better control
+    const scheduledSessionsForDate = await prisma.trainingSession.findMany({
       where: {
-        date: new Date(data.date),
-        OR: [
-          {
-            AND: [
-              { startTime: { lte: data.startTime } },
-              { endTime: { gt: data.startTime } }
-            ]
-          },
-          {
-            AND: [
-              { startTime: { lt: data.endTime } },
-              { endTime: { gte: data.endTime } }
-            ]
-          },
-          {
-            AND: [
-              { startTime: { gte: data.startTime } },
-              { endTime: { lte: data.endTime } }
-            ]
-          }
-        ]
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        },
+        status: 'scheduled'
+      },
+      select: {
+        id: true,
+        startTime: true,
+        endTime: true,
+        type: true,
+        customerId: true,
+        status: true
       }
+    });
+    
+    // Debug logging - check ALL sessions first to see what's in the database
+    const allSessionsForDate = await prisma.trainingSession.findMany({
+      where: {
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      },
+      select: {
+        id: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        type: true,
+        customerId: true
+      }
+    });
+    
+    console.log(`🔍 DEBUG: Attempting to book ${data.date} ${data.startTime}-${data.endTime}`);
+    console.log(`📋 ALL sessions (any status) for ${data.date}:`, JSON.stringify(allSessionsForDate, null, 2));
+    console.log(`📋 Scheduled sessions for ${data.date}:`, JSON.stringify(scheduledSessionsForDate, null, 2));
+    
+    // Check for overlaps using string time comparison
+    const conflictingSession = scheduledSessionsForDate.find(session => {
+      // Two time ranges overlap if: startTime < otherEndTime AND endTime > otherStartTime
+      const hasOverlap = data.startTime < session.endTime && data.endTime > session.startTime;
+      if (hasOverlap) {
+        console.log(`⚠️ Overlap detected: ${data.startTime}-${data.endTime} overlaps with ${session.startTime}-${session.endTime} (${session.status})`);
+      }
+      return hasOverlap;
     });
 
     if (conflictingSession) {
+      console.log(`❌ CONFLICT FOUND:`, JSON.stringify(conflictingSession, null, 2));
       return NextResponse.json(
-        { error: 'Time slot conflict: Another session already exists during this time' },
+        { 
+          error: `Time slot conflict: Another scheduled session exists (${conflictingSession.startTime}-${conflictingSession.endTime}, ID: ${conflictingSession.id})`,
+          conflictingSession: {
+            id: conflictingSession.id,
+            startTime: conflictingSession.startTime,
+            endTime: conflictingSession.endTime,
+            status: conflictingSession.status,
+            type: conflictingSession.type
+          },
+          debug: {
+            requestedTime: `${data.startTime}-${data.endTime}`,
+            allSessionsOnDate: allSessionsForDate.length,
+            scheduledSessionsOnDate: scheduledSessionsForDate.length
+          }
+        },
         { status: 400 }
       );
     }
+    
+    console.log(`✅ No conflicts found for ${data.date} ${data.startTime}-${data.endTime}, proceeding with booking`);
 
     const trainingSession = await prisma.trainingSession.create({
       data: {
@@ -237,11 +290,22 @@ export async function PUT(request: NextRequest) {
   try {
     const data = await request.json();
     
-    // Check for conflicting sessions (excluding current session)
+    // Check for conflicting sessions (excluding current session, only scheduled sessions)
+    // Use date range to handle timezone issues properly
+    const targetDate = new Date(data.date);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
     const conflictingSession = await prisma.trainingSession.findFirst({
       where: {
         id: { not: data.id },
-        date: new Date(data.date),
+        date: {
+          gte: startOfDay,
+          lte: endOfDay
+        },
+        status: 'scheduled', // Only check conflicts with scheduled sessions
         OR: [
           {
             AND: [

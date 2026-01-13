@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
         date: {
           gte: startOfDay,
           lte: endOfDay
-        }
+        },
+        status: 'scheduled' // Only consider scheduled sessions for conflicts
       },
       select: {
         startTime: true,
@@ -73,11 +74,12 @@ export async function GET(request: NextRequest) {
     };
 
     // Break windows to exclude from booking
-    const breaks = [
-      { start: '12:30', end: '14:00' },
-      { start: '17:00', end: '17:30' },
-      { start: '17:30', end: '19:00' },
-    ];
+    // No breaks on Friday (5) and Saturday (6)
+    const breaks: Array<{ start: string; end: string }> = [];
+    if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+      // Only apply lunch break on Monday-Thursday (not Friday/Saturday)
+      breaks.push({ start: '12:30', end: '13:00' });
+    }
 
     // Generate all possible 30-minute time slots for intake consultations
     const timeSlots = [] as Array<{ start: string; end: string; available: boolean }>;
@@ -99,7 +101,7 @@ export async function GET(request: NextRequest) {
       // Check break overlap
       const isInBreak = breaks.some(b => timeString < b.end && endTimeString > b.start);
 
-      // Check conflicts with existing sessions (any status)
+      // Check conflicts with existing scheduled sessions only
       const conflictingSession = existingSessions.find(session => (
         timeString < session.endTime && endTimeString > session.startTime
       ));

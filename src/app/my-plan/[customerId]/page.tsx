@@ -362,6 +362,55 @@ export default function MyPlanPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [nutritionPlan, days]);
 
+  // Common fallback translations for ingredients that might not exist in DB map
+  const fallbackIngredientTranslations: Record<string, string> = useMemo(() => ({
+    'beef': 'Carne de vită',
+    'chicken breast': 'Piept de pui',
+    'turkey breast': 'Piept de curcan',
+    'pork': 'Carne de porc',
+    'salmon': 'Somon',
+    'tuna': 'Ton',
+    'egg': 'Ou',
+    'eggs': 'Ouă',
+    'egg whites': 'Albuș de ou',
+    'avocado': 'Avocado',
+    'banana': 'Banană',
+    'blueberries': 'Afine',
+    'raspberries': 'Zmeură',
+    'strawberries': 'Capsuni',
+    'mango': 'Mango',
+    'apple': 'Măr',
+    'bell pepper': 'Ardei gras',
+    'broccoli': 'Broccoli',
+    'carrot': 'Morcov',
+    'cucumber': 'Castravete',
+    'zucchini': 'Dovlecel',
+    'tomato': 'Roșie',
+    'spinach': 'Spanac',
+    'green beans': 'Fasole verde',
+    'sweet potato': 'Cartof dulce',
+    'brown rice (cooked)': 'Orez brun (gătit)',
+    'brown rice': 'Orez brun',
+    'rice cake': 'Cracker de orez',
+    'greek yogurt': 'Iaurt grecesc',
+    'cottage cheese': 'Brânză cottage',
+    'cheddar cheese': 'Cașcaval Cheddar',
+    'feta cheese': 'Brânză feta',
+    'almonds': 'Migdale',
+    'walnuts': 'Nuci',
+    'peanut butter': 'Unt de arahide',
+    'olive oil': 'Ulei de măsline',
+    'baking powder': 'Praf de copt',
+    'protein powder': 'Pudră proteică',
+    'whole wheat bread': 'Pâine integrală',
+    'wrap whole wheat (60 grame)': 'Lipit integral (60 g)',
+    'couscous': 'Cuscus',
+    'bulgur (cooked)': 'Bulgur (gătit)',
+    'pasta (cooked)': 'Paste (gătite)',
+    'wholemeal pasta': 'Paste integrale',
+    'tagliatelle': 'Tagliatelle'
+  }), []);
+
   // Get Romanian translations from the nutrition plan data (already loaded)
   const ingredientTranslationsMap = useMemo(() => {
     if (!nutritionPlan) {
@@ -373,6 +422,8 @@ export default function MyPlanPage() {
   // Helper function to get Romanian ingredient name from translation map
   const getIngredientName = (englishName: string): string => {
     // Try exact match first
+    const normalized = (value: string) => value?.toLowerCase().trim();
+
     let translation = ingredientTranslationsMap[englishName];
     if (translation) {
       return translation;
@@ -397,9 +448,380 @@ export default function MyPlanPage() {
         return translation;
       }
     }
-    
+
+    const normalizedBase = normalized(withoutNumber || englishName);
+    if (normalizedBase && fallbackIngredientTranslations[normalizedBase]) {
+      return fallbackIngredientTranslations[normalizedBase];
+    }
+
     // If no translation found, return original English name
     return englishName;
+  };
+
+  // Helper function to translate cooking instructions from English to Romanian
+  const translateInstructions = (instructions: string): string => {
+    if (!instructions || instructions.trim() === '') {
+      return instructions;
+    }
+
+    // Try to detect if instructions are already in Romanian
+    // Romanian has specific characters like ă, â, î, ș, ț
+    const hasRomanianChars = /[ăâîșțĂÂÎȘȚ]/.test(instructions);
+    
+    // If already in Romanian, return as-is
+    if (hasRomanianChars) {
+      return instructions;
+    }
+
+    // Split instructions by newlines to handle multi-line instructions
+    const normalizedText = instructions
+      .replace(/\\n/g, '\n')
+      .replace(/\\\\n/g, '\n');
+    const instructionLines = normalizedText.split(/\n+/);
+    
+    // Common cooking instruction translations EN -> RO
+    const translations: { [key: string]: string } = {
+      'Cook': 'Gătește',
+      'cook': 'gătește',
+      'Cook until': 'Gătește până',
+      'cook until': 'gătește până',
+      'Heat': 'Încălzește',
+      'heat': 'încălzește',
+      'Heat up': 'Încălzește',
+      'heat up': 'încălzește',
+      'Mix': 'Amestecă',
+      'mix': 'amestecă',
+      'Mix well': 'Amestecă bine',
+      'mix well': 'amestecă bine',
+      'Stir': 'Amestecă',
+      'stir': 'amestecă',
+      'Stir well': 'Amestecă bine',
+      'stir well': 'amestecă bine',
+      'Add': 'Adaugă',
+      'add': 'adaugă',
+      'Add to': 'Adaugă la',
+      'add to': 'adaugă la',
+      'Season': 'Condimentează',
+      'season': 'condimentează',
+      'Season with': 'Condimentează cu',
+      'season with': 'condimentează cu',
+      'Serve': 'Serveste',
+      'serve': 'serveste',
+      'Serve with': 'Serveste cu',
+      'serve with': 'serveste cu',
+      'Bake': 'Coace',
+      'bake': 'coace',
+      'Bake for': 'Coace timp de',
+      'bake for': 'coace timp de',
+      'Fry': 'Prăjește',
+      'fry': 'prăjește',
+      'Fry until': 'Prăjește până',
+      'fry until': 'prăjește până',
+      'Boil': 'Fierbe',
+      'boil': 'fierbe',
+      'Boil for': 'Fierbe timp de',
+      'boil for': 'fierbe timp de',
+      'Simmer': 'Fierbe la foc mic',
+      'simmer': 'fierbe la foc mic',
+      'Simmer for': 'Fierbe la foc mic timp de',
+      'simmer for': 'fierbe la foc mic timp de',
+      'Grill': 'Grătar',
+      'grill': 'grătar',
+      'Grill for': 'Grătar timp de',
+      'grill for': 'grătar timp de',
+      'Roast': 'Coace',
+      'roast': 'coace',
+      'Roast for': 'Coace timp de',
+      'roast for': 'coace timp de',
+      'Steam': 'Abur',
+      'steam': 'abur',
+      'Steam for': 'Abur timp de',
+      'steam for': 'abur timp de',
+      'Chop': 'Taie',
+      'chop': 'taie',
+      'Chop finely': 'Taie mărunt',
+      'chop finely': 'taie mărunt',
+      'Dice': 'Taie cuburi',
+      'dice': 'taie cuburi',
+      'Slice': 'Taie felii',
+      'slice': 'taie felii',
+      'Cut': 'Taie',
+      'cut': 'taie',
+      'Cut into': 'Taie în',
+      'cut into': 'taie în',
+      'Peel': 'Cojește',
+      'peel': 'cojește',
+      'Grate': 'Raze',
+      'grate': 'raze',
+      'Mash': 'Pisează',
+      'mash': 'pisează',
+      'Whisk': 'Bată',
+      'whisk': 'bată',
+      'Beat': 'Bată',
+      'beat': 'bată',
+      'Blend': 'Mixează',
+      'blend': 'mixează',
+      'Blend until': 'Mixează până',
+      'blend until': 'mixează până',
+      'Marinate': 'Marinează',
+      'marinate': 'marinează',
+      'Marinate for': 'Marinează timp de',
+      'marinate for': 'marinează timp de',
+      'Preheat': 'Preîncălzește',
+      'preheat': 'preîncălzește',
+      'Preheat oven': 'Preîncălzește cuptorul',
+      'preheat oven': 'preîncălzește cuptorul',
+      'Preheat the oven': 'Preîncălzește cuptorul',
+      'preheat the oven': 'preîncălzește cuptorul',
+      'Remove': 'Scoate',
+      'remove': 'scoate',
+      'Remove from': 'Scoate din',
+      'remove from': 'scoate din',
+      'Place': 'Pune',
+      'place': 'pune',
+      'Place in': 'Pune în',
+      'place in': 'pune în',
+      'Cover': 'Acoperă',
+      'cover': 'acoperă',
+      'Cover with': 'Acoperă cu',
+      'cover with': 'acoperă cu',
+      'Let rest': 'Lasă să se odihnească',
+      'let rest': 'lasă să se odihnească',
+      'Let it rest': 'Lasă să se odihnească',
+      'let it rest': 'lasă să se odihnească',
+      'Rest for': 'Lasă să se odihnească timp de',
+      'rest for': 'lasă să se odihnească timp de',
+      'Set aside': 'Pune deoparte',
+      'set aside': 'pune deoparte',
+      'Set aside for': 'Pune deoparte timp de',
+      'set aside for': 'pune deoparte timp de',
+      'Until golden': 'Până devine auriu',
+      'until golden': 'până devine auriu',
+      'Until golden brown': 'Până devine auriu',
+      'until golden brown': 'până devine auriu',
+      'Until tender': 'Până devine moale',
+      'until tender': 'până devine moale',
+      'Until cooked': 'Până este gata',
+      'until cooked': 'până este gata',
+      'Until done': 'Până este gata',
+      'until done': 'până este gata',
+      'For about': 'Timp de aproximativ',
+      'for about': 'timp de aproximativ',
+      'For': 'Timp de',
+      'for': 'timp de',
+      'Minutes': 'minute',
+      'minutes': 'minute',
+      'Minute': 'minut',
+      'minute': 'minut',
+      'Hour': 'oră',
+      'hour': 'oră',
+      'Hours': 'ore',
+      'hours': 'ore',
+      'With': 'Cu',
+      'with': 'cu',
+      'And': 'Și',
+      'and': 'și',
+      'Or': 'Sau',
+      'or': 'sau',
+      'Then': 'Apoi',
+      'then': 'apoi',
+      'After': 'După',
+      'after': 'după',
+      'Before': 'Înainte',
+      'before': 'înainte',
+      'While': 'În timp ce',
+      'while': 'în timp ce',
+      'During': 'În timpul',
+      'during': 'în timpul',
+      'Over': 'Peste',
+      'over': 'peste',
+      'Under': 'Sub',
+      'under': 'sub',
+      'On': 'Pe',
+      'on': 'pe',
+      'In': 'În',
+      'in': 'în',
+      'At': 'La',
+      'at': 'la',
+      'To': 'La',
+      'to': 'la',
+      'Of': 'De',
+      'of': 'de',
+      'The': 'În',
+      'the': 'în',
+      'A': 'Un',
+      'a': 'un',
+      'An': 'O',
+      'an': 'o',
+      'Medium heat': 'Foc mediu',
+      'medium heat': 'foc mediu',
+      'Low heat': 'Foc mic',
+      'low heat': 'foc mic',
+      'High heat': 'Foc mare',
+      'high heat': 'foc mare',
+      'Medium-high heat': 'Foc mediu-mare',
+      'medium-high heat': 'foc mediu-mare',
+      'Low-medium heat': 'Foc mic-mediu',
+      'low-medium heat': 'foc mic-mediu',
+      'Oven': 'Cuptor',
+      'oven': 'cuptor',
+      'The oven': 'Cuptorul',
+      'the oven': 'cuptorul',
+      'Pan': 'Tigaie',
+      'pan': 'tigaie',
+      'The pan': 'Tigaia',
+      'the pan': 'tigaia',
+      'Pot': 'Oală',
+      'pot': 'oală',
+      'The pot': 'Oala',
+      'the pot': 'oala',
+      'Skillet': 'Tigaie',
+      'skillet': 'tigaie',
+      'The skillet': 'Tigaia',
+      'the skillet': 'tigaia',
+      'Bowl': 'Bol',
+      'bowl': 'bol',
+      'The bowl': 'Bolul',
+      'the bowl': 'bolul',
+      'Plate': 'Farfurie',
+      'plate': 'farfurie',
+      'The plate': 'Farfuria',
+      'the plate': 'farfuria',
+      'Salt': 'Sare',
+      'salt': 'sare',
+      'Pepper': 'Piper',
+      'pepper': 'piper',
+      'Olive oil': 'Ulei de măsline',
+      'olive oil': 'ulei de măsline',
+      'Vegetable oil': 'Ulei vegetal',
+      'vegetable oil': 'ulei vegetal',
+      'Butter': 'Unt',
+      'butter': 'unt',
+      'Garlic': 'Usturoi',
+      'garlic': 'usturoi',
+      'Onion': 'Ceapă',
+      'onion': 'ceapă',
+      'Water': 'Apă',
+      'water': 'apă',
+      'Hot water': 'Apă fierbinte',
+      'hot water': 'apă fierbinte',
+      'Cold water': 'Apă rece',
+      'cold water': 'apă rece',
+      'Room temperature': 'Temperatură cameră',
+      'room temperature': 'temperatură cameră',
+      'At room temperature': 'La temperatură cameră',
+      'at room temperature': 'la temperatură cameră',
+      'Degrees': 'grade',
+      'degrees': 'grade',
+      'Degree': 'grad',
+      'degree': 'grad',
+      'Celsius': 'Celsius',
+      'celsius': 'celsius',
+      'Fahrenheit': 'Fahrenheit',
+      'fahrenheit': 'fahrenheit',
+      'C': 'C',
+      'F': 'F',
+      'Until': 'Până',
+      'until': 'până',
+      'Sauté': 'Prăjește',
+      'sauté': 'prăjește',
+      'Sauté until': 'Prăjește până',
+      'sauté until': 'prăjește până',
+      'Warm': 'Încălzește',
+      'warm': 'încălzește',
+      'Warm the': 'Încălzește',
+      'warm the': 'încălzește',
+      'Spread': 'Întinde',
+      'spread': 'întinde',
+      'Spread on': 'Întinde pe',
+      'spread on': 'întinde pe',
+      'Roll': 'Rulare',
+      'roll': 'rulare',
+      'Roll tightly': 'Rulare strâns',
+      'roll tightly': 'rulare strâns',
+      'Tightly': 'Strâns',
+      'tightly': 'strâns',
+      'Tender': 'Moale',
+      'tender': 'moale',
+      'Lean': 'Slab',
+      'lean': 'slab',
+      'Lean beef': 'Carne de vită slabă',
+      'lean beef': 'carne de vită slabă',
+      'Bell pepper': 'Ardei gras',
+      'bell pepper': 'ardei gras',
+      'Bell peppers': 'Ardei grași',
+      'bell peppers': 'ardei grași',
+      'Mushrooms': 'Ciuperci',
+      'mushrooms': 'ciuperci',
+      'Mushroom': 'Ciupercă',
+      'mushroom': 'ciupercă',
+      'Tomatoes': 'Roșii',
+      'tomatoes': 'roșii',
+      'Tomato': 'Roșie',
+      'tomato': 'roșie',
+      'Whole wheat wrap': 'Înveliș integral',
+      'whole wheat wrap': 'înveliș integral',
+      'Whole wheat': 'Integral',
+      'whole wheat': 'integral',
+      'Wrap': 'Înveliș',
+      'wrap': 'înveliș',
+      'Mashed avocado': 'Avocado piure',
+      'mashed avocado': 'avocado piure',
+      'Mashed': 'Piure',
+      'mashed': 'piure',
+      'Avocado': 'Avocado',
+      'avocado': 'avocado',
+      'Shredded': 'Ras',
+      'shredded': 'ras',
+      'Shredded cheddar cheese': 'Brânză cheddar rasă',
+      'shredded cheddar cheese': 'brânză cheddar rasă',
+      'Cheddar cheese': 'Brânză cheddar',
+      'cheddar cheese': 'brânză cheddar',
+      'Mixed greens': 'Salată mixtă',
+      'mixed greens': 'salată mixtă',
+      'Mixed': 'Mixt',
+      'mixed': 'mixt',
+      'Greens': 'Salată',
+      'greens': 'salată',
+      'Herbs': 'Ierburi',
+      'herbs': 'ierburi',
+      'Herb': 'Iarbă',
+      'herb': 'iarbă',
+      'Seasoned': 'Condimentat',
+      'seasoned': 'condimentat',
+      'Seasoned with': 'Condimentat cu',
+      'seasoned with': 'condimentat cu',
+      'Seconds': 'Secunde',
+      'seconds': 'secunde',
+      'Second': 'Secundă',
+      'second': 'secundă',
+      '30 seconds': '30 de secunde',
+      '30 Seconds': '30 de secunde',
+      '30 Second': '30 de secunde',
+      '30 second': '30 de secunde',
+    };
+
+    // Translate each line
+    const translatedLines = instructionLines.map(line => {
+      let translated = line;
+      
+      // Remove quantities first
+          translated = translated
+            .replace(/\d+(?:\.\d+)?\s*(?:g|gram|grams|ml|milliliter|milliliters|kg|kilogram|kilograms|piece|pieces|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|scoop|scoops)?\s*/gi, '')
+            .trim();
+
+      // Apply translations (longer phrases first to avoid partial matches)
+      const sortedKeys = Object.keys(translations).sort((a, b) => b.length - a.length);
+      sortedKeys.forEach(english => {
+        const romanian = translations[english];
+        const regex = new RegExp(`\\b${english.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+        translated = translated.replace(regex, romanian);
+      });
+
+      return translated;
+    });
+
+    return translatedLines.join('\n').replace(/\n+/g, '\n');
   };
 
   if (loading) {
@@ -634,7 +1056,7 @@ export default function MyPlanPage() {
                           <div className="text-sm font-bold text-orange-800">Instrucțiuni de gătit - {mealTitle}</div>
                         </div>
                         <div className="text-sm text-gray-800 whitespace-pre-line leading-relaxed bg-white rounded p-3 border border-orange-100">
-                          {cookingInstructions}
+                          {translateInstructions(cookingInstructions)}
                         </div>
                       </div>
                     )}
@@ -669,7 +1091,9 @@ export default function MyPlanPage() {
             ) : (
               <div className="space-y-2">
                 {shoppingList.map((item, index) => {
-                  const itemKey = `${item.name}-${item.unit}`;
+                  const translatedName = getIngredientName(item.name);
+                  const translatedUnit = translateUnit(item.unit);
+                  const itemKey = `${translatedName}-${translatedUnit}`;
                   const isChecked = checkedItems[itemKey] || false;
 
                   return (
@@ -693,12 +1117,12 @@ export default function MyPlanPage() {
                       </button>
                       <div className="flex-1">
                         <span className={`font-medium ${isChecked ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
-                          {getIngredientName(item.name)}
+                          {translatedName}
                         </span>
                       </div>
                       <div className="flex-shrink-0">
                         <span className={`font-semibold ${isChecked ? 'text-gray-400' : 'text-rose-600'}`}>
-                          {Math.round(item.quantity)} {translateUnit(item.unit)}
+                          {Math.round(item.quantity)} {translatedUnit}
                         </span>
                       </div>
                     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, Globe } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Globe, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function LoginPage() {
   const router = useRouter();
   const { language, setLanguage, t } = useLanguage();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,7 +26,31 @@ export default function LoginPage() {
       const success = await login(email, password);
       
       if (success) {
+        // Wait a bit for auth context to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Redirect based on user role from context
+        // The user should be available from the login response stored in context
+        // Check localStorage for the user data
+        const storedUser = localStorage.getItem('auth_user');
+        if (storedUser) {
+          try {
+            const userData = JSON.parse(storedUser);
+            const userRole = userData?.role || 'client';
+            
+            if (userRole === 'admin') {
         router.push('/admin');
+            } else {
+              router.push('/dashboard');
+            }
+          } catch {
+            // Fallback to dashboard if parsing fails
+            router.push('/dashboard');
+          }
+        } else {
+          // Fallback to dashboard if no user data
+          router.push('/dashboard');
+        }
       } else {
         setError('Invalid credentials. Please try again.');
       }
@@ -39,6 +63,12 @@ export default function LoginPage() {
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ro' : 'en');
+  };
+
+  const fillDemoAccount = () => {
+    setEmail('demo-klant@mihaelafitness.com');
+    setPassword('demo123');
+    setError('');
   };
 
   return (
@@ -143,6 +173,16 @@ export default function LoginPage() {
                 {t.login.forgotPassword}
               </button>
             </div>
+
+            {/* Demo Account Button */}
+            <button
+              type="button"
+              onClick={fillDemoAccount}
+              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-gray-800 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 shadow-md hover:shadow-lg text-sm sm:text-base flex items-center justify-center gap-2"
+            >
+              <User className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>Demo Account Invullen</span>
+            </button>
 
             {/* Login Button */}
             <button

@@ -30,6 +30,22 @@ class APICache {
   delete(key: string) {
     this.cache.delete(key);
   }
+
+  // Clear all cache entries that match a pattern
+  clearPattern(pattern: string) {
+    const keysToDelete: string[] = [];
+    this.cache.forEach((_, key) => {
+      if (key.includes(pattern)) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach(key => this.cache.delete(key));
+  }
+
+  // Get all cache keys (for debugging/clearing)
+  getKeys(): string[] {
+    return Array.from(this.cache.keys());
+  }
 }
 
 export const apiCache = new APICache();

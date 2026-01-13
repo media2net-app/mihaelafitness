@@ -5,7 +5,7 @@ import { calculateDailyTotalsV3 } from '@/utils/dailyTotalsV3';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { FiArrowLeft, FiHeart, FiCoffee, FiActivity, FiClock, FiUsers, FiCalendar, FiCopy, FiShare2, FiDownload, FiEye } from 'react-icons/fi';
+import { FiArrowLeft, FiHeart, FiCoffee, FiActivity, FiClock, FiUsers, FiCalendar, FiCopy, FiShare2, FiDownload, FiEye, FiSunrise, FiMoon } from 'react-icons/fi';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import IngredientBreakdown from '@/components/IngredientBreakdown';
@@ -70,6 +70,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
 
   const overviewRef = useRef<HTMLDivElement | null>(null);
   const progressLogRef = useRef<HTMLDivElement | null>(null);
+  const templatesCacheRef = useRef<any[] | null>(null); // Cache templates to avoid reloading
   const [showSticky, setShowSticky] = useState(false);
   const [assignedCustomer, setAssignedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [trainingWeekdays, setTrainingWeekdays] = useState<number[]>([]); // 1=Mon .. 7=Sun
@@ -86,9 +87,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     try {
       setLoading(true);
       const url = `/api/nutrition-plans/${id}`;
-      console.log('[NutritionPlanDetailClient] fetching plan:', url);
       const response = await fetch(url);
-      console.log('[NutritionPlanDetailClient] fetch status:', response.status);
       if (!response.ok) {
         let bodyText = '';
         try { bodyText = await response.text(); } catch {}
@@ -98,8 +97,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         return;
       }
       const data = await response.json();
-      console.log('[NutritionPlanDetailClient] plan loaded:', data?.id || '(no id)');
-      console.log('[NutritionPlanDetailClient] weekMenu data:', JSON.stringify(data.weekMenu, null, 2));
       setPlanData(data);
       // Also try to load assigned customer for this plan
       try {
@@ -227,7 +224,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   useEffect(() => {
     const run = async () => {
       try {
-        console.log('[NutritionPlanDetailClient] params received:', params);
         const id = await extractId(params as any);
         if (!id) {
           setError('Plan Not Found');
@@ -345,7 +341,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
 
       // Fallback to string parsing and API call
       const ingredients = parseMealDescription(mealDescription);
-      console.log('[PDF] Parsed ingredients for API:', ingredients);
       
       const response = await fetch('/api/calculate-macros', {
         method: 'POST',
@@ -620,8 +615,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
 
   // Improved parsing function for meal descriptions (align with IngredientBreakdown)
   const parseMealDescription = (mealDescription: string): string[] => {
-    console.log('Parsing meal description:', mealDescription);
-    
     // Handle RECIPE format: [RECIPE:Recipe Name] ingredient1, ingredient2, ...
     if (mealDescription.includes('[RECIPE:')) {
       // Extract recipe name and ingredients
@@ -632,7 +625,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         // Parse ingredients from recipe
         if (recipeIngredients) {
           const ingredients = recipeIngredients.split(',').map(ing => ing.trim()).filter(ing => ing.length > 0);
-          console.log('Parsed recipe ingredients:', ingredients);
           return ingredients;
         }
       }
@@ -644,8 +636,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       .replace(/\. Serve.*$/i, '') // Remove serving instructions
       .replace(/\. Mix.*$/i, '') // Remove mixing instructions
       .trim();
-    
-    console.log('Cleaned description:', cleaned);
     // Filter out placeholder/descriptive text like in IngredientBreakdown
     const placeholderPatterns = [
       /personalized breakfast based on your goals/i,
@@ -677,7 +667,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           
           return cleaned;
         }).filter(ing => ing.length > 0);
-        console.log('Parsed ingredients from colon:', ingredients);
         return ingredients;
       }
     }
@@ -695,7 +684,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         
         return cleaned;
       }).filter(ing => ing.length > 0);
-      console.log('Parsed ingredients from comma:', ingredients);
       return ingredients;
     }
     
@@ -717,7 +705,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       })
       .filter(part => part.length > 0);
       
-    console.log('Parsed ingredients from plus:', ingredients);
     return ingredients;
   };
 
@@ -844,19 +831,23 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
 
   // Calculate meal macros AND daily totals when activeDay changes (combined to prevent race condition)
   useEffect(() => {
+    console.log('🔔 [DEBUG] useEffect triggered for activeDay/planData change');
+    console.log('🔔 [DEBUG] activeDay:', activeDay);
+    console.log('🔔 [DEBUG] planData?.weekMenu?.[activeDay]:', planData?.weekMenu?.[activeDay]);
+    console.log('🔔 [DEBUG] Current dailyTotals:', dailyTotals);
+    
     const calculateAllMacros = async () => {
       // Use the same logic as PDF: prefer weekMenu, fallback to days
       let dayData = null;
       if (planData?.weekMenu?.[activeDay]) {
         dayData = planData.weekMenu[activeDay];
-        console.log('🔄 [V2] Using weekMenu data for day:', activeDay);
       } else if (planData?.days?.[activeDay]) {
         dayData = planData.days[activeDay];
-        console.log('🔄 [V2] Using days data for day:', activeDay);
       }
       
+      console.log('🔔 [DEBUG] dayData extracted in useEffect:', dayData);
+      
       if (!dayData) {
-        console.log('🔄 [V2] No day data found for:', activeDay);
         return;
       }
 
@@ -864,20 +855,18 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       setMealMacros({});
       
       try {
-        console.log('🔄 [V3] Calculating macros and totals for day:', activeDay);
-        
-        // First calculate meal macros using V2
-        const { mealMacros: calculatedMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
-        setMealMacros(calculatedMealMacros);
-        
-        // Wait a bit for DOM to update, then calculate daily totals from actual DOM values
+        // Don't call calculateMealMacrosAndTotalsV2 - it uses old data from the API
+        // The IngredientBreakdown components will update the DOM with new values
+        // Just wait for DOM to update, then read from DOM
         setTimeout(() => {
+          console.log('🔔 [DEBUG] useEffect: setTimeout fired, recalculating totals from DOM');
           const totals = calculateDailyTotalsFromDOM();
-          setDailyTotals({...totals});
-          
-          console.log('✅ [V3] All meal macros calculated:', calculatedMealMacros);
-          console.log('✅ [V3] Daily totals calculated from DOM:', totals);
-        }, 100);
+          console.log('🔔 [DEBUG] useEffect: Totals calculated from DOM:', totals);
+          setDailyTotals(prev => {
+            console.log('🔔 [DEBUG] useEffect: setDailyTotals called with prev:', prev, 'new:', totals);
+            return {...totals};
+          });
+        }, 500); // Longer delay to ensure IngredientBreakdown components have rendered and updated the DOM
         
       } catch (error) {
         console.error('Error calculating macros:', error);
@@ -895,6 +884,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   // Generation log modal state
   const [genLogOpen, setGenLogOpen] = useState(false);
   const [genLog, setGenLog] = useState<string[]>([]);
+  const logContainerRef = useRef<HTMLDivElement | null>(null);
   // Preferences modal state
   const categoryOptions = ['proteins','carbohydrates','fruits','vegetables','healthy-fats','dairy','nuts-seeds','other'] as const;
   type Category = typeof categoryOptions[number];
@@ -919,6 +909,720 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       return next;
     });
   };
+
+  useEffect(() => {
+    if (genLogOpen && logContainerRef.current) {
+      const el = logContainerRef.current;
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [genLog, genLogOpen]);
+
+  const mealDisplayNames: Record<MealKey, string> = {
+    breakfast: 'Breakfast',
+    'morning-snack': 'Morning Snack',
+    lunch: 'Lunch',
+    'afternoon-snack': 'Afternoon Snack',
+    dinner: 'Dinner',
+    'evening-snack': 'Evening Snack'
+  };
+
+  const mealDistributionWeights: Record<MealKey, number> = {
+    breakfast: 0.2,
+    'morning-snack': 0.1,
+    lunch: 0.25,
+    'afternoon-snack': 0.1,
+    dinner: 0.25,
+    'evening-snack': 0.1
+  };
+
+  const createEmptyDayStructure = (): Record<MealKey, { ingredients: string; cookingInstructions: string }> => ({
+    breakfast: { ingredients: '', cookingInstructions: '' },
+    'morning-snack': { ingredients: '', cookingInstructions: '' },
+    lunch: { ingredients: '', cookingInstructions: '' },
+    'afternoon-snack': { ingredients: '', cookingInstructions: '' },
+    dinner: { ingredients: '', cookingInstructions: '' },
+    'evening-snack': { ingredients: '', cookingInstructions: '' }
+  });
+
+  const macroTolerance = { min: 0.95, max: 1.05 };
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiMealSelection, setAiMealSelection] = useState<Record<MealKey, boolean>>({
+    breakfast: true,
+    'morning-snack': true,
+    lunch: true,
+    'afternoon-snack': true,
+    dinner: true,
+    'evening-snack': true
+  });
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGenerationError, setAiGenerationError] = useState<string | null>(null);
+  const [recipeLibrary, setRecipeLibrary] = useState<any[] | null>(null);
+  
+  // Templates modal state
+  const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [importingTemplate, setImportingTemplate] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<{ templateId: string; day: string } | null>(null);
+  
+  // Meal-specific template modal state (must be declared before allMealsForSelectedType)
+  const [mealTemplateModalOpen, setMealTemplateModalOpen] = useState(false);
+  const [selectedMealType, setSelectedMealType] = useState<string | null>(null);
+  const [mealTemplatesLoaded, setMealTemplatesLoaded] = useState<{ total: number; loaded: number }>({ total: 0, loaded: 0 });
+  
+  // Calculate all meals for selected meal type
+  const allMealsForSelectedType = useMemo(() => {
+    if (!selectedMealType || !mealTemplateModalOpen) return [];
+    
+    const meals: Array<{ templateId: string; templateName: string; day: string; dayName: string; meal: any; mealDescription: string; globalIndex: number }> = [];
+    let globalIndex = 0;
+    
+    templates.forEach((template) => {
+      const templateWeekMenu = (template.weekMenu as any) || {};
+      
+      dayOrder.forEach(day => {
+        const dayData = templateWeekMenu[day];
+        if (!dayData) return;
+        
+        const meal = dayData[selectedMealType];
+        if (!meal) return;
+        
+        let mealDescription = '';
+        if (typeof meal === 'string') {
+          mealDescription = meal;
+        } else if (meal && typeof meal === 'object') {
+          mealDescription = meal.description || meal.ingredients || '';
+        }
+        
+        if (mealDescription && mealDescription.trim() !== '') {
+          meals.push({
+            templateId: template.id,
+            templateName: template.name,
+            day,
+            dayName: dayNames[day as keyof typeof dayNames],
+            meal,
+            mealDescription,
+            globalIndex: globalIndex++
+          });
+        }
+      });
+    });
+    
+    return meals;
+  }, [templates, selectedMealType, dayNames, mealTemplateModalOpen]);
+  
+  // Update total count when meals change
+  useEffect(() => {
+    if (mealTemplateModalOpen && allMealsForSelectedType.length > 0) {
+      setMealTemplatesLoaded(prev => {
+        if (prev.total !== allMealsForSelectedType.length) {
+          console.log(`[Meal Templates] Setting total to ${allMealsForSelectedType.length}`);
+          return { total: allMealsForSelectedType.length, loaded: 0 };
+        }
+        return prev;
+      });
+    } else if (!mealTemplateModalOpen) {
+      // Reset when modal closes
+      setMealTemplatesLoaded({ total: 0, loaded: 0 });
+    }
+  }, [allMealsForSelectedType.length, mealTemplateModalOpen]);
+  
+  // Stable callback for macro calculation progress
+  const handleMacroCalculated = useCallback(() => {
+    setMealTemplatesLoaded(prev => {
+      const newLoaded = prev.loaded + 1;
+      console.log(`[Meal Templates] Macro calculated: ${newLoaded}/${prev.total}`);
+      return { ...prev, loaded: newLoaded };
+    });
+  }, []);
+
+  const selectedAiMeals = useMemo(
+    () => (Object.keys(aiMealSelection) as MealKey[]).filter((meal) => aiMealSelection[meal]),
+    [aiMealSelection]
+  );
+
+  const aiMealDistribution = useMemo(() => {
+    if (!selectedAiMeals.length) return {};
+    const totalWeight = selectedAiMeals.reduce((sum, meal) => sum + (mealDistributionWeights[meal] ?? 1), 0);
+    const distribution: Partial<Record<MealKey, number>> = {};
+    selectedAiMeals.forEach((meal) => {
+      const weight = mealDistributionWeights[meal] ?? 1;
+      distribution[meal] = weight / (totalWeight || selectedAiMeals.length);
+    });
+    return distribution;
+  }, [selectedAiMeals]);
+
+  const toggleAiMealSelection = (meal: MealKey) => {
+    setAiMealSelection((prev) => ({
+      ...prev,
+      [meal]: !prev[meal]
+    }));
+  };
+
+  const ensureRecipeLibrary = async (): Promise<any[]> => {
+    if (recipeLibrary && recipeLibrary.length > 0) {
+      return recipeLibrary;
+    }
+    const response = await fetch('/api/recipes');
+    if (!response.ok) {
+      throw new Error('Kon recepten niet laden. Controleer de verbinding en probeer opnieuw.');
+    }
+    const data = await response.json();
+    setRecipeLibrary(data);
+    return data;
+  };
+
+  const clearActiveDayMeals = async (options?: { silent?: boolean }) => {
+    if (!planId) return false;
+    try {
+      const res = await fetch(`/api/nutrition-plans/${planId}/clear-day`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dayKey: activeDay })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to clear day');
+      }
+
+      const data = await res.json();
+      if (data?.plan) {
+        setPlanData(data.plan);
+      } else {
+        setPlanData((prev: any) => ({
+          ...(prev || {}),
+          weekMenu: {
+            ...(prev?.weekMenu || {}),
+            [activeDay]: createEmptyDayStructure()
+          }
+        }));
+      }
+
+      setMealMacros({});
+      setDailyTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+      return true;
+    } catch (error) {
+      console.error('Error clearing day', error);
+      if (!options?.silent) {
+        alert('Er ging iets mis bij het leegmaken van de dag. Probeer opnieuw.');
+      }
+      return false;
+    }
+  };
+
+  const handleClearDayClick = async () => {
+    if (!planId) return;
+    const ok = window.confirm('Weet je zeker dat je ALLE ingrediënten van deze dag wilt verwijderen? Dit kan niet ongedaan gemaakt worden.');
+    if (!ok) return;
+    await clearActiveDayMeals();
+  };
+
+  // Load templates (other nutrition plans)
+  const loadTemplates = useCallback(async () => {
+    // Return cached templates if available
+    if (templatesCacheRef.current) {
+      setTemplates(templatesCacheRef.current);
+      return;
+    }
+    
+    try {
+      setLoadingTemplates(true);
+      const response = await fetch(`/api/nutrition-plans/templates?excludePlanId=${planId}`);
+      if (response.ok) {
+        const templates = await response.json();
+        templatesCacheRef.current = templates; // Cache the result
+        setTemplates(templates);
+      } else {
+        // Fallback to old endpoint if new one fails
+        const fallbackResponse = await fetch(`/api/nutrition-plans?includeWeekMenu=true`);
+        if (fallbackResponse.ok) {
+          const allPlans = await fallbackResponse.json();
+          const otherPlans = allPlans.filter((plan: any) => plan.id !== planId);
+          templatesCacheRef.current = otherPlans; // Cache the result
+          setTemplates(otherPlans);
+        }
+      }
+    } catch (error) {
+      console.error('[loadTemplates] Error loading templates:', error);
+      // Fallback to old endpoint
+      try {
+        const fallbackResponse = await fetch(`/api/nutrition-plans?includeWeekMenu=true`);
+        if (fallbackResponse.ok) {
+          const allPlans = await fallbackResponse.json();
+          const otherPlans = allPlans.filter((plan: any) => plan.id !== planId);
+          templatesCacheRef.current = otherPlans; // Cache the result
+          setTemplates(otherPlans);
+        }
+      } catch (fallbackError) {
+        console.error('[loadTemplates] Fallback also failed:', fallbackError);
+      }
+    } finally {
+      setLoadingTemplates(false);
+    }
+  }, [planId]);
+
+  // Import template (copy day from another plan)
+  const handleImportTemplate = async (templatePlanId: string, templateDay: string) => {
+    if (!planId) return;
+    
+    try {
+      setImportingTemplate(true);
+      const response = await fetch(`/api/nutrition-plans/${planId}/import-day`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          sourcePlanId: templatePlanId,
+          sourceDay: templateDay,
+          targetDay: activeDay
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.plan) {
+          // Update plan data directly - no need to reload entire page
+          setPlanData(data.plan);
+          setLoading(false); // Ensure loading state is cleared
+          setTemplatesModalOpen(false);
+          // Clear templates cache so it refreshes next time
+          templatesCacheRef.current = null;
+          alert(`Template imported! ${dayNames[activeDay as keyof typeof dayNames]} has been copied from the selected plan.`);
+        }
+      } else {
+        const error = await response.json();
+        alert(`Error importing: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error importing template:', error);
+      alert('Error importing template');
+    } finally {
+      setImportingTemplate(false);
+    }
+  };
+
+  // Import meal template (copy only a specific meal from another plan)
+  const handleImportMealTemplate = async (templatePlanId: string, templateDay: string, mealType: string) => {
+    if (!planId || !selectedMealType) {
+      console.error('[handleImportMealTemplate] Missing planId or selectedMealType');
+      return;
+    }
+    
+    try {
+      setImportingTemplate(true);
+      
+      // Direct import via API
+      const response = await fetch(`/api/nutrition-plans/${planId}/import-meal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourcePlanId: templatePlanId,
+          sourceDay: templateDay,
+          targetDay: activeDay,
+          mealType: mealType
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to import meal');
+      }
+      
+      const data = await response.json();
+      if (data.plan) {
+        // Update plan data directly - no need to reload entire page
+        setPlanData(data.plan);
+        setLoading(false); // Ensure loading state is cleared
+        setMealTemplateModalOpen(false);
+        setSelectedMealType(null);
+        // Clear templates cache so it refreshes next time
+        templatesCacheRef.current = null;
+      }
+    } catch (error) {
+      console.error('[handleImportMealTemplate] Error:', error);
+      alert(error instanceof Error ? error.message : 'Error importing meal template');
+    } finally {
+      setImportingTemplate(false);
+    }
+  };
+
+  const handleCopyLog = async () => {
+    if (!genLog.length) {
+      alert('Geen logregels om te kopiëren.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(genLog.join('\n'));
+      alert('Generation log gekopieerd naar klembord.');
+    } catch (error) {
+      console.error('Failed to copy generation log', error);
+      alert('Kopiëren mislukt. Probeer opnieuw.');
+    }
+  };
+
+  const runAiGenerator = async () => {
+    if (!planId) return;
+    if (!selectedAiMeals.length) {
+      setAiGenerationError('Selecteer minimaal één maaltijd om te genereren.');
+      return;
+    }
+
+    setAiGenerating(true);
+    setAiGenerationError(null);
+    setGenLog([]);
+    setGenLogOpen(true);
+    addGenLog('🤖 AI generator gestart', { day: activeDay, meals: selectedAiMeals.length });
+
+    try {
+      const recipes = await ensureRecipeLibrary();
+      addGenLog('📚 Beschikbare recepten geladen', { count: recipes.length });
+      const usableRecipes = recipes.filter((recipe: any) =>
+        typeof recipe.totalCalories === 'number' &&
+        typeof recipe.totalProtein === 'number' &&
+        typeof recipe.totalCarbs === 'number' &&
+        typeof recipe.totalFat === 'number' &&
+        recipe.totalCalories > 0
+      );
+
+      if (!usableRecipes.length) {
+        throw new Error('Geen recepten met macro informatie beschikbaar in de bibliotheek.');
+      }
+
+      const macroTargets = {
+        calories: Number(planData?.calories || 0),
+        protein: Number(planData?.protein || 0),
+        carbs: Number(planData?.carbs || 0),
+        fat: Number(planData?.fat || 0)
+      };
+
+      const logMacroComparison = (label: string, totals: typeof macroTargets) => {
+        const summary = (['calories', 'protein', 'carbs', 'fat'] as Array<keyof typeof macroTargets>).reduce(
+          (acc, macro) => {
+            const target = macroTargets[macro] || 0;
+            const actual = totals[macro] || 0;
+            return {
+              ...acc,
+              [macro]: {
+                actual,
+                target,
+                diff: Math.round((actual - target) * 10) / 10,
+                ratio: target ? Number((actual / target).toFixed(3)) : null
+              }
+            };
+          },
+          {} as Record<keyof typeof macroTargets, { actual: number; target: number; diff: number; ratio: number | null }>
+        );
+        addGenLog(label, summary);
+      };
+
+      const refreshTotalsFromServer = async (label?: string) => {
+        if (!planId) return null;
+        try {
+          const response = await fetch(`/api/nutrition-plans/${planId}`);
+          if (!response.ok) return null;
+          const freshPlan = await response.json();
+          let dayData = freshPlan?.weekMenu?.[activeDay] ?? freshPlan?.days?.[activeDay];
+          if (!dayData) return null;
+          setPlanData(freshPlan);
+          const { mealMacros: newMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
+          setMealMacros(newMealMacros);
+          const totals = await calculateDailyTotalsV3(dayData);
+          setDailyTotals({ ...totals });
+          if (label) {
+            logMacroComparison(label, totals);
+          }
+          return { plan: freshPlan, totals };
+        } catch (error) {
+          console.error('Error refreshing plan totals during AI generation', error);
+          return null;
+        }
+      };
+
+      const pickBestRecipe = (
+        target: { calories: number; protein: number; carbs: number; fat: number },
+        usedIds: Set<string>,
+        allowReuse = false,
+        focusMacro?: keyof typeof macroTargets
+      ) => {
+        let bestRecipe: any = null;
+        let bestScore = Infinity;
+
+        for (const recipe of usableRecipes) {
+          if (!allowReuse && usedIds.has(recipe.id)) continue;
+
+          const calories = Number(recipe.totalCalories) || 0;
+          const protein = Number(recipe.totalProtein) || 0;
+          const carbs = Number(recipe.totalCarbs) || 0;
+          const fat = Number(recipe.totalFat) || 0;
+
+          const score =
+            Math.abs((Number(recipe.totalCalories) || 0) - target.calories) / Math.max(target.calories, 1) * 0.4 +
+            Math.abs((Number(recipe.totalProtein) || 0) - target.protein) / Math.max(target.protein, 1) * 0.3 +
+            Math.abs((Number(recipe.totalCarbs) || 0) - target.carbs) / Math.max(target.carbs, 1) * 0.2 +
+            Math.abs((Number(recipe.totalFat) || 0) - target.fat) / Math.max(target.fat, 1) * 0.1;
+
+          const macroValue =
+            focusMacro === 'calories'
+              ? calories
+              : focusMacro === 'protein'
+              ? protein
+              : focusMacro === 'carbs'
+              ? carbs
+              : focusMacro === 'fat'
+              ? fat
+              : null;
+
+          const macroPenalty =
+            macroValue !== null && focusMacro
+              ? Math.max(0, target[focusMacro] - macroValue) / Math.max(target[focusMacro], 1) * 0.2
+              : 0;
+
+          if (score < bestScore) {
+            bestScore = score + macroPenalty;
+            bestRecipe = recipe;
+          }
+        }
+
+        return bestRecipe;
+      };
+
+      const buildSelection = (allowReuse = false) => {
+        const selections: Partial<Record<MealKey, any>> = {};
+        const planEntries: Array<{ meal: MealKey; recipe: any; source: 'base' | 'top-off' }> = [];
+        const usedRecipeIds = new Set<string>();
+        const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+        const remainingTargets = { ...macroTargets };
+        let remainingWeight = selectedAiMeals.reduce(
+          (sum, meal) => sum + (mealDistributionWeights[meal] ?? 1),
+          0
+        );
+
+        selectedAiMeals.forEach((meal, index) => {
+          const mealWeight = mealDistributionWeights[meal] ?? 1;
+          const share =
+            remainingWeight > 0
+              ? mealWeight / remainingWeight
+              : 1 / Math.max(1, selectedAiMeals.length - index);
+
+          const target = {
+            calories: Math.max(120, Math.round(remainingTargets.calories * share)),
+            protein: Math.max(8, Math.round(remainingTargets.protein * share)),
+            carbs: Math.max(8, Math.round(remainingTargets.carbs * share)),
+            fat: Math.max(5, Math.round(remainingTargets.fat * share))
+          };
+
+          const recipe = pickBestRecipe(target, usedRecipeIds, allowReuse || selectedAiMeals.length === 1);
+          if (!recipe) {
+            return;
+          }
+
+          selections[meal] = recipe;
+          usedRecipeIds.add(recipe.id);
+          planEntries.push({ meal, recipe, source: 'base' });
+
+          const macros = {
+            calories: Number(recipe.totalCalories) || 0,
+            protein: Number(recipe.totalProtein) || 0,
+            carbs: Number(recipe.totalCarbs) || 0,
+            fat: Number(recipe.totalFat) || 0
+          };
+
+          totals.calories += macros.calories;
+          totals.protein += macros.protein;
+          totals.carbs += macros.carbs;
+          totals.fat += macros.fat;
+
+          remainingTargets.calories = Math.max(0, remainingTargets.calories - macros.calories);
+          remainingTargets.protein = Math.max(0, remainingTargets.protein - macros.protein);
+          remainingTargets.carbs = Math.max(0, remainingTargets.carbs - macros.carbs);
+          remainingTargets.fat = Math.max(0, remainingTargets.fat - macros.fat);
+
+          remainingWeight = Math.max(0, remainingWeight - mealWeight);
+
+          addGenLog('🎯 Target voor maaltijd', {
+            meal,
+            target,
+            selectedRecipe: recipe.name,
+            macros
+          });
+        });
+
+        return { selections, totals, planEntries, usedRecipeIds };
+      };
+
+      const isWithinTolerance = (totals: typeof macroTargets) => {
+        const checks: Array<keyof typeof macroTargets> = ['calories', 'protein', 'carbs', 'fat'];
+        return checks.every((key) => {
+          const target = macroTargets[key];
+          if (!target) return true;
+          const ratio = totals[key] / target;
+          return ratio >= macroTolerance.min && ratio <= macroTolerance.max;
+        });
+      };
+
+      let selectionResult = buildSelection(false);
+      if (!Object.keys(selectionResult.selections).length) {
+        selectionResult = buildSelection(true);
+      }
+
+      if (!Object.keys(selectionResult.selections).length) {
+        throw new Error('AI kon geen passende recepten vinden.');
+      }
+
+      const getDeficits = (totals: typeof macroTargets) => {
+        const items: Array<{
+          macro: keyof typeof macroTargets;
+          deficit: number;
+          ratio: number;
+        }> = [];
+
+        (['calories', 'protein', 'carbs', 'fat'] as Array<keyof typeof macroTargets>).forEach((macro) => {
+          const target = macroTargets[macro];
+          if (!target) return;
+          const value = totals[macro];
+          const ratio = value / target;
+          if (ratio < macroTolerance.min) {
+            items.push({
+              macro,
+              deficit: target * macroTolerance.min - value,
+              ratio
+            });
+          }
+        });
+
+        return items.sort((a, b) => b.deficit - a.deficit);
+      };
+
+      const projectTotals = (totals: typeof macroTargets, recipe: any) => ({
+        calories: totals.calories + (Number(recipe.totalCalories) || 0),
+        protein: totals.protein + (Number(recipe.totalProtein) || 0),
+        carbs: totals.carbs + (Number(recipe.totalCarbs) || 0),
+        fat: totals.fat + (Number(recipe.totalFat) || 0)
+      });
+
+      const withinUpperBounds = (totals: typeof macroTargets) => {
+        return (['calories', 'protein', 'carbs', 'fat'] as Array<keyof typeof macroTargets>).every((macro) => {
+          const target = macroTargets[macro];
+          if (!target) return true;
+          const ratio = totals[macro] / target;
+          return ratio <= macroTolerance.max;
+        });
+      };
+
+      let deficitAttempts = 0;
+      while (!isWithinTolerance(selectionResult.totals) && deficitAttempts < 8) {
+        const deficits = getDeficits(selectionResult.totals);
+        if (!deficits.length) break;
+        const focus = deficits[0];
+        const target = {
+          calories: focus.macro === 'calories' ? focus.deficit : selectionResult.totals.calories,
+          protein: focus.macro === 'protein' ? focus.deficit : selectionResult.totals.protein,
+          carbs: focus.macro === 'carbs' ? focus.deficit : selectionResult.totals.carbs,
+          fat: focus.macro === 'fat' ? focus.deficit : selectionResult.totals.fat
+        };
+
+        const booster = pickBestRecipe(
+          {
+            calories: Math.max(80, target.calories),
+            protein: Math.max(6, target.protein),
+            carbs: Math.max(6, target.carbs),
+            fat: Math.max(4, target.fat)
+          },
+          selectionResult.usedRecipeIds,
+          true,
+          focus.macro
+        );
+
+        if (!booster) {
+          addGenLog('⚠️ Geen recept gevonden voor extra aanvulling', { focus: focus.macro });
+          break;
+        }
+
+        const projected = projectTotals(selectionResult.totals, booster);
+        if (!withinUpperBounds(projected)) {
+          selectionResult.usedRecipeIds.add(booster.id);
+          deficitAttempts += 1;
+          addGenLog('↩️ Booster overgeslagen (zou macro\'s overschrijden)', {
+            recipe: booster.name,
+            projected
+          });
+          continue;
+        }
+
+        const boosterMeal =
+          selectedAiMeals[selectedAiMeals.length - 1] || selectedAiMeals[0] || ('dinner' as MealKey);
+
+        selectionResult.planEntries.push({ meal: boosterMeal, recipe: booster, source: 'top-off' });
+        selectionResult.usedRecipeIds.add(booster.id);
+        selectionResult.totals = projected;
+        addGenLog('➕ Top-off recept toegevoegd', {
+          meal: boosterMeal,
+          recipe: booster.name,
+          focus: focus.macro,
+          projected
+        });
+        deficitAttempts += 1;
+      }
+
+      if (!isWithinTolerance(selectionResult.totals)) {
+        addGenLog('⚠️ Resultaat buiten toleranties, probeer opnieuw met recipe-reuse.');
+        const retryResult = buildSelection(true);
+        if (Object.keys(retryResult.selections).length) {
+          selectionResult = retryResult;
+        }
+      }
+
+      const selections = selectionResult.selections;
+
+      await clearActiveDayMeals({ silent: true });
+
+      const planEntries = selectionResult.planEntries;
+      for (const entry of planEntries) {
+        const recipe = entry.recipe;
+        if (!recipe) continue;
+        addGenLog('➕ Voeg recept toe', {
+          meal: entry.meal,
+          recipe: recipe.name,
+          bron: entry.source,
+          macros: {
+            calories: recipe.totalCalories,
+            protein: recipe.totalProtein,
+            carbs: recipe.totalCarbs,
+            fat: recipe.totalFat
+          }
+        });
+        await handleAddRecipe(recipe, entry.meal);
+      }
+
+      const refreshedResult = await refreshTotalsFromServer('📊 Resultaten vs target (na AI)');
+      const actualTotals = refreshedResult?.totals || selectionResult.totals;
+      if (!refreshedResult) {
+        logMacroComparison('📊 Resultaten (geschat op receptdata)', selectionResult.totals);
+      }
+
+      if (actualTotals) {
+        logMacroComparison('🏁 Finale macros vs target', actualTotals);
+        const finalWithin = isWithinTolerance(actualTotals);
+        if (!finalWithin) {
+          addGenLog('⚠️ Waarschuwing', {
+            message: 'Resultaat net buiten 95%-105%. Pas handmatig aan indien nodig.'
+          });
+        } else {
+          addGenLog('✅ Macro doelen behaald binnen toleranties.');
+        }
+      }
+
+      setAiModalOpen(false);
+    } catch (error: any) {
+      console.error('AI day plan error:', error);
+      setAiGenerationError(error?.message || 'Kon dagplan niet genereren. Probeer het later opnieuw.');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const addGenLog = (msg: string, data?: any) => {
     const line = data !== undefined ? `${msg} ${JSON.stringify(data)}` : msg;
     console.log('[Generator]', msg, data ?? '');
@@ -1343,9 +2047,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       
       setDailyTotals({...totals});
       
-      console.log('✅ Ingredient added successfully:', data.addedIngredient);
-      console.log('📊 [V3] Updated daily totals:', totals);
-      
     } catch (error) {
       console.error('Error adding ingredient:', error);
       alert('Failed to add ingredient. Please try again.');
@@ -1369,28 +2070,87 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add recipe');
+        let errorData: any;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          const errorText = await response.text().catch(() => 'Unknown error');
+          console.error('[handleAddRecipe] Response error:', {
+            status: response.status,
+            statusText: response.statusText,
+            body: errorText
+          });
+          throw new Error(`Failed to add recipe (${response.status}): ${errorText}`);
+        }
+        console.error('[handleAddRecipe] API error response:', errorData);
+        throw new Error(errorData.error || errorData.details || 'Failed to add recipe');
+      }
+
+      const data = await response.json();
+      console.log('[handleAddRecipe] Success response:', { success: data.success, hasPlan: !!data.plan });
+      
+      // Refresh plan data from database to ensure we have the latest state
+      if (planId) {
+        await fetchPlanData(planId);
+      } else {
+        // Fallback: use the returned plan data
+        setPlanData(data.plan);
+        const updatedPlan = data.plan;
+        const dayData = updatedPlan.weekMenu[activeDay];
+        const totals = await calculateDailyTotalsV3(dayData);
+        setDailyTotals({...totals});
+      }
+      
+      console.log('✅ Recipe added successfully:', recipe.name);
+    } catch (error) {
+      console.error('Error adding recipe:', error);
+      alert(`Failed to add recipe: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleClearMeal = async (mealType: string) => {
+    if (!planId) return;
+    
+    const mealDisplayName = mealDisplayNames[mealType as MealKey] || mealType;
+    const ok = window.confirm(`Weet je zeker dat je alle ingrediënten van ${mealDisplayName} wilt verwijderen?`);
+    if (!ok) return;
+
+    try {
+      const response = await fetch(`/api/nutrition-plans/${planId}/set-meal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dayKey: activeDay,
+          mealType: mealType,
+          mealText: '' // Clear the meal
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear meal');
       }
 
       const data = await response.json();
       
-      // Update the plan data with the new meal description
+      // Update the plan data
       setPlanData(data.plan);
       
-      // Force re-render by updating the plan data
+      // Recalculate totals
       const updatedPlan = data.plan;
-      
-      // Use V3 function for optimized calculation
       const dayData = updatedPlan.weekMenu[activeDay];
       const totals = await calculateDailyTotalsV3(dayData);
-      
       setDailyTotals({...totals});
       
-      console.log('✅ Recipe added successfully:', recipe.name);
-      console.log('📊 [V3] Updated daily totals:', totals);
+      // Also update meal macros
+      const { mealMacros: newMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
+      setMealMacros(newMealMacros);
+      
+      console.log('✅ Meal cleared successfully:', mealType);
     } catch (error) {
-      console.error('Error adding recipe:', error);
-      alert('Failed to add recipe. Please try again.');
+      console.error('Error clearing meal:', error);
+      alert(`Failed to clear meal: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -2379,16 +3139,24 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       }
       
       // Call API to calculate macros
-      const response = await fetch('/api/calculate-macros', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ingredients }),
-      });
+      let response;
+      try {
+        response = await fetch('/api/calculate-macros', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ingredients }),
+        });
+      } catch (fetchError: any) {
+        console.error('[calculateMealMacrosFromIngredients] Fetch error:', fetchError);
+        throw new Error(`Failed to fetch: ${fetchError?.message || 'Network error'}`);
+      }
 
       if (!response.ok) {
-        throw new Error('Failed to calculate macros');
+        const errorText = await response.text();
+        console.error('[calculateMealMacrosFromIngredients] API error:', response.status, errorText);
+        throw new Error(`Failed to calculate macros: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
@@ -2453,14 +3221,25 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     return Math.max(estimatedCalories, 100); // Minimum 100 calories
   };
 
-  // V3: Callback for when meal macros change
+  // V3: Callback for when meal macros change - debounced to prevent excessive recalculations
+  const macrosUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onMacrosUpdatedCallback = useCallback(() => {
-    // Recalculate daily totals from DOM when any meal macros change
-    const totals = calculateDailyTotalsFromDOM();
-    setDailyTotals({...totals});
-    // Force table update to show new values
-    setForceTableUpdate(prev => prev + 1);
-    console.log('🔄 [V3] Daily totals and table updated from macros change:', totals);
+    console.log('🔔 [DEBUG] onMacrosUpdatedCallback called');
+    // Debounce DOM reads to avoid excessive recalculations
+    if (macrosUpdateTimerRef.current) {
+      clearTimeout(macrosUpdateTimerRef.current);
+    }
+    macrosUpdateTimerRef.current = setTimeout(() => {
+      console.log('🔔 [DEBUG] onMacrosUpdatedCallback timeout fired, calculating totals from DOM');
+      const totals = calculateDailyTotalsFromDOM();
+      console.log('🔔 [DEBUG] Totals calculated from DOM in onMacrosUpdatedCallback:', totals);
+      setDailyTotals(prev => {
+        console.log('🔔 [DEBUG] Current dailyTotals before update in onMacrosUpdatedCallback:', prev);
+        console.log('🔔 [DEBUG] Setting new dailyTotals to:', totals);
+        return {...totals};
+      });
+      setForceTableUpdate(prev => prev + 1);
+    }, 150); // Small debounce to batch multiple updates
   }, []);
 
   // V3: Get individual meal macros from DOM
@@ -2499,49 +3278,80 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
 
   // V3: Calculate daily totals by reading actual values from DOM (from IngredientBreakdown components)
   const calculateDailyTotalsFromDOM = (): { calories: number; protein: number; carbs: number; fat: number } => {
-    console.log('🔍 [V3] Calculating daily totals from DOM values');
-    
+    console.log('🔔 [DEBUG] calculateDailyTotalsFromDOM called');
     const mealOrder = ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'];
     let totalCalories = 0;
     let totalProtein = 0;
     let totalCarbs = 0;
     let totalFat = 0;
 
+    // Helper function to get the most recent/visible value from multiple elements
+    const getValueFromElements = (elements: NodeListOf<Element>, isNumeric: boolean = false): number => {
+      if (elements.length === 0) return 0;
+      
+      // Try to find visible element first (not hidden)
+      for (const el of Array.from(elements)) {
+        const style = window.getComputedStyle(el);
+        if (style.display !== 'none' && style.visibility !== 'hidden') {
+          const text = el.textContent || '0';
+          if (isNumeric) {
+            return parseInt(text) || 0;
+          } else {
+            return parseFloat(text.replace('g', '')) || 0;
+          }
+        }
+      }
+      
+      // Fallback to last element (most likely to be updated)
+      const lastEl = elements[elements.length - 1];
+      const text = lastEl.textContent || '0';
+      if (isNumeric) {
+        return parseInt(text) || 0;
+      } else {
+        return parseFloat(text.replace('g', '')) || 0;
+      }
+    };
+
     for (const mealType of mealOrder) {
       try {
-        // Get calories
-        const caloriesElement = document.querySelector(`.totalcalories-${mealType}`);
-        if (caloriesElement) {
-          const calories = parseInt(caloriesElement.textContent || '0');
+        // Get calories - prefer visible elements
+        const caloriesElements = document.querySelectorAll(`.totalcalories-${mealType}`);
+        if (caloriesElements.length > 0) {
+          const calories = getValueFromElements(caloriesElements, true);
+          console.log(`🔔 [DEBUG] ${mealType} calories: found ${caloriesElements.length} element(s), using value:`, calories);
           totalCalories += calories;
-          console.log(`🔍 [V3] ${mealType} calories from DOM:`, calories);
+        } else {
+          console.log(`🔔 [DEBUG] ${mealType} calories: NO ELEMENT FOUND with selector .totalcalories-${mealType}`);
         }
 
         // Get protein
-        const proteinElement = document.querySelector(`.totalprotein-${mealType}`);
-        if (proteinElement) {
-          const proteinText = proteinElement.textContent || '0g';
-          const protein = parseFloat(proteinText.replace('g', '')) || 0;
+        const proteinElements = document.querySelectorAll(`.totalprotein-${mealType}`);
+        if (proteinElements.length > 0) {
+          const protein = getValueFromElements(proteinElements, false);
+          console.log(`🔔 [DEBUG] ${mealType} protein: found ${proteinElements.length} element(s), using value:`, protein);
           totalProtein += protein;
-          console.log(`🔍 [V3] ${mealType} protein from DOM:`, protein);
+        } else {
+          console.log(`🔔 [DEBUG] ${mealType} protein: NO ELEMENT FOUND with selector .totalprotein-${mealType}`);
         }
 
         // Get fat
-        const fatElement = document.querySelector(`.totalfat-${mealType}`);
-        if (fatElement) {
-          const fatText = fatElement.textContent || '0g';
-          const fat = parseFloat(fatText.replace('g', '')) || 0;
+        const fatElements = document.querySelectorAll(`.totalfat-${mealType}`);
+        if (fatElements.length > 0) {
+          const fat = getValueFromElements(fatElements, false);
+          console.log(`🔔 [DEBUG] ${mealType} fat: found ${fatElements.length} element(s), using value:`, fat);
           totalFat += fat;
-          console.log(`🔍 [V3] ${mealType} fat from DOM:`, fat);
+        } else {
+          console.log(`🔔 [DEBUG] ${mealType} fat: NO ELEMENT FOUND with selector .totalfat-${mealType}`);
         }
 
         // Get carbs
-        const carbsElement = document.querySelector(`.totalcarbs-${mealType}`);
-        if (carbsElement) {
-          const carbsText = carbsElement.textContent || '0g';
-          const carbs = parseFloat(carbsText.replace('g', '')) || 0;
+        const carbsElements = document.querySelectorAll(`.totalcarbs-${mealType}`);
+        if (carbsElements.length > 0) {
+          const carbs = getValueFromElements(carbsElements, false);
+          console.log(`🔔 [DEBUG] ${mealType} carbs: found ${carbsElements.length} element(s), using value:`, carbs);
           totalCarbs += carbs;
-          console.log(`🔍 [V3] ${mealType} carbs from DOM:`, carbs);
+        } else {
+          console.log(`🔔 [DEBUG] ${mealType} carbs: NO ELEMENT FOUND with selector .totalcarbs-${mealType}`);
         }
       } catch (error) {
         console.error(`❌ [V3] Error reading ${mealType} from DOM:`, error);
@@ -2555,14 +3365,13 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       fat: Math.round(totalFat * 10) / 10,
     };
     
-    console.log('🎯 [V3] FINAL DAILY TOTALS FROM DOM:', totals);
+    console.log('🔔 [DEBUG] calculateDailyTotalsFromDOM final totals:', totals);
+    console.log('🔔 [DEBUG] Breakdown: Calories=' + totalCalories + ', Protein=' + totalProtein + ', Carbs=' + totalCarbs + ', Fat=' + totalFat);
     return totals;
   };
 
   // V2: Calculate both meal macros and daily totals using the same logic
   const calculateMealMacrosAndTotalsV2 = async (dayData: any) => {
-    console.log('🚀 [V2] Calculating meal macros and daily totals for:', dayData);
-    
     const mealOrder = ['breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'];
     const newMealMacros: {[key: string]: any} = {};
     let totalCalories = 0;
@@ -2572,11 +3381,9 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
 
     for (const mealType of mealOrder) {
       const meal = getMealString(dayData, mealType);
-      console.log(`🚀 [V2] Processing ${mealType}: "${meal}"`);
       
       if (!meal || meal.trim() === '') {
         newMealMacros[mealType] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-        console.log(`🚀 [V2] ${mealType} is empty, setting to zeros`);
         continue;
       }
 
@@ -2586,13 +3393,11 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         
         if (ingredients.length === 0) {
           newMealMacros[mealType] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-          console.log(`🚀 [V2] ${mealType} has no parseable ingredients`);
           continue;
         }
 
         // Get ingredient data from API - same as V2 daily totals
         const ingredientData = await getIngredientDataFromAPI(meal);
-        console.log(`🚀 [V2] ${mealType} ingredient data:`, ingredientData);
         
         if (ingredientData && ingredientData.length > 0) {
           // Calculate meal totals
@@ -2615,11 +3420,8 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           totalProtein += newMealMacros[mealType].protein;
           totalCarbs += newMealMacros[mealType].carbs;
           totalFat += newMealMacros[mealType].fat;
-          
-          console.log(`🚀 [V2] ${mealType} totals:`, newMealMacros[mealType]);
         } else {
           newMealMacros[mealType] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-          console.log(`🚀 [V2] ${mealType} has no ingredient data from API`);
         }
       } catch (error) {
         console.error(`❌ [V2] Error calculating ${mealType}:`, error);
@@ -2634,9 +3436,6 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       fat: Math.round(totalFat * 10) / 10,
     };
     
-    console.log('🎯 [V2] FINAL MEAL MACROS:', newMealMacros);
-    console.log('🎯 [V2] FINAL DAILY TOTALS:', dailyTotals);
-    
     return { mealMacros: newMealMacros, dailyTotals };
   };
 
@@ -2645,19 +3444,19 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     dayData: any, 
     ignoreCache: boolean = false
   ): Promise<{ calories: number; protein: number; carbs: number; fat: number }> => {
-    console.log('⚠️ [DEPRECATED] Using old calculateDailyTotals, switching to V2...');
     return calculateDailyTotalsV2(dayData);
   };
 
   const getMealIcon = (mealType: string) => {
+    const iconClass = "w-4 h-4 sm:w-5 sm:h-5 text-gray-700";
     switch (mealType) {
-      case 'breakfast': return '🌅';
-      case 'morning-snack': return '🍎';
-      case 'lunch': return '🍽️';
-      case 'afternoon-snack': return '🥜';
-      case 'dinner': return '🌙';
-      case 'evening-snack': return '🍓';
-      default: return '🍽️';
+      case 'breakfast': return <FiSunrise className={iconClass} />;
+      case 'morning-snack': return <FiCoffee className={iconClass} />;
+      case 'lunch': return <FiActivity className={iconClass} />;
+      case 'afternoon-snack': return <FiCoffee className={iconClass} />;
+      case 'dinner': return <FiMoon className={iconClass} />;
+      case 'evening-snack': return <FiHeart className={iconClass} />;
+      default: return <FiActivity className={iconClass} />;
     }
   };
 
@@ -2769,7 +3568,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-500 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading nutrition plan...</p>
             </div>
           </div>
@@ -2794,8 +3593,513 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     );
   }
 
+  // Preview Modal Content Component
+  const PreviewModalContent = ({
+    template,
+    previewDay,
+    activeDay,
+    dayNames,
+    mealOrder,
+    parseMealDescription,
+    calculateMealMacrosFromIngredients,
+    loadingTemplates,
+    importingTemplate,
+    onClose,
+    onImport
+  }: {
+    template: any;
+    previewDay: string;
+    activeDay: string;
+    dayNames: any;
+    mealOrder: string[];
+    parseMealDescription: (desc: string) => string[];
+    calculateMealMacrosFromIngredients: (desc: string, mealType: string) => Promise<{ calories: number; protein: number; carbs: number; fat: number }>;
+    loadingTemplates: boolean;
+    importingTemplate: boolean;
+    onClose: () => void;
+    onImport: (templateId: string, day: string) => void;
+  }) => {
+    const [mealMacros, setMealMacros] = useState<Record<string, { calories: number; protein: number; carbs: number; fat: number }>>({});
+    const [loadingMacros, setLoadingMacros] = useState(true);
+
+    const mealNames: Record<string, string> = {
+      'breakfast': 'Breakfast',
+      'morning-snack': 'Morning Snack',
+      'lunch': 'Lunch',
+      'afternoon-snack': 'Afternoon Snack',
+      'dinner': 'Dinner',
+      'evening-snack': 'Evening Snack'
+    };
+
+    // Format ingredient string - remove IDs and format nicely
+    const formatIngredient = (ing: string): string => {
+      if (!ing) return '';
+      
+      // Remove DB IDs (e.g., "30 cmgdx7ow300267sfkl6m7qfaf|Protein Powder" -> "30g Protein Powder")
+      let cleaned = ing.trim();
+      
+      // Handle pattern: "quantity id|name" -> "quantity name"
+      const idPattern = /(\d+(?:\.\d+)?)\s+[a-z0-9]+\|(.+)/i;
+      const idMatch = cleaned.match(idPattern);
+      if (idMatch) {
+        const quantity = idMatch[1];
+        const name = idMatch[2].trim();
+        // Try to detect unit
+        if (!/^(g|gram|grams|ml|piece|pieces|cup|cups|tbsp|tsp|scoop|scoops|buc|felie|lgț)/i.test(name)) {
+          // Add 'g' if no unit detected and it's a number
+          return `${quantity}g ${name}`;
+        }
+        return `${quantity} ${name}`;
+      }
+      
+      // Handle pattern: "quantity name" (already clean)
+      return cleaned;
+    };
+
+    useEffect(() => {
+      if (!template || !template.weekMenu) {
+        setLoadingMacros(false);
+        return;
+      }
+
+      const templateWeekMenu = (template.weekMenu as any) || {};
+      const dayData = templateWeekMenu[previewDay];
+      if (!dayData) {
+        setLoadingMacros(false);
+        return;
+      }
+
+      const calculateMacros = async () => {
+        setLoadingMacros(true);
+        const macros: Record<string, { calories: number; protein: number; carbs: number; fat: number }> = {};
+
+        for (const mealType of mealOrder) {
+          const meal = dayData[mealType];
+          if (!meal) continue;
+
+          let mealDescription = '';
+          if (typeof meal === 'string') {
+            mealDescription = meal;
+          } else if (meal && typeof meal === 'object') {
+            mealDescription = meal.description || meal.ingredients || '';
+          }
+
+          if (mealDescription && mealDescription.trim()) {
+            try {
+              const mealMacro = await calculateMealMacrosFromIngredients(mealDescription, mealType);
+              macros[mealType] = mealMacro;
+            } catch (error) {
+              console.error(`Error calculating macros for ${mealType}:`, error);
+              macros[mealType] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+            }
+          }
+        }
+
+        setMealMacros(macros);
+        setLoadingMacros(false);
+      };
+
+      calculateMacros();
+    }, [template, previewDay, mealOrder, calculateMealMacrosFromIngredients]);
+
+    if (!template) {
+      return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+          <div className="relative bg-white w-[95vw] max-w-3xl max-h-[85vh] overflow-auto rounded-lg shadow-xl border border-gray-200 p-4 sm:p-6">
+            <div className="text-gray-500">Template not found.</div>
+          </div>
+        </div>
+      );
+    }
+
+    const templateWeekMenu = (template.weekMenu as any) || {};
+    const dayData = templateWeekMenu[previewDay];
+    
+    if (!dayData) {
+      return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+          <div className="relative bg-white w-[95vw] max-w-3xl max-h-[85vh] overflow-auto rounded-lg shadow-xl border border-gray-200 p-4 sm:p-6">
+            <div className="text-gray-500">No data available for this day.</div>
+          </div>
+        </div>
+      );
+    }
+
+    // Calculate daily totals
+    const dailyTotals = Object.values(mealMacros).reduce(
+      (acc, macro) => ({
+        calories: acc.calories + (macro?.calories || 0),
+        protein: acc.protein + (macro?.protein || 0),
+        carbs: acc.carbs + (macro?.carbs || 0),
+        fat: acc.fat + (macro?.fat || 0)
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+        <div className="relative bg-white w-[95vw] max-w-3xl max-h-[85vh] overflow-auto rounded-lg shadow-xl border border-gray-200 p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="text-lg font-bold text-gray-800">Preview</h4>
+              <p className="text-sm text-gray-600 mt-1">
+                {dayNames[previewDay as keyof typeof dayNames]} from "{template.name}"
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 text-sm bg-gray-200 rounded hover:bg-gray-300"
+            >
+              Close
+            </button>
+          </div>
+
+          {loadingTemplates || loadingMacros ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-700"></div>
+              <span className="ml-3 text-gray-600">Loading...</span>
+            </div>
+          ) : (
+            <>
+              {/* Daily Totals */}
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h5 className="text-sm font-semibold text-gray-700 mb-2">Daily Total</h5>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500">Calories</div>
+                    <div className="font-bold text-orange-600">{dailyTotals.calories} kcal</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Protein</div>
+                    <div className="font-bold text-blue-600">{dailyTotals.protein}g</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Carbs</div>
+                    <div className="font-bold text-green-600">{dailyTotals.carbs}g</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Fat</div>
+                    <div className="font-bold text-purple-600">{dailyTotals.fat}g</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Meals */}
+              <div className="space-y-4">
+                {mealOrder.map((mealType) => {
+                  const meal = dayData[mealType];
+                  if (!meal) return null;
+
+                  let mealDescription = '';
+                  if (typeof meal === 'string') {
+                    mealDescription = meal;
+                  } else if (meal && typeof meal === 'object') {
+                    mealDescription = meal.description || meal.ingredients || '';
+                  }
+
+                  if (!mealDescription || mealDescription.trim() === '') return null;
+
+                  const parsedIngredients = parseMealDescription(mealDescription);
+                  const macros = mealMacros[mealType] || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+
+                  return (
+                    <div key={mealType} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <h5 className="font-semibold text-gray-800">
+                          {mealNames[mealType] || mealType}
+                        </h5>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-orange-600">{macros.calories} kcal</div>
+                          <div className="text-xs text-gray-600">
+                            P: {macros.protein}g | C: {macros.carbs}g | F: {macros.fat}g
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {parsedIngredients.length > 0 && (
+                        <div className="mt-2">
+                          <div className="text-xs font-medium text-gray-600 mb-1">Ingredients:</div>
+                          <ul className="text-sm text-gray-700 space-y-1">
+                            {parsedIngredients.map((ing, idx) => (
+                              <li key={idx} className="flex items-start">
+                                <span className="mr-2">•</span>
+                                <span>{formatIngredient(ing)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }).filter(Boolean)}
+              </div>
+            </>
+          )}
+
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onImport(template.id, previewDay)}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={importingTemplate}
+            >
+              {importingTemplate ? 'Importing...' : 'Import'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Meal Template Row Component
+  const MealTemplateRow = ({
+    mealData,
+    cleanDescription,
+    selectedMealType,
+    activeDay,
+    dayNames,
+    calculateMealMacrosFromIngredients,
+    onImport,
+    importingTemplate,
+    onMacrosCalculated
+  }: {
+    mealData: { templateId: string; templateName: string; day: string; dayName: string; meal: any; mealDescription: string; globalIndex: number };
+    cleanDescription: string;
+    selectedMealType: string;
+    activeDay: string;
+    dayNames: any;
+    calculateMealMacrosFromIngredients: (desc: string, mealType: string) => Promise<{ calories: number; protein: number; carbs: number; fat: number }>;
+    onImport: (templateId: string, day: string, mealType: string) => void;
+    importingTemplate: boolean;
+    onMacrosCalculated?: () => void;
+  }) => {
+    const [mealMacros, setMealMacros] = useState<{ calories: number; protein: number; carbs: number; fat: number } | null>(null);
+    const [loadingMacros, setLoadingMacros] = useState(true);
+    const hasCalculatedRef = useRef(false);
+    const onMacrosCalculatedRef = useRef(onMacrosCalculated);
+    
+    // Update ref when callback changes
+    useEffect(() => {
+      onMacrosCalculatedRef.current = onMacrosCalculated;
+    }, [onMacrosCalculated]);
+    
+    // Debug: Log state changes
+    useEffect(() => {
+      console.log(`[MealTemplateRow] State changed for row ${mealData.globalIndex}:`, {
+        loadingMacros,
+        mealMacros,
+        hasMacros: !!mealMacros,
+        calories: mealMacros?.calories
+      });
+    }, [mealMacros, loadingMacros, mealData.globalIndex]);
+
+    // Calculate macros immediately when component mounts
+    useEffect(() => {
+      if (hasCalculatedRef.current) {
+        console.log(`[MealTemplateRow] Already calculated for row ${mealData.globalIndex}, skipping`);
+        return;
+      }
+      hasCalculatedRef.current = true;
+      
+      const calculateMacros = async () => {
+        setLoadingMacros(true);
+        try {
+          console.log(`[MealTemplateRow] Starting calculation for row ${mealData.globalIndex}`, {
+            description: mealData.mealDescription.substring(0, 50),
+            mealType: selectedMealType
+          });
+          
+          const macros = await calculateMealMacrosFromIngredients(mealData.mealDescription, selectedMealType);
+          
+          console.log(`[MealTemplateRow] Macros received for row ${mealData.globalIndex}:`, macros);
+          console.log(`[MealTemplateRow] Macros type check:`, {
+            isObject: typeof macros === 'object',
+            hasCalories: macros && 'calories' in macros,
+            caloriesType: macros && typeof macros.calories,
+            caloriesValue: macros && macros.calories
+          });
+          
+          // Update state - ensure we have valid macros
+          if (macros && typeof macros === 'object' && typeof macros.calories === 'number') {
+            const macroState = {
+              calories: macros.calories || 0,
+              protein: macros.protein || 0,
+              carbs: macros.carbs || 0,
+              fat: macros.fat || 0
+            };
+            console.log(`[MealTemplateRow] Setting mealMacros state for row ${mealData.globalIndex}:`, macroState);
+            setMealMacros(macroState);
+            // Force a small delay to ensure state update is processed
+            setTimeout(() => {
+              console.log(`[MealTemplateRow] State should be updated now for row ${mealData.globalIndex}`);
+            }, 10);
+          } else {
+            console.warn(`[MealTemplateRow] Invalid macros received for row ${mealData.globalIndex}:`, macros);
+            const fallbackMacros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+            setMealMacros(fallbackMacros);
+            console.log(`[MealTemplateRow] Set fallback macros for row ${mealData.globalIndex}:`, fallbackMacros);
+          }
+          
+          if (onMacrosCalculatedRef.current) {
+            console.log(`[MealTemplateRow] Calling onMacrosCalculated for row ${mealData.globalIndex}`);
+            onMacrosCalculatedRef.current();
+          } else {
+            console.warn(`[MealTemplateRow] onMacrosCalculated is not defined for row ${mealData.globalIndex}`);
+          }
+        } catch (error: any) {
+          console.error(`[MealTemplateRow] Error calculating meal macros for row ${mealData.globalIndex}:`, error);
+          console.error(`[MealTemplateRow] Error details:`, {
+            message: error?.message,
+            stack: error?.stack,
+            description: mealData.mealDescription.substring(0, 50)
+          });
+          const errorMacros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+          setMealMacros(errorMacros);
+          console.log(`[MealTemplateRow] Set error macros for row ${mealData.globalIndex}:`, errorMacros);
+          // Still call onMacrosCalculated even on error to update progress
+          if (onMacrosCalculatedRef.current) {
+            onMacrosCalculatedRef.current();
+          }
+        } finally {
+          console.log(`[MealTemplateRow] Setting loadingMacros to false for row ${mealData.globalIndex}`);
+          setLoadingMacros(false);
+        }
+      };
+      
+      // Stagger requests to avoid overwhelming API (20ms delay per row for faster loading)
+      const delay = mealData.globalIndex * 20;
+      console.log(`[MealTemplateRow] Scheduling calculation for row ${mealData.globalIndex} with delay ${delay}ms`);
+      const timer = setTimeout(calculateMacros, delay);
+      return () => {
+        clearTimeout(timer);
+        // Reset ref when component unmounts so it can recalculate if needed
+        hasCalculatedRef.current = false;
+      };
+    }, [mealData.mealDescription, selectedMealType, calculateMealMacrosFromIngredients, mealData.globalIndex]);
+
+    // Helper to render macro value
+    const renderMacroValue = (value: number | undefined, color: string, unit: string = 'g') => {
+      if (loadingMacros) {
+        return <span className="text-gray-400">...</span>;
+      }
+      if (mealMacros && value !== undefined && value !== null && typeof value === 'number') {
+        return <span className={`font-medium ${color}`}>{value}{unit}</span>;
+      }
+      return <span className="text-gray-400">-</span>;
+    };
+
+    return (
+      <tr className="hover:bg-gray-50">
+        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+          {mealData.templateName}
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+          {mealData.dayName}
+        </td>
+        <td className="px-4 py-3 text-sm text-gray-700 max-w-md">
+          <div className="truncate" title={cleanDescription}>
+            {cleanDescription}
+          </div>
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">
+          {renderMacroValue(mealMacros?.calories, 'text-orange-600', ' kcal')}
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">
+          {renderMacroValue(mealMacros?.protein, 'text-blue-600')}
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">
+          {renderMacroValue(mealMacros?.carbs, 'text-green-600')}
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">
+          {renderMacroValue(mealMacros?.fat, 'text-gray-700')}
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-center">
+          <button
+            onClick={() => onImport(mealData.templateId, mealData.day, selectedMealType)}
+            className="px-3 py-1 text-xs font-medium rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={importingTemplate}
+          >
+            Import
+          </button>
+        </td>
+      </tr>
+    );
+  };
+
+  // Day Button Component with Calories
+  const DayButtonWithCalories = ({
+    day,
+    dayName,
+    dayData,
+    mealOrder,
+    calculateMealMacrosAndTotalsV2,
+    onClick,
+    disabled
+  }: {
+    day: string;
+    dayName: string;
+    dayData: any;
+    mealOrder: string[];
+    calculateMealMacrosAndTotalsV2: (dayData: any) => Promise<{ mealMacros: any; dailyTotals: { calories: number; protein: number; carbs: number; fat: number } }>;
+    onClick: () => void;
+    disabled: boolean;
+  }) => {
+    const [dayCalories, setDayCalories] = useState<number | null>(null);
+    const [loadingCalories, setLoadingCalories] = useState(true);
+
+    useEffect(() => {
+      const calculateCalories = async () => {
+        setLoadingCalories(true);
+        if (!dayData) {
+          setDayCalories(0);
+          setLoadingCalories(false);
+          return;
+        }
+
+        try {
+          const { dailyTotals } = await calculateMealMacrosAndTotalsV2(dayData);
+          setDayCalories(dailyTotals.calories);
+        } catch (error) {
+          console.error(`Error calculating calories for ${dayName}:`, error);
+          setDayCalories(0);
+        } finally {
+          setLoadingCalories(false);
+        }
+      };
+
+      calculateCalories();
+    }, [dayData, calculateMealMacrosAndTotalsV2, dayName]);
+
+    return (
+      <div className="flex flex-col items-center gap-0.5 min-w-[60px]">
+        <button
+          onClick={onClick}
+          className="px-2 py-1 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap w-full"
+          disabled={disabled}
+        >
+          {dayName}
+        </button>
+        {loadingCalories ? (
+          <div className="text-[9px] text-gray-400 h-3 flex items-center">...</div>
+        ) : dayCalories !== null && dayCalories > 0 ? (
+          <div className="text-[10px] text-gray-600 font-medium text-center">
+            {dayCalories} kcal
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+    <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-8">
@@ -2832,7 +4136,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
               <div className="flex gap-1 sm:gap-2">
                 <button
                   onClick={handlePreview}
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-white text-rose-600 border-2 border-rose-500 rounded-lg hover:bg-rose-50 transition-colors text-xs sm:text-sm font-medium"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-white text-gray-700 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs sm:text-sm font-medium"
                   title="Preview PDF"
                 >
                   <FiEye className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -2840,7 +4144,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-xs sm:text-sm font-medium"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-xs sm:text-sm font-medium"
                   title="Download PDF"
                 >
                   <FiDownload className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -2852,23 +4156,23 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
         </div>
 
         {/* Customer Share Link */}
-        <div className="mb-4 sm:mb-6 bg-gradient-to-r from-rose-50 to-pink-50 border-2 border-rose-200 rounded-xl p-3 sm:p-4">
+        <div className="mb-4 sm:mb-6 bg-white border border-gray-200 rounded-xl p-3 sm:p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <div className="flex-1 min-w-0">
               <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">
                 🔗 Persoonlijke Link{assignedCustomer ? ` voor ${assignedCustomer.name}` : ' voor Voedingsplan'}
               </p>
               <p className="text-xs text-gray-600 font-mono bg-white rounded px-2 sm:px-3 py-2 border border-gray-200 break-all">
-                {typeof window !== 'undefined' && `${window.location.origin}/my-plan/${assignedCustomer?.id || planData?.id || ''}`}
+                {typeof window !== 'undefined' && `${window.location.origin}/my-plan/${planData?.id || ''}`}
               </p>
             </div>
             <button
               onClick={() => {
-                const personalLink = `${window.location.origin}/my-plan/${assignedCustomer?.id || planData?.id || ''}`;
+                const personalLink = `${window.location.origin}/my-plan/${planData?.id || ''}`;
                 navigator.clipboard.writeText(personalLink);
                 alert('Link gekopieerd! Je kunt deze nu delen.');
               }}
-              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
+              className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
               title="Kopieer persoonlijke link"
             >
               <FiCopy className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -2879,57 +4183,57 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
 
         {/* Plan Overview */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
-          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 lg:p-6 shadow-sm">
+          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 lg:p-6 shadow-sm border border-gray-100">
             <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 mb-1.5 sm:mb-2 lg:mb-4">
-              <div className="p-1 sm:p-1.5 lg:p-2 bg-orange-100 rounded-lg">
-                <FiHeart className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-orange-600" />
+              <div className="p-1 sm:p-1.5 lg:p-2 bg-gray-100 rounded-lg">
+                <FiHeart className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-gray-700" />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-800">Calories</h3>
-                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-orange-600">{planData.calories}</p>
+                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-gray-900">{planData.calories}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 lg:p-6 shadow-sm">
+          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 lg:p-6 shadow-sm border border-gray-100">
             <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 mb-1.5 sm:mb-2 lg:mb-4">
-              <div className="p-1 sm:p-1.5 lg:p-2 bg-blue-100 rounded-lg">
-                <FiActivity className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-blue-600" />
+              <div className="p-1 sm:p-1.5 lg:p-2 bg-gray-100 rounded-lg">
+                <FiActivity className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-gray-700" />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-800">Protein</h3>
-                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-blue-600">{planData.protein}g</p>
+                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-gray-900">{planData.protein}g</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 lg:p-6 shadow-sm">
+          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 lg:p-6 shadow-sm border border-gray-100">
             <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 mb-1.5 sm:mb-2 lg:mb-4">
-              <div className="p-1 sm:p-1.5 lg:p-2 bg-green-100 rounded-lg">
-                <FiCoffee className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-green-600" />
+              <div className="p-1 sm:p-1.5 lg:p-2 bg-gray-100 rounded-lg">
+                <FiCoffee className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-gray-700" />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-800">Carbs</h3>
-                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-green-600">{planData.carbs}g</p>
+                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-gray-900">{planData.carbs}g</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 lg:p-6 shadow-sm">
+          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 lg:p-6 shadow-sm border border-gray-100">
             <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 mb-1.5 sm:mb-2 lg:mb-4">
-              <div className="p-1 sm:p-1.5 lg:p-2 bg-purple-100 rounded-lg">
-                <FiClock className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-purple-600" />
+              <div className="p-1 sm:p-1.5 lg:p-2 bg-gray-100 rounded-lg">
+                <FiClock className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-gray-700" />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-800">Fat</h3>
-                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-purple-600">{planData.fat}g</p>
+                <p className="text-sm sm:text-lg lg:text-2xl font-bold text-gray-900">{planData.fat}g</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Weekly Menu Schedule */}
-        <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm p-3 sm:p-4 lg:p-6 xl:p-8">
+        <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm border border-gray-100 p-3 sm:p-4 lg:p-6 xl:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 lg:mb-6">
             <h2 className="text-base sm:text-lg lg:text-xl font-bold text-gray-800">Weekly Menu Schedule</h2>
             
@@ -2939,7 +4243,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                 onClick={() => setActiveTab('menu')}
                 className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeTab === 'menu'
-                    ? 'bg-rose-500 text-white'
+                    ? 'bg-gray-700 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -2954,7 +4258,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                 }}
                 className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeTab === 'ingredients'
-                    ? 'bg-rose-500 text-white'
+                    ? 'bg-gray-700 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -2969,7 +4273,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                 }}
                 className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeTab === 'shopping'
-                    ? 'bg-rose-500 text-white'
+                    ? 'bg-gray-700 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -2984,12 +4288,12 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           {/* Sticky compact overview when main overview is out of view */}
           {showSticky && dailyTotals && (
             <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1rem)] max-w-4xl">
-              <div className="bg-white/90 backdrop-blur rounded-xl shadow-lg border border-rose-200 px-3 py-2">
+              <div className="bg-white/90 backdrop-blur rounded-xl shadow-lg border border-gray-200 px-3 py-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-semibold text-sm text-gray-800 flex items-center gap-2">
                     {dayNames[activeDay as keyof typeof dayNames]} – Daily Overview
                     {trainingWeekdays.includes(dayKeyToWeekday(activeDay)) && (
-                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-rose-100 text-rose-700 border border-rose-200">Training Day</span>
+                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-700 border border-gray-200">Training Day</span>
                     )}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] sm:text-xs">
@@ -3013,7 +4317,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
 
           {/* Day Tabs + Generate */}
           <div className="mb-3 sm:mb-4 lg:mb-6">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
     <div className="flex gap-1 sm:gap-2 border-b border-gray-200 overflow-x-auto pb-1">
       {planData.weekMenu && dayOrder.map((dayKey) => (
         <button
@@ -3021,71 +4325,37 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           onClick={() => setActiveDay(dayKey)}
           className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-2 ${
             activeDay === dayKey
-              ? 'bg-rose-500 text-white border-b-2 border-rose-500'
+              ? 'bg-gray-700 text-white border-b-2 border-gray-700'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
           <span>{dayNames[dayKey as keyof typeof dayNames]}</span>
           {trainingWeekdays.includes(dayKeyToWeekday(dayKey)) && (
-            <span className={`px-2 py-0.5 rounded-full text-[10px] border ${activeDay === dayKey ? 'bg-white/20 border-white/40 text-white' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>Training</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] border ${activeDay === dayKey ? 'bg-white/20 border-white/40 text-white' : 'bg-gray-50 border-gray-200 text-gray-700'}`}>Training</span>
           )}
         </button>
       ))}
     </div>
-                <button
-                  onClick={() => setPrefsOpen(true)}
-                  className="ml-2 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-rose-500 text-white hover:bg-rose-600 whitespace-nowrap"
-                >
-                  Generate Day Plan
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!planId) return;
-                    const ok = window.confirm('Weet je zeker dat je ALLE ingrediënten van deze dag wilt verwijderen? Dit kan niet ongedaan gemaakt worden.');
-                    if (!ok) return;
-                    try {
-                      const res = await fetch(`/api/nutrition-plans/${planId}/clear-day`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dayKey: activeDay }) });
-                      if (res.ok) {
-                        const data = await res.json();
-                        if (data?.plan) {
-                          // Use the plan data directly from API - it already has the correct structure
-                          setPlanData((prev: any) => ({ ...(prev || {}), weekMenu: data.plan.weekMenu }));
-                        } else {
-                          // Fallback: create empty meal structure with object format (ingredients + cookingInstructions)
-                          const emptyDayStructure = {
-                            breakfast: { ingredients: '', cookingInstructions: '' },
-                            'morning-snack': { ingredients: '', cookingInstructions: '' },
-                            lunch: { ingredients: '', cookingInstructions: '' },
-                            'afternoon-snack': { ingredients: '', cookingInstructions: '' },
-                            dinner: { ingredients: '', cookingInstructions: '' },
-                            'evening-snack': { ingredients: '', cookingInstructions: '' }
-                          };
-                          setPlanData((prev: any) => ({ ...(prev || {}), weekMenu: { ...(prev?.weekMenu || {}), [activeDay]: emptyDayStructure } }));
-                        }
-                        setMealMacros({});
-                        setDailyTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-                        
-                        // Force refresh by fetching latest plan data
-                        try {
-                          const refreshResponse = await fetch(`/api/nutrition-plans/${planId}`);
-                          if (refreshResponse.ok) {
-                            const refreshedPlan = await refreshResponse.json();
-                            setPlanData(refreshedPlan);
-                          }
-                        } catch (refreshError) {
-                          console.error('Error refreshing plan data:', refreshError);
-                        }
-                      } else {
-                        alert('Kon dag niet leegmaken. Probeer opnieuw.');
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <button
+                    onClick={() => {
+                      setTemplatesModalOpen(true);
+                      // Only load if not cached
+                      if (!templatesCacheRef.current) {
+                        loadTemplates();
                       }
-                    } catch (e) {
-                      alert('Er ging iets mis bij het leegmaken van de dag.');
-                    }
-                  }}
-                  className="px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-300 whitespace-nowrap"
-              >
-                Leeg plan
-              </button>
+                    }}
+                    className="px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 whitespace-nowrap"
+                  >
+                    Templates
+                  </button>
+                  <button
+                    onClick={handleClearDayClick}
+                    className="px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-300 whitespace-nowrap"
+                >
+                  Leeg plan
+                </button>
+              </div>
             </div>
           </div>
 
@@ -3109,7 +4379,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {categoryOptions.map(cat => (
-                          <label key={cat} className={`flex items-center gap-2 text-xs border rounded px-2 py-1 cursor-pointer ${mealPrefs[meal].has(cat) ? 'bg-rose-50 border-rose-300' : 'bg-white border-gray-200'}`}>
+                          <label key={cat} className={`flex items-center gap-2 text-xs border rounded px-2 py-1 cursor-pointer ${mealPrefs[meal].has(cat) ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-200'}`}>
                             <input type="checkbox" checked={mealPrefs[meal].has(cat)} onChange={()=>togglePref(meal, cat)} />
                             <span className="capitalize">{cat.replace('-', ' ')}</span>
                           </label>
@@ -3120,28 +4390,437 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                 </div>
                 <div className="mt-4 flex justify-end gap-2">
                   <button className="px-3 py-2 text-xs rounded border" onClick={()=>setPrefsOpen(false)}>Cancel</button>
-                  <button className="px-3 py-2 text-xs rounded bg-rose-600 text-white" onClick={()=>{ setPrefsOpen(false); generateDayPlan(); }}>Use preferences & Generate</button>
+                  <button className="px-3 py-2 text-xs rounded bg-gray-700 text-white hover:bg-gray-800" onClick={()=>{ setPrefsOpen(false); generateDayPlan(); }}>Use preferences & Generate</button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Generation Log Modal */}
-          {genLogOpen && (
+          {/* AI Generator Modal */}
+          {aiModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center">
-              <div className="absolute inset-0 bg-black/40" onClick={() => setGenLogOpen(false)} />
-              <div className="relative bg-white w-[90vw] max-w-3xl max-h-[80vh] rounded-lg shadow-xl border border-gray-200 p-3 sm:p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm sm:text-base font-bold text-gray-800">Generation Log</h4>
+              <div
+                className="absolute inset-0 bg-black/40"
+                onClick={() => {
+                  if (!aiGenerating) {
+                    setAiModalOpen(false);
+                  }
+                }}
+              />
+              <div className="relative bg-white w-[95vw] max-w-3xl max-h-[85vh] overflow-auto rounded-lg shadow-xl border border-gray-200 p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-lg font-bold text-gray-800">Generate Day Plan (AI)</h4>
+                    <p className="text-sm text-gray-600">
+                      Kies welke maaltijden je voor deze dag wil laten invullen. AI matcht recepten uit je bibliotheek
+                      op basis van de kcal en macro-doelen van dit plan.
+                    </p>
+                  </div>
                   <button
-                    onClick={() => setGenLogOpen(false)}
-                    className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                    onClick={() => {
+                      if (!aiGenerating) setAiModalOpen(false);
+                    }}
+                    className="px-3 py-1.5 text-xs bg-gray-200 rounded-lg hover:bg-gray-300"
+                    disabled={aiGenerating}
                   >
                     Close
                   </button>
                 </div>
-                <div className="bg-gray-50 border border-gray-200 rounded p-2 overflow-auto h-[55vh] font-mono text-[10px] sm:text-xs whitespace-pre-wrap">
-                  {genLog.length ? genLog.join('\n') : 'No logs yet...'}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {mealOrder.map((meal) => {
+                    const typedMeal = meal as MealKey;
+                    const isSelected = aiMealSelection[typedMeal];
+                    const share = aiMealDistribution[typedMeal] || 0;
+                    const targetCalories = Math.round((planData?.calories || 0) * share);
+                    const targetProtein = Math.round((planData?.protein || 0) * share);
+                    const targetCarbs = Math.round((planData?.carbs || 0) * share);
+                    const targetFat = Math.round((planData?.fat || 0) * share);
+
+                    return (
+                      <button
+                        key={meal}
+                        onClick={() => toggleAiMealSelection(typedMeal)}
+                        className={`text-left border rounded-xl p-3 transition-all ${
+                          isSelected ? 'border-gray-400 bg-gray-50' : 'border-gray-200 bg-white'
+                        }`}
+                        disabled={aiGenerating}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-gray-800">{mealDisplayNames[typedMeal]}</span>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full ${
+                              isSelected ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {isSelected ? 'Geselecteerd' : 'Overslaan'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <div>± {targetCalories || 0} kcal</div>
+                          <div>
+                            {targetProtein || 0}g P • {targetCarbs || 0}g C • {targetFat || 0}g F
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-3 text-sm text-gray-600">
+                  <div className="font-medium text-gray-800 mb-1">
+                    Geselecteerde maaltijden: {selectedAiMeals.length || 0}
+                  </div>
+                  <p>
+                    AI verdeelt automatisch de dagelijkse macro&apos;s (kcal, eiwitten, koolhydraten, vetten) over de
+                    gekozen maaltijden. De recepten met de beste match worden toegevoegd aan het huidige{' '}
+                    {dayNames[activeDay as keyof typeof dayNames]} menu.
+                  </p>
+                </div>
+
+                {aiGenerationError && (
+                  <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">
+                    {aiGenerationError}
+                  </div>
+                )}
+
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      if (!aiGenerating) setAiModalOpen(false);
+                    }}
+                    className="px-4 py-2 rounded-lg border text-sm text-gray-600 hover:bg-gray-50"
+                    disabled={aiGenerating}
+                  >
+                    Annuleer
+                  </button>
+                  <button
+                    onClick={runAiGenerator}
+                    className="px-4 py-2 rounded-lg bg-gray-700 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={aiGenerating || selectedAiMeals.length === 0}
+                  >
+                    {aiGenerating ? 'AI genereert...' : 'Generate with AI'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Templates Modal */}
+          {templatesModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div
+                className="absolute inset-0 bg-black/40"
+                onClick={() => {
+                  if (!importingTemplate) {
+                    setTemplatesModalOpen(false);
+                  }
+                }}
+              />
+              <div className="relative bg-white w-[95vw] max-w-4xl max-h-[85vh] overflow-auto rounded-lg shadow-xl border border-gray-200 p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-lg font-bold text-gray-800">Templates</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Select a nutrition plan and day to import {dayNames[activeDay as keyof typeof dayNames]} as a template
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!importingTemplate) setTemplatesModalOpen(false);
+                    }}
+                    className="px-3 py-1.5 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+                    disabled={importingTemplate}
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {loadingTemplates ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-700"></div>
+                    <span className="ml-3 text-gray-600">Loading templates...</span>
+                  </div>
+                ) : templates.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    No other nutrition plans found to use as templates.
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                    {templates.map((template) => {
+                      // Get available days from template
+                      const templateWeekMenu = (template.weekMenu as any) || {};
+                      const availableDays = dayOrder.filter(day => templateWeekMenu[day]);
+                      
+                      return (
+                        <div
+                          key={template.id}
+                          className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between flex-col sm:flex-row gap-4">
+                            <div className="flex-1">
+                              <h5 className="font-semibold text-gray-800 mb-2">{template.name}</h5>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm text-gray-600">
+                                <div>
+                                  <span className="font-medium">Calories:</span> {template.calories} kcal
+                                </div>
+                                <div>
+                                  <span className="font-medium">Protein:</span> {template.protein}g
+                                </div>
+                                <div>
+                                  <span className="font-medium">Carbs:</span> {template.carbs}g
+                                </div>
+                                <div>
+                                  <span className="font-medium">Fat:</span> {template.fat}g
+                                </div>
+                              </div>
+                              {template.goal && (
+                                <div className="mt-2 text-xs text-gray-500">
+                                  Goal: {template.goal}
+                                </div>
+                              )}
+                              {availableDays.length > 0 && (
+                                <div className="mt-3">
+                                  <div className="text-xs font-medium text-gray-700 mb-1">Available days:</div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {availableDays.map((day) => (
+                                      <DayButtonWithCalories
+                                        key={day}
+                                        day={day}
+                                        dayName={dayNames[day as keyof typeof dayNames]}
+                                        dayData={templateWeekMenu[day]}
+                                        mealOrder={mealOrder}
+                                        calculateMealMacrosAndTotalsV2={calculateMealMacrosAndTotalsV2}
+                                        onClick={() => {
+                                          setPreviewTemplate({ templateId: template.id, day });
+                                        }}
+                                        disabled={importingTemplate}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {importingTemplate && (
+                  <div className="mt-4 flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="ml-3 text-gray-600">Importing template...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Meal Template Modal */}
+          {mealTemplateModalOpen && selectedMealType && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div
+                className="absolute inset-0 bg-black/40"
+                onClick={() => {
+                  if (!importingTemplate) {
+                    setMealTemplateModalOpen(false);
+                    setSelectedMealType(null);
+                  }
+                }}
+              />
+              <div className="relative bg-white w-[95vw] max-w-4xl max-h-[85vh] overflow-auto rounded-lg shadow-xl border border-gray-200 p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-lg font-bold text-gray-800">Meal Templates</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Select a template to import {selectedMealType === 'morning-snack' ? 'Morning Snack' : 
+                        selectedMealType === 'afternoon-snack' ? 'Afternoon Snack' : 
+                        selectedMealType === 'evening-snack' ? 'Evening Snack' : 
+                        selectedMealType.charAt(0).toUpperCase() + selectedMealType.slice(1)} for {dayNames[activeDay as keyof typeof dayNames]}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!importingTemplate) {
+                        setMealTemplateModalOpen(false);
+                        setSelectedMealType(null);
+                      }
+                    }}
+                    className="px-3 py-1.5 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+                    disabled={importingTemplate}
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {loadingTemplates && templates.length === 0 ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-700"></div>
+                    <span className="ml-3 text-gray-600">Loading templates...</span>
+                  </div>
+                ) : templates.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    No other nutrition plans found to use as templates.
+                  </div>
+                ) : (
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    {mealTemplatesLoaded.total > 0 && mealTemplatesLoaded.loaded < mealTemplatesLoaded.total && (
+                      <div className="sticky top-0 bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm text-blue-700 z-10 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                            <span className="font-medium">Loading macros: {mealTemplatesLoaded.loaded}/{mealTemplatesLoaded.total}</span>
+                          </div>
+                          <div className="text-xs text-blue-600">
+                            {Math.round((mealTemplatesLoaded.loaded / mealTemplatesLoaded.total) * 100)}%
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Calories</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Protein</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Carbs</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Fat</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {allMealsForSelectedType.map((mealData) => {
+                            // Parse description to show clean ingredients
+                            const parsedIngredients = parseMealDescription(mealData.mealDescription);
+                            const cleanDescription = parsedIngredients
+                              .map(ing => {
+                                // Remove DB IDs
+                                if (ing.includes('|')) {
+                                  const parts = ing.split('|');
+                                  return parts[parts.length - 1].trim();
+                                }
+                                return ing.trim();
+                              })
+                              .filter(ing => ing.length > 0)
+                              .join(', ') || mealData.mealDescription.substring(0, 100);
+                            
+                            return (
+                              <MealTemplateRow
+                                key={`${mealData.templateId}-${mealData.day}-${mealData.globalIndex}`}
+                                mealData={mealData}
+                                cleanDescription={cleanDescription}
+                                selectedMealType={selectedMealType}
+                                activeDay={activeDay}
+                                dayNames={dayNames}
+                                calculateMealMacrosFromIngredients={calculateMealMacrosFromIngredients}
+                                onImport={(templateId, day, mealType) => {
+                                  if (window.confirm(`Import ${mealType} from ${dayNames[day as keyof typeof dayNames]} of "${mealData.templateName}"? This will replace the current ${mealType} for ${dayNames[activeDay as keyof typeof dayNames]}.`)) {
+                                    handleImportMealTemplate(templateId, day, mealType);
+                                  }
+                                }}
+                                importingTemplate={importingTemplate}
+                                onMacrosCalculated={handleMacroCalculated}
+                              />
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                    {allMealsForSelectedType.length === 0 && !loadingTemplates && (
+                      <div className="text-center py-12 text-gray-500">
+                        No {selectedMealType} meals found in any templates.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {importingTemplate && (
+                  <div className="mt-4 flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                    <span className="ml-3 text-gray-600">Importing meal template...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Preview Modal */}
+          {previewTemplate && (
+            <PreviewModalContent
+              template={templates.find(t => t.id === previewTemplate.templateId)}
+              previewDay={previewTemplate.day}
+              activeDay={activeDay}
+              dayNames={dayNames}
+              mealOrder={mealOrder}
+              parseMealDescription={parseMealDescription}
+              calculateMealMacrosFromIngredients={calculateMealMacrosFromIngredients}
+              loadingTemplates={loadingTemplates}
+              importingTemplate={importingTemplate}
+              onClose={() => setPreviewTemplate(null)}
+              onImport={(templateId, day) => {
+                if (window.confirm(`Are you sure you want to import ${dayNames[day as keyof typeof dayNames]} to ${dayNames[activeDay as keyof typeof dayNames]}? This will overwrite all current meals for ${dayNames[activeDay as keyof typeof dayNames]}.`)) {
+                  handleImportTemplate(templateId, day);
+                  setPreviewTemplate(null);
+                }
+              }}
+            />
+          )}
+
+          {/* Generation Log Modal */}
+          {genLogOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+              <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => setGenLogOpen(false)} />
+              <div className="relative w-full max-w-4xl max-h-[85vh] bg-slate-900 text-white rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 py-5 bg-gradient-to-r from-gray-500/20 via-gray-500/10 to-gray-500/20 border-b border-white/10">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.3em] text-gray-200">Live Feed</p>
+                    <h4 className="text-xl font-semibold text-white">AI Generation Log</h4>
+                    <p className="text-sm text-slate-200">{genLog.length ? `${genLog.length} events geregistreerd` : 'Nog geen activiteit'}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCopyLog}
+                      className="px-3 py-2 rounded-lg border border-white/20 text-xs font-semibold text-white hover:bg-white/10 transition-colors"
+                    >
+                      Kopieer log
+                    </button>
+                    <button
+                      onClick={() => setGenLogOpen(false)}
+                      className="px-3 py-2 rounded-lg bg-white text-slate-900 text-xs font-semibold hover:bg-slate-100 transition-colors"
+                    >
+                      Sluiten
+                    </button>
+                  </div>
+                </div>
+                <div
+                  ref={logContainerRef}
+                  className="px-6 py-5 space-y-3 overflow-y-auto max-h-[calc(85vh-130px)] bg-slate-950/80 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+                >
+                  {genLog.length ? (
+                    <div className="space-y-4">
+                      {genLog.map((entry, index) => (
+                        <div key={`${entry}-${index}`} className="relative pl-6">
+                          <span className="absolute left-0 top-4 w-3 h-3 rounded-full bg-gray-400 shadow-[0_0_12px_rgba(156,163,175,0.8)]"></span>
+                          <div className="bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-4 backdrop-blur-sm shadow-lg">
+                            <div className="text-[11px] uppercase tracking-wide text-gray-200 mb-1 flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-200">Step {index + 1}</span>
+                              <span className="text-slate-400 font-medium">AI Action</span>
+                            </div>
+                            <p className="font-mono text-[11px] sm:text-xs text-slate-100 whitespace-pre-wrap break-words">
+                              {entry}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-slate-400 text-sm py-12">
+                      Nog geen logregels. Start een AI generatie om live updates te zien.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -3151,7 +4830,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
       {planData.weekMenu && (
         <div className="space-y-6">
               {/* Daily Totals Header with Progress Indicators */}
-              <div className="bg-gradient-to-r from-rose-50 to-pink-50 rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-rose-200">
+              <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 border border-gray-200">
                 <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-800 mb-2 sm:mb-3 lg:mb-4 text-center">
                   {dayNames[activeDay as keyof typeof dayNames]} - Daily Overview
                 </h3>
@@ -3238,7 +4917,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                       <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-gray-700">Fat</span>
-                          <span className="text-sm font-bold text-purple-600">{dailyTotals.fat}g / {planData.fat}g</span>
+                          <span className="text-sm font-bold text-gray-900">{dailyTotals.fat}g / {planData.fat}g</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
                           <div
@@ -3250,7 +4929,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                           <span className="text-xs text-gray-500">
                             {Math.round((dailyTotals.fat / planData.fat) * 100)}%
                           </span>
-                          <span className={`text-xs font-medium ${getTextColor(dailyTotals.fat, planData.fat, 'text-purple-600')}`}>
+                          <span className={`text-xs font-medium ${getTextColor(dailyTotals.fat, planData.fat, 'text-gray-700')}`}>
                             {dailyTotals.fat >= planData.fat ? 
                               `+${dailyTotals.fat - planData.fat}g` : 
                               `${planData.fat - dailyTotals.fat}g to go`
@@ -3276,7 +4955,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                           <div className="text-xs sm:text-sm text-gray-600">Carbs</div>
                         </div>
                         <div>
-                          <div className="text-sm sm:text-lg lg:text-2xl font-bold text-purple-600">{dailyTotals.fat}g</div>
+                          <div className="text-sm sm:text-lg lg:text-2xl font-bold text-gray-900">{dailyTotals.fat}g</div>
                           <div className="text-xs sm:text-sm text-gray-600">Fat</div>
                         </div>
                       </div>
@@ -3334,7 +5013,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                         <tr key={mealType} className="hover:bg-gray-50">
                           <td className="px-1 sm:px-2 lg:px-3 py-2 sm:py-3 lg:py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <span className="text-sm sm:text-lg lg:text-xl mr-1 sm:mr-2">{getMealIcon(mealType)}</span>
+                              <span className="mr-1 sm:mr-2 flex items-center">{getMealIcon(mealType)}</span>
                               <div>
                                 <div className="text-xs sm:text-sm font-medium text-gray-900">
                                   {mealType === 'morning-snack' ? 'Morning Snack' : 
@@ -3428,18 +5107,34 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                             {isLoading ? (
                               <div className="animate-pulse bg-gray-200 h-3 sm:h-4 lg:h-5 w-5 sm:w-6 lg:w-10 rounded mx-auto"></div>
                             ) : (
-                              <span className="inline-flex items-center px-1 sm:px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              <span className="inline-flex items-center px-1 sm:px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                 {macros.fat}g
                               </span>
                             )}
                           </td>
                           <td className="px-1 sm:px-2 py-2 sm:py-3 lg:py-4 whitespace-nowrap text-center">
-                            <IngredientSelector
-                              onAddIngredient={handleAddIngredient}
-                              onAddRecipe={handleAddRecipe}
-                              mealType={mealType}
-                              dayKey={activeDay}
-                            />
+                            <div className="flex items-center gap-1 sm:gap-2 justify-center flex-wrap">
+                              <IngredientSelector
+                                onAddIngredient={handleAddIngredient}
+                                onAddRecipe={handleAddRecipe}
+                                mealType={mealType}
+                                dayKey={activeDay}
+                              />
+                              <button
+                                onClick={() => {
+                                  setSelectedMealType(mealType);
+                                  setMealTemplateModalOpen(true);
+                                  // Only load if not cached
+                                  if (!templatesCacheRef.current) {
+                                    loadTemplates();
+                                  }
+                                }}
+                                className="px-2 py-1 text-xs font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 whitespace-nowrap"
+                                title={`Import template for ${mealType}`}
+                              >
+                                Template
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -3461,10 +5156,27 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                       dayMenu = planData.days[activeDay];
                     }
                     const meal = getMealString(dayMenu || {}, mealType);
-                    const cookingInstructions = getCookingInstructionsFromStructure(planData?.weekMenu, activeDay, mealType) || getCookingInstructions(dayMenu, mealType);
+                    // Use new structure first, only fallback to old structure if new structure has no data
+                    const newStructureInstructions = getCookingInstructions(dayMenu, mealType);
+                    const cookingInstructions = newStructureInstructions || getCookingInstructionsFromStructure(planData?.weekMenu, activeDay, mealType);
                     
                     return (
-                      <div key={`${activeDay}-${mealType}`}>
+                      <div key={`${activeDay}-${mealType}`} className="mb-6">
+                        {/* Meal Header with Clear Button */}
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-base sm:text-lg font-semibold text-gray-800 capitalize">
+                            {mealDisplayNames[mealType as MealKey] || mealType}
+                          </h4>
+                          {meal && meal.trim() !== '' && (
+                            <button
+                              onClick={() => handleClearMeal(mealType)}
+                              className="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 transition-colors whitespace-nowrap"
+                              title={`Verwijder alle ingrediënten van ${mealDisplayNames[mealType as MealKey] || mealType}`}
+                            >
+                              🗑️ Leeg maken
+                            </button>
+                          )}
+                        </div>
                         <IngredientBreakdown
                           mealDescription={meal}
                           mealType={mealType.charAt(0).toUpperCase() + mealType.slice(1)}
@@ -3474,97 +5186,63 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                           editable={true}
                           onMacrosUpdated={onMacrosUpdatedCallback}
                           onPlanUpdated={(updatedPlan: any) => {
-                            console.log('🔄 [PARENT] onPlanUpdated called with updated plan:', updatedPlan ? 'API update' : 'local changes');
-                            console.log('🔄 [PARENT] Updated plan data:', updatedPlan?.weekMenu?.[activeDay]);
-                            console.log('🔄 [PARENT] Current dailyTotals BEFORE update:', dailyTotals);
+                            console.log('🔔 [DEBUG] onPlanUpdated called in NutritionPlanDetailClient');
+                            console.log('🔔 [DEBUG] updatedPlan:', updatedPlan);
+                            console.log('🔔 [DEBUG] Current dailyTotals before onPlanUpdated:', dailyTotals);
+                            console.log('🔔 [DEBUG] Current planData.weekMenu before update:', planData?.weekMenu?.[activeDay]);
                             
                             const handleUpdate = async () => {
                               try {
-                                console.log('🔄 [PARENT] Starting handleUpdate...');
-                                
                                 if (updatedPlan) {
-                                  // API update - first update state immediately for instant UI feedback
+                                  console.log('🔔 [DEBUG] onPlanUpdated: updatedPlan is truthy, updating planData');
+                                  // API update - update state immediately for instant UI feedback
                                   setPlanData(updatedPlan);
-                                  
-                                  // Also fetch fresh data from server to ensure consistency
-                                  try {
-                                    const freshResponse = await fetch(`/api/nutrition-plans/${planId}`);
-                                    if (freshResponse.ok) {
-                                      const freshPlan = await freshResponse.json();
-                                      console.log('🔄 [PARENT] Fetched fresh plan data from server');
-                                      setPlanData(freshPlan);
-                                      
-                                      // Use same logic as main useEffect: prefer weekMenu, fallback to days
-                                      let dayData = null;
-                                      if (freshPlan?.weekMenu?.[activeDay]) {
-                                        dayData = freshPlan.weekMenu[activeDay];
-                                        console.log('🔄 [PARENT] Using weekMenu data for day:', activeDay);
-                                      } else if (freshPlan?.days?.[activeDay]) {
-                                        dayData = freshPlan.days[activeDay];
-                                        console.log('🔄 [PARENT] Using days data for day:', activeDay);
-                                      }
-                                      
-                                      if (dayData) {
-                                        // Use V2 function for meal macros
-                                        const { mealMacros: newMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
-                                        setMealMacros(newMealMacros);
-                                        
-                                        // Wait for DOM update, then calculate daily totals from DOM
-                                        setTimeout(() => {
-                                          const totals = calculateDailyTotalsFromDOM();
-                                          setDailyTotals({...totals});
-                                          
-                                          console.log('🔄 [PARENT] New meal macros calculated with V2:', newMealMacros);
-                                          console.log('🔄 [PARENT] Daily totals calculated with V3 DOM:', totals);
-                                        }, 100);
-                                      }
-                                    }
-                                  } catch (fetchError) {
-                                    console.error('🔄 [PARENT] Error fetching fresh plan data:', fetchError);
-                                    // Fallback to using updatedPlan data
-                                    setPlanData(updatedPlan);
-                                  }
-                                  
-                                  console.log('✅ [PARENT] Both meal macros and daily totals updated with fresh data');
-                                } else {
-                                  // Local changes only - recalculate from current plan data
-                                  console.log('🔄 [PARENT] Recalculating totals for local changes');
                                   
                                   // Use same logic as main useEffect: prefer weekMenu, fallback to days
                                   let dayData = null;
-                                  if (planData?.weekMenu?.[activeDay]) {
-                                    dayData = planData.weekMenu[activeDay];
-                                    console.log('🔄 [PARENT] Using weekMenu data for local changes:', activeDay);
-                                  } else if (planData?.days?.[activeDay]) {
-                                    dayData = planData.days[activeDay];
-                                    console.log('🔄 [PARENT] Using days data for local changes:', activeDay);
+                                  if (updatedPlan?.weekMenu?.[activeDay]) {
+                                    dayData = updatedPlan.weekMenu[activeDay];
+                                  } else if (updatedPlan?.days?.[activeDay]) {
+                                    dayData = updatedPlan.days[activeDay];
                                   }
+                                  
+                                  console.log('🔔 [DEBUG] onPlanUpdated: dayData extracted:', dayData);
                                   
                                   if (dayData) {
-                                    // Use V2 function for meal macros
-                                    const { mealMacros: newMealMacros } = await calculateMealMacrosAndTotalsV2(dayData);
-                                    setMealMacros(newMealMacros);
-                                    
-                                    // Wait for DOM update, then calculate daily totals from DOM
+                                    // Don't call calculateMealMacrosAndTotalsV2 - it uses old data from the API
+                                    // The IngredientBreakdown components will update the DOM with new values
+                                    // Just wait for DOM to update, then read from DOM
                                     setTimeout(() => {
+                                      console.log('🔔 [DEBUG] onPlanUpdated: setTimeout fired, recalculating totals from DOM');
                                       const totals = calculateDailyTotalsFromDOM();
-                                      setDailyTotals({...totals});
-                                      
-                                      console.log('🔄 [PARENT] Meal macros calculated with V2:', newMealMacros);
-                                      console.log('🔄 [PARENT] Daily totals calculated with V3 DOM:', totals);
-                                    }, 100);
+                                      console.log('🔔 [DEBUG] onPlanUpdated: Totals calculated from DOM:', totals);
+                                      setDailyTotals(prev => {
+                                        console.log('🔔 [DEBUG] onPlanUpdated: setDailyTotals called with prev:', prev, 'new:', totals);
+                                        return {...totals};
+                                      });
+                                    }, 300); // Longer delay to ensure IngredientBreakdown components have updated the DOM
                                   }
-                                  
-                                  console.log('✅ [PARENT] Both updated for local changes with V2');
+                                } else {
+                                  console.log('🔔 [DEBUG] onPlanUpdated: updatedPlan is null/falsy, using local changes - reading from DOM only');
+                                  // Local changes only - DOM is already updated by IngredientBreakdown, just read it
+                                  // Don't call calculateMealMacrosAndTotalsV2 as it uses old data from planData
+                                  // Wait a bit for DOM to be fully updated, then read directly from DOM
+                                  setTimeout(() => {
+                                    console.log('🔔 [DEBUG] onPlanUpdated (local): setTimeout fired, recalculating totals from DOM');
+                                    const totals = calculateDailyTotalsFromDOM();
+                                    console.log('🔔 [DEBUG] onPlanUpdated (local): Totals calculated from DOM:', totals);
+                                    setDailyTotals(prev => {
+                                      console.log('🔔 [DEBUG] onPlanUpdated (local): setDailyTotals called with prev:', prev, 'new:', totals);
+                                      return {...totals};
+                                    });
+                                  }, 200); // Slightly longer delay to ensure DOM is updated
                                 }
                               } catch (e) {
                                 console.error('❌ [PARENT] Failed to refresh macros after update', e);
                               }
                             };
                             
-                            console.log('🔄 [PARENT] About to call handleUpdate()');
                             handleUpdate();
-                            console.log('🔄 [PARENT] handleUpdate() called (async execution started)');
                           }}
                         />
                         
@@ -3789,7 +5467,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                       </div>
                     </div>
                     <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm">
-                      <div className="text-lg sm:text-2xl font-bold text-purple-600">
+                      <div className="text-lg sm:text-2xl font-bold text-gray-900">
                         {ingredientsAnalysis.dailyAverage.fat}g
                       </div>
                       <div className="text-xs sm:text-sm text-gray-600">Daily Fat</div>
@@ -3846,8 +5524,8 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                                 case 'carbohydrates': return 'bg-blue-100 text-blue-800';
                                 case 'fruits': return 'bg-green-100 text-green-800';
                                 case 'vegetables': return 'bg-yellow-100 text-yellow-800';
-                                case 'healthy-fats': return 'bg-purple-100 text-purple-800';
-                                case 'dairy': return 'bg-pink-100 text-pink-800';
+                                case 'healthy-fats': return 'bg-gray-100 text-gray-800';
+                                case 'dairy': return 'bg-gray-100 text-gray-800';
                                 case 'nuts-seeds': return 'bg-orange-100 text-orange-800';
                                 default: return 'bg-gray-100 text-gray-800';
                               }
@@ -3914,7 +5592,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                                   <div className="text-sm font-medium text-green-600">{Math.round(ingredient.totalCarbs / ingredient.totalAmount * 100)}g</div>
                                 </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-center">
-                                  <div className="text-sm font-medium text-purple-600">{Math.round(ingredient.totalFat / ingredient.totalAmount * 100)}g</div>
+                                  <div className="text-sm font-medium text-gray-900">{Math.round(ingredient.totalFat / ingredient.totalAmount * 100)}g</div>
                                 </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-center">
                                   <div className="text-sm text-gray-600">{Math.round(ingredient.totalFiber / ingredient.totalAmount * 100)}g</div>
@@ -3956,7 +5634,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                         <div className="text-xs sm:text-sm text-gray-600">Total Carbs</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-lg sm:text-xl font-bold text-purple-600">
+                        <div className="text-lg sm:text-xl font-bold text-gray-900">
                           {ingredientsAnalysis.totals.fat}g
                         </div>
                         <div className="text-xs sm:text-sm text-gray-600">Total Fat</div>
@@ -4046,7 +5724,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
                     setPdfPreviewOpen(false);
                     setPdfPreviewUrl(null);
                   }}
-                  className="px-3 py-1.5 rounded-md bg-rose-500 text-white text-xs hover:bg-rose-600"
+                  className="px-3 py-1.5 rounded-md bg-gray-700 text-white text-xs hover:bg-gray-800"
                 >
                   Close
                 </button>

@@ -4,8 +4,9 @@ import { prisma } from '@/lib/prisma';
 interface Body {
   dayKey: string;
   mealType: string; // breakfast|snack|lunch|dinner (lowercase)
-  ingredientString?: string; // e.g., "100g Apple"
-  name?: string; // e.g., "Apple"
+  ingredientString?: string; // e.g., "100g Apple" - exact string to remove
+  name?: string; // e.g., "Apple" - name to match (will remove first match only)
+  index?: number; // optional: index of ingredient to remove (0-based)
 }
 
 function normalizeParts(meal: string): string[] {
@@ -74,13 +75,41 @@ export async function POST(
       return NextResponse.json({ success: false, message: 'Meal slot not found', meal: '', plan }, { status: 200 });
     }
 
-    const parts = normalizeParts(originalMeal);
+    // Check if meal has a RECIPE prefix and extract it
+    const recipePrefixMatch = originalMeal.match(/^(\[RECIPE:[^\]]+\]\s*)/);
+    const recipePrefix = recipePrefixMatch ? recipePrefixMatch[1] : '';
+    const mealWithoutPrefix = recipePrefix ? originalMeal.substring(recipePrefix.length) : originalMeal;
 
-    // Remove by normalized name only for robustness
-    const targetName = (name ? normalizeNamePart(name) : cleanNameOnly(ingredientString));
-    const updatedParts = parts.filter((p) => normalizeNamePart(p) !== targetName);
+    const parts = normalizeParts(mealWithoutPrefix);
+    const targetIndex = body.index !== undefined ? body.index : -1;
 
-    const newMeal = updatedParts.join(', ');
+    let updatedParts: string[];
+    
+    // If ingredientString is provided, use exact match
+    if (ingredientString) {
+      updatedParts = parts.filter((p) => p.trim() !== ingredientString.trim());
+    } 
+    // If index is provided, remove only that specific index
+    else if (targetIndex >= 0 && targetIndex < parts.length) {
+      updatedParts = parts.filter((_, idx) => idx !== targetIndex);
+    }
+    // Otherwise, remove first match by name (to avoid removing all instances)
+    else {
+      const targetName = (name ? normalizeNamePart(name) : cleanNameOnly(ingredientString));
+      let foundFirst = false;
+      updatedParts = parts.filter((p) => {
+        if (foundFirst) return true; // Keep all after first match
+        const matches = normalizeNamePart(p) === targetName;
+        if (matches) {
+          foundFirst = true;
+          return false; // Remove first match only
+        }
+        return true;
+      });
+    }
+
+    // Reconstruct meal string with RECIPE prefix if it existed
+    const newMeal = recipePrefix + updatedParts.join(', ');
     if (isObjectMeal) {
       weekMenu[dayKey] = {
         ...dayMenu,

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { put } from '@vercel/blob';
-
+
+// Configure route for larger file uploads
+export const runtime = 'nodejs';
+export const maxDuration = 60; // 60 seconds timeout
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +21,8 @@ export async function POST(request: NextRequest) {
       week,
       position,
       date,
-      fileName: file?.name
+      fileName: file?.name,
+      fileSize: file ? `${(file.size / 1024 / 1024).toFixed(2)}MB` : 'N/A'
     });
 
     if (!file || !customerId || !week || !position || !date) {
@@ -29,38 +33,91 @@ export async function POST(request: NextRequest) {
         position,
         date
       });
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ error: 'Ontbrekende verplichte velden' }, { status: 400 });
+    }
+
+    // Validate file size (max 10MB)
+    const maxSizeMB = 10;
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > maxSizeMB) {
+      console.error('File too large:', fileSizeMB, 'MB');
+      return NextResponse.json({ 
+        error: 'Bestand is te groot', 
+        details: `Maximum bestandsgrootte is ${maxSizeMB}MB. Huidige grootte: ${fileSizeMB.toFixed(2)}MB` 
+      }, { status: 400 });
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      console.error('Invalid file type:', file.type);
+      return NextResponse.json({ 
+        error: 'Ongeldig bestandstype', 
+        details: 'Alleen afbeeldingen zijn toegestaan' 
+      }, { status: 400 });
     }
 
     // Generate unique filename
     const timestamp = Date.now();
-    const fileExtension = file.name.split('.').pop();
+    const fileExtension = file.name.split('.').pop() || 'jpg';
     const filename = `customer-photos/${customerId}_week${week}_${position}_${timestamp}.${fileExtension}`;
 
-    // Upload to Vercel Blob
-    console.log('Uploading to Vercel Blob:', filename);
-    const blob = await put(filename, file, {
-      access: 'public',
-    });
-    console.log('Blob uploaded successfully:', blob.url);
+    // Upload to Vercel Blob with timeout handling
+    console.log('Uploading to Vercel Blob:', filename, `(${fileSizeMB.toFixed(2)}MB)`);
+    
+    try {
+      const blob = await put(filename, file, {
+        access: 'public',
+      });
+      console.log('Blob uploaded successfully:', blob.url);
 
-    // Save to database
-    const photo = await prisma.customerPhoto.create({
-      data: {
-        customerId,
-        week,
-        position,
-        date: new Date(date),
-        imageUrl: blob.url,
-        notes: formData.get('notes') as string || null
+      // Save to database
+      const photo = await prisma.customerPhoto.create({
+        data: {
+          customerId,
+          week,
+          position,
+          date: new Date(date),
+          imageUrl: blob.url,
+          notes: formData.get('notes') as string || null
+        }
+      });
+
+      return NextResponse.json(photo);
+    } catch (blobError: any) {
+      console.error('Vercel Blob upload error:', blobError);
+      
+      // Provide more specific error messages
+      if (blobError.message?.includes('timeout') || blobError.message?.includes('ETIMEDOUT')) {
+        return NextResponse.json({ 
+          error: 'Upload timeout', 
+          details: 'De upload duurde te lang. Probeer het opnieuw met een kleinere foto of controleer je internetverbinding.' 
+        }, { status: 408 });
       }
-    });
-
-    return NextResponse.json(photo);
-  } catch (error) {
+      
+      if (blobError.message?.includes('size') || blobError.message?.includes('too large')) {
+        return NextResponse.json({ 
+          error: 'Bestand te groot', 
+          details: 'Het bestand is te groot om te uploaden. Probeer een kleinere foto.' 
+        }, { status: 413 });
+      }
+      
+      throw blobError; // Re-throw to be caught by outer catch
+    }
+  } catch (error: any) {
     console.error('Error uploading photo:', error);
     console.error('Error details:', error.message);
-    return NextResponse.json({ error: 'Failed to upload photo', details: error.message }, { status: 500 });
+    console.error('Error stack:', error.stack);
+    
+    // Return user-friendly error message
+    const errorMessage = error.message || 'Onbekende fout';
+    return NextResponse.json({ 
+      error: 'Upload mislukt', 
+      details: errorMessage.includes('timeout') 
+        ? 'Upload timeout. Controleer je internetverbinding en probeer het opnieuw.'
+        : errorMessage.includes('network') || errorMessage.includes('fetch')
+        ? 'Netwerkfout. Controleer je internetverbinding en probeer het opnieuw.'
+        : errorMessage
+    }, { status: 500 });
   }
 }
 

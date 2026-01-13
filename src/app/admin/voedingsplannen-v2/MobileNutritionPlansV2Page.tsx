@@ -25,6 +25,7 @@ export default function MobileNutritionPlansV2Page() {
   const [voedingsplannen, setVoedingsplannen] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -42,37 +43,37 @@ export default function MobileNutritionPlansV2Page() {
   });
   const [creatingPlan, setCreatingPlan] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        
-        // Load nutrition plans without weekMenu for better performance
-        const plans = await nutritionService.getAllNutritionPlans(false);
-        setVoedingsplannen(plans);
-        
-        // Load customers
-        const customersResponse = await fetch('/api/users');
-        const customersData = await customersResponse.json();
-        // Handle the new API response structure with users array and pagination
-        if (customersData.users && Array.isArray(customersData.users)) {
-          setCustomers(customersData.users);
-        } else if (Array.isArray(customersData)) {
-          // Fallback for old API structure
-          setCustomers(customersData);
-        } else {
-          console.warn('Expected /api/users to return an object with users array. Got:', customersData);
-          setCustomers([]);
-        }
-      } catch (error) {
-        console.error('Error loading data:', error);
-        setVoedingsplannen([]);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load nutrition plans without weekMenu for better performance
+      const plans = await nutritionService.getAllNutritionPlans(false);
+      setVoedingsplannen(plans);
+      
+      // Load customers
+      const customersResponse = await fetch('/api/users');
+      const customersData = await customersResponse.json();
+      // Handle the new API response structure with users array and pagination
+      if (customersData.users && Array.isArray(customersData.users)) {
+        setCustomers(customersData.users);
+      } else if (Array.isArray(customersData)) {
+        // Fallback for old API structure
+        setCustomers(customersData);
+      } else {
+        console.warn('Expected /api/users to return an object with users array. Got:', customersData);
         setCustomers([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setVoedingsplannen([]);
+      setCustomers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -104,12 +105,17 @@ export default function MobileNutritionPlansV2Page() {
 
   const handleDeletePlan = async (plan: any) => {
     if (window.confirm('Are you sure you want to delete this nutrition plan?')) {
+      setDeletingPlanId(plan.id);
       try {
         await nutritionService.deleteNutritionPlan(plan.id);
-        setVoedingsplannen(voedingsplannen.filter(p => p.id !== plan.id));
+        // Reload data from server to ensure consistency
+        // This ensures customerNutritionPlans and other derived values are correct
+        await loadData();
       } catch (error) {
         console.error('Error deleting plan:', error);
         alert('Error deleting plan');
+      } finally {
+        setDeletingPlanId(null);
       }
     }
   };
@@ -215,6 +221,16 @@ export default function MobileNutritionPlansV2Page() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Loading Overlay */}
+      {deletingPlanId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 flex flex-col items-center gap-4 shadow-xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+            <p className="text-gray-700 font-medium">Verwijderen van mealplan...</p>
+            <p className="text-sm text-gray-500">Even geduld alstublieft</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Nutrition Plans V2</h1>
@@ -356,7 +372,8 @@ export default function MobileNutritionPlansV2Page() {
                 
                 <button
                   onClick={() => handleDeletePlan(plan)}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  disabled={deletingPlanId !== null}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span className="hidden sm:inline">Delete</span>

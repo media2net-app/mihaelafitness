@@ -45,11 +45,12 @@ export async function POST(request: NextRequest) {
 
       // Working hours and breaks aligned with schedule UI
       const workingHours = { start: '08:00', end: '20:00' };
-      const breaks = [
-        { start: '12:30', end: '14:00' },
-        { start: '17:00', end: '17:30' },
-        { start: '17:30', end: '19:00' },
-      ];
+      // No breaks on Friday (5) and Saturday (6)
+      const breaks: Array<{ start: string; end: string }> = [];
+      if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+        // Only apply lunch break on Monday-Thursday (not Friday/Saturday)
+        breaks.push({ start: '12:30', end: '13:00' });
+      }
 
       const pad = (n: number) => n.toString().padStart(2, '0');
       const startStr = `${pad(hours)}:${pad(minutes)}`;
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
             gte: startOfDay,
             lte: endOfDay,
           },
+          status: 'scheduled', // Only check conflicts with scheduled sessions
         },
         select: { startTime: true, endTime: true },
       });

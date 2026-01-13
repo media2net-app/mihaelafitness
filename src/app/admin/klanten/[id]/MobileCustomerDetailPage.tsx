@@ -635,10 +635,48 @@ function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState('');
 
-  const handleFileChange = (position: string, file: File | null) => {
+  const handleFileChange = async (position: string, file: File | null) => {
+    if (!file) {
+      setFormData(prev => ({
+        ...prev,
+        [position + 'Photo']: null
+      }));
+      return;
+    }
+
+    // Validate file
+    const { validateImageFile } = await import('@/lib/image-compression');
+    const validation = validateImageFile(file, 10);
+    
+    if (!validation.isValid) {
+      alert(validation.error || 'Ongeldig bestand');
+      return;
+    }
+
+    // Compress image if it's larger than 1MB
+    const sizeMB = file.size / (1024 * 1024);
+    let processedFile = file;
+    
+    if (sizeMB > 1) {
+      try {
+        setUploadStatus(`Comprimeren van ${position} foto...`);
+        const { compressImage } = await import('@/lib/image-compression');
+        processedFile = await compressImage(file, {
+          maxWidth: 1920,
+          maxHeight: 1920,
+          quality: 0.85,
+          maxSizeMB: 2
+        });
+        console.log(`Compressed ${position} photo: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`);
+      } catch (error) {
+        console.error('Compression error:', error);
+        // Continue with original file if compression fails
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
-      [position + 'Photo']: file
+      [position + 'Photo']: processedFile
     }));
   };
 
@@ -676,23 +714,44 @@ function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: {
           formDataUpload.append('position', position);
           formDataUpload.append('date', formData.date);
 
-          const response = await fetch('/api/customer-photos', {
-            method: 'POST',
-            body: formDataUpload,
-          });
+          // Create abort controller for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
 
-          if (response.ok) {
-            const photoData = await response.json();
-            photos.push(photoData);
-            console.log(`Successfully uploaded ${position} photo for week ${formData.week}`);
-            
-            // Update progress after each successful upload
-            setUploadProgress(((i + 1) / selectedPhotos.length) * 100);
-          } else {
-            const errorData = await response.json();
-            console.error(`Failed to upload ${position} photo:`, errorData);
-            setUploadStatus(`Error uploading ${position} photo`);
-            alert(`Failed to upload ${position} photo: ${errorData.error || 'Unknown error'}`);
+          try {
+            const response = await fetch('/api/customer-photos', {
+              method: 'POST',
+              body: formDataUpload,
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+              const photoData = await response.json();
+              photos.push(photoData);
+              console.log(`Successfully uploaded ${position} photo for week ${formData.week}`);
+              
+              // Update progress after each successful upload
+              setUploadProgress(((i + 1) / selectedPhotos.length) * 100);
+            } else {
+              const errorData = await response.json().catch(() => ({ error: 'Upload mislukt' }));
+              console.error(`Failed to upload ${position} photo:`, errorData);
+              setUploadStatus(`Fout bij uploaden ${position} foto`);
+              alert(`Upload mislukt voor ${position} foto: ${errorData.error || errorData.details || 'Onbekende fout'}`);
+              setUploading(false);
+              return;
+            }
+          } catch (error: any) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+              console.error(`Upload timeout for ${position} photo`);
+              setUploadStatus(`Timeout bij uploaden ${position} foto`);
+              alert(`Upload timeout voor ${position} foto. Controleer je internetverbinding en probeer het opnieuw.`);
+            } else {
+              console.error(`Upload error for ${position} photo:`, error);
+              setUploadStatus(`Fout bij uploaden ${position} foto`);
+              alert(`Upload mislukt voor ${position} foto: ${error.message || 'Onbekende fout'}`);
+            }
             setUploading(false);
             return;
           }
@@ -800,6 +859,9 @@ function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: {
                   onChange={(e) => handleFileChange(position, e.target.files?.[0] || null)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Grote foto's worden automatisch gecomprimeerd voor snellere upload
+                </p>
               </div>
               {formData[`${position}Photo` as keyof typeof formData] && (
                 <div className="mt-2">
@@ -808,6 +870,11 @@ function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: {
                     alt={`${position} preview`}
                     className="w-32 h-32 object-contain bg-gray-50 rounded-lg border border-gray-200"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(formData[`${position}Photo` as keyof typeof formData] as File).size > 0 
+                      ? `${((formData[`${position}Photo` as keyof typeof formData] as File).size / 1024 / 1024).toFixed(2)}MB`
+                      : ''}
+                  </p>
                 </div>
               )}
             </div>

@@ -187,11 +187,18 @@ export async function GET(request: NextRequest) {
     // Get training sessions for the specified date range
     let sessions = [];
     if (startDate && endDate) {
+      // Use proper date range to avoid timezone issues
+      const startDateObj = new Date(startDate + 'T00:00:00.000Z');
+      const endDateObj = new Date(endDate + 'T23:59:59.999Z');
+      
+      console.log(`🔍 Overview API: Querying sessions from ${startDate} to ${endDate}`);
+      console.log(`📅 Date range objects: ${startDateObj.toISOString()} to ${endDateObj.toISOString()}`);
+      
       const trainingSessions = await prisma.trainingSession.findMany({
         where: {
           date: {
-            gte: new Date(startDate),
-            lte: new Date(endDate)
+            gte: startDateObj,
+            lte: endDateObj
           }
         },
         include: {
@@ -206,13 +213,44 @@ export async function GET(request: NextRequest) {
       });
 
       // Transform sessions to ensure consistent date format
-      sessions = trainingSessions.map(session => ({
+      // Handle date conversion properly to avoid timezone issues
+      sessions = trainingSessions.map(session => {
+        // Convert database date to YYYY-MM-DD format
+        // If session.date is already a Date object, convert it
+        // If it's a string, parse it first
+        let dateStr: string;
+        
+        if (session.date instanceof Date) {
+          // Use UTC date parts to avoid timezone shifts
+          const year = session.date.getUTCFullYear();
+          const month = String(session.date.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(session.date.getUTCDate()).padStart(2, '0');
+          dateStr = `${year}-${month}-${day}`;
+        } else if (typeof session.date === 'string') {
+          // If it's already a string in YYYY-MM-DD format, use it directly
+          dateStr = session.date.split('T')[0];
+        } else {
+          // Fallback: create a new Date and convert
+          const date = new Date(session.date);
+          const year = date.getUTCFullYear();
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(date.getUTCDate()).padStart(2, '0');
+          dateStr = `${year}-${month}-${day}`;
+        }
+        
+        return {
         ...session,
-        date: session.date.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
+          date: dateStr,
         customerName: session.customer?.name || 'Unknown Customer'
-      }));
+        };
+      });
 
-      // Removed verbose debug logs for performance
+      console.log(`📅 Loaded ${sessions.length} sessions for ${startDate} to ${endDate}`);
+      // Debug: Log sessions for Saturday Nov 8
+      const saturdaySessions = sessions.filter(s => s.date === '2025-11-08' || s.date?.includes('2025-11-08'));
+      if (saturdaySessions.length > 0) {
+        console.log(`🔍 Found ${saturdaySessions.length} sessions for Saturday Nov 8:`, saturdaySessions);
+      }
     }
 
     // Process users with their related data

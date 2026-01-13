@@ -25,7 +25,8 @@ import {
   LogOut,
   Globe,
   Bell,
-  Search
+  Search,
+  Sparkles
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -54,6 +55,7 @@ export default function LayoutWrapperV2({ children }: LayoutWrapperV2Props) {
 
   // Full admin menu items for V2
   const adminItems = [
+    { path: '/admin/plan-2026', icon: Sparkles, label: 'Plan 2026', highlighted: true },
     { path: '/admin/v2', icon: Shield, label: 'Admin Dashboard' },
     { path: '/admin/v2/clients', icon: Users, label: 'Clients' },
     { path: '/admin/v2/schedule', icon: Calendar, label: 'Schedule' },
@@ -141,23 +143,30 @@ export default function LayoutWrapperV2({ children }: LayoutWrapperV2Props) {
               </div>
             </div>
             <nav className="p-4 space-y-2">
-              {currentItems.map((item, index) => (
-                <button
-                  key={item.path}
-                  onClick={() => {
-                    router.push(item.path);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
-                    isActive(item.path)
-                      ? 'bg-white/20 text-white shadow-lg'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              ))}
+              {currentItems.map((item, index) => {
+                const isHighlighted = (item as any).highlighted;
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => {
+                      router.push(item.path);
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
+                      isHighlighted
+                        ? isActive(item.path)
+                          ? 'bg-yellow-500 text-white shadow-lg'
+                          : 'text-yellow-200 hover:text-white hover:bg-yellow-500/30'
+                        : isActive(item.path)
+                          ? 'bg-white/20 text-white shadow-lg'
+                          : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isHighlighted ? (isActive(item.path) ? 'text-white' : 'text-yellow-200') : ''}`} />
+                    <span className={`font-medium ${isHighlighted ? (isActive(item.path) ? 'text-white' : 'text-yellow-200') : ''}`}>{item.label}</span>
+                  </button>
+                );
+              })}
             </nav>
             <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/20">
               <div className="space-y-2">
@@ -201,20 +210,27 @@ export default function LayoutWrapperV2({ children }: LayoutWrapperV2Props) {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2">
-            {currentItems.map((item, index) => (
-              <button
-                key={item.path}
-                onClick={() => router.push(item.path)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
-                  isActive(item.path)
-                    ? 'bg-white/20 text-white shadow-lg'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">{item.label}</span>
-              </button>
-            ))}
+            {currentItems.map((item, index) => {
+              const isHighlighted = (item as any).highlighted;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => router.push(item.path)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
+                    isHighlighted
+                      ? isActive(item.path)
+                        ? 'bg-yellow-500 text-white shadow-lg'
+                        : 'text-yellow-200 hover:text-white hover:bg-yellow-500/30'
+                      : isActive(item.path)
+                        ? 'bg-white/20 text-white shadow-lg'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <item.icon className={`w-5 h-5 flex-shrink-0 ${isHighlighted ? (isActive(item.path) ? 'text-white' : 'text-yellow-200') : ''}`} />
+                  <span className={`font-medium ${isHighlighted ? (isActive(item.path) ? 'text-white' : 'text-yellow-200') : ''}`}>{item.label}</span>
+                </button>
+              );
+            })}
           </nav>
 
           {/* Bottom Actions */}

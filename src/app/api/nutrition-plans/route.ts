@@ -116,15 +116,41 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Check if nutrition plan exists before attempting to delete
+    const existingPlan = await prisma.nutritionPlan.findUnique({
+      where: { id },
+      include: {
+        customerNutritionPlans: {
+          select: { id: true }
+        }
+      }
+    })
+
+    if (!existingPlan) {
+      return NextResponse.json(
+        { error: 'Nutrition plan not found' },
+        { status: 404 }
+      )
+    }
+
+    // Delete the nutrition plan (cascade delete will handle related CustomerNutritionPlan records)
     await prisma.nutritionPlan.delete({
       where: { id }
     })
 
-    return NextResponse.json({ success: true })
+    console.log(`Nutrition plan ${id} deleted successfully (cascaded ${existingPlan.customerNutritionPlans.length} customer assignments)`)
+    return NextResponse.json({ 
+      success: true,
+      message: 'Nutrition plan deleted successfully',
+      id: id
+    })
   } catch (error) {
     console.error('Error deleting nutrition plan:', error)
     return NextResponse.json(
-      { error: 'Failed to delete nutrition plan' },
+      { 
+        error: 'Failed to delete nutrition plan',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

@@ -76,27 +76,106 @@ export async function PUT(
   try {
     const data = await request.json()
     
+    // Get current user to check if trainingFrequency changed
+    const currentUser = await prisma.user.findUnique({
+      where: { id },
+      select: { trainingFrequency: true }
+    });
+
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Build update object with only provided fields
+    const updateData: any = {}
+    
+    if (data.name !== undefined) updateData.name = data.name
+    if (data.email !== undefined) updateData.email = data.email
+    if (data.phone !== undefined) updateData.phone = data.phone
+    if (data.goal !== undefined) updateData.goal = data.goal
+    if (data.status !== undefined) updateData.status = data.status
+    if (data.plan !== undefined) updateData.plan = data.plan
+    
+    let newFrequency: number | undefined;
+    if (data.trainingFrequency !== undefined && data.trainingFrequency !== null) {
+      // Ensure trainingFrequency is a number
+      newFrequency = typeof data.trainingFrequency === 'string' 
+        ? parseInt(data.trainingFrequency, 10) 
+        : Number(data.trainingFrequency)
+      updateData.trainingFrequency = newFrequency
+    }
+    
+    if (data.totalSessions !== undefined && data.totalSessions !== null) {
+      updateData.totalSessions = typeof data.totalSessions === 'string'
+        ? parseInt(data.totalSessions, 10)
+        : Number(data.totalSessions)
+    }
+    if (data.rating !== undefined && data.rating !== null) {
+      updateData.rating = typeof data.rating === 'string'
+        ? parseFloat(data.rating)
+        : Number(data.rating)
+    }
+    if (data.lastWorkout !== undefined && data.lastWorkout !== null) {
+      updateData.lastWorkout = new Date(data.lastWorkout)
+    }
+    
+    // If trainingFrequency changed, create history entry
+    if (newFrequency !== undefined && newFrequency !== currentUser.trainingFrequency) {
+      await prisma.trainingFrequencyHistory.create({
+        data: {
+          customerId: id,
+          frequency: newFrequency,
+          effectiveFrom: new Date()
+        }
+      });
+      console.log(`Training frequency changed from ${currentUser.trainingFrequency} to ${newFrequency} for user ${id}`);
+    }
+    
     const user = await prisma.user.update({
       where: { id },
-      data: {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        goal: data.goal,
-        status: data.status,
-        plan: data.plan,
-        trainingFrequency: data.trainingFrequency,
-        totalSessions: data.totalSessions,
-        rating: data.rating,
-        lastWorkout: data.lastWorkout ? new Date(data.lastWorkout) : undefined
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        goal: true,
+        joinDate: true,
+        status: true,
+        plan: true,
+        trainingFrequency: true,
+        lastWorkout: true,
+        totalSessions: true,
+        rating: true,
+        createdAt: true,
+        updatedAt: true
       }
     })
 
     return NextResponse.json(user)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating user:', error)
+    
+    // Provide more detailed error messages
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'A user with this email already exists' },
+        { status: 409 }
+      )
+    }
+    
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to update user' },
+      { error: error.message || 'Failed to update user' },
       { status: 500 }
     )
   }

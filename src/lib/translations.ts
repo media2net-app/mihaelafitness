@@ -309,7 +309,9 @@ export const translations = {
         nutritionPlans: 'Nutrition Plans',
         activeCustomers: 'Active Customers',
         quickActions: 'Quick Actions',
+        quickActionsSubtitle: 'Get quick access to the most important admin features.',
         recentActivity: 'Recent Activity',
+        recentActivityEmpty: 'No recent activities found.',
         customerManagement: 'Customer Management',
         customerManagementDesc: 'View and manage all customers',
         nutritionPlansDesc: 'Design nutrition plans',
@@ -345,6 +347,88 @@ export const translations = {
         pricingCalculator: 'Pricing Calculator',
         clients: 'Clients',
         menu: 'Menu'
+      },
+      clientsPage: {
+        heading: 'Clients',
+        subheading: 'Manage clients and track their progress in real time.',
+        addClient: 'Add client',
+        stats: {
+          total: 'Total clients',
+          active: 'Active clients',
+          intake: 'In intake',
+          sessions: 'Total sessions'
+        },
+        searchPlaceholder: 'Search clients...',
+        filter: 'Filter',
+        loading: 'Loading clients...',
+        summary: {
+          total: 'Total {count} clients',
+          filtered: '{filtered} of {total} clients'
+        },
+        resetSearch: 'Reset search',
+        empty: {
+          title: 'No clients found',
+          description: 'Add your first client to get started.',
+          filteredDescription: 'Check your search terms or try another client.'
+        },
+        adminLabel: 'ADMIN',
+        statsSessions: 'Sessions',
+        statsPerWeek: 'Per week',
+        statsMeasurements: 'Measurements',
+        statsPhotos: 'Photos',
+        missingPhotos: 'Need {count} more',
+        weeksShort: 'w',
+        joinedLabel: 'Joined',
+        payment: {
+          nextPayment: 'Next payment',
+          overdue: '{count} days overdue',
+          dueToday: 'Due today!',
+          inDays: '{count} days',
+          dateLabel: 'Due on {date}'
+        },
+        actions: {
+          activateClient: 'Activate client',
+          viewDetails: 'View details →',
+          addClient: 'Add client',
+          viewClient: 'View client',
+          deleteClient: 'Delete client'
+        },
+        addModal: {
+          title: 'Add client',
+          nameLabel: 'Name',
+          namePlaceholder: 'Enter client name',
+          emailLabel: 'Email',
+          emailPlaceholder: 'Enter email address',
+          phoneLabel: 'Phone',
+          phonePlaceholder: 'Enter phone number',
+          goalLabel: 'Goal',
+          goalPlaceholder: 'Describe client goals',
+          trainingFrequencyLabel: 'Training frequency',
+          cancel: 'Cancel',
+          create: 'Create client',
+          frequencyOptions: {
+            once: '1x per week',
+            twice: '2x per week',
+            three: '3x per week',
+            four: '4x per week',
+            five: '5x per week'
+          }
+        },
+        deleteModal: {
+          title: 'Delete client',
+          subtitle: 'This action will permanently remove the client data.',
+          warningPrefix: 'You are about to delete ',
+          warningSuffix: '. This action cannot be undone.',
+          description: 'The following data will be removed:',
+          items: [
+            'Client profile and contact information',
+            'Training sessions and workout history',
+            'Measurements and progress photos',
+            'Nutrition plans and tracking'
+          ],
+          cancel: 'Cancel',
+          confirm: 'Delete client'
+        }
       },
       customers: {
         title: 'Customers',
@@ -448,6 +532,7 @@ export const translations = {
     },
     common: {
       loading: 'Loading...',
+      refresh: 'Refresh',
       error: 'Something went wrong',
       success: 'Success!',
       back: 'Back',
@@ -764,12 +849,14 @@ export const translations = {
         nutritionPlans: 'Planuri Nutriționale',
         activeCustomers: 'Clienți Activi',
         quickActions: 'Acțiuni Rapide',
+        quickActionsSubtitle: 'Accesează rapid cele mai importante funcții de administrare.',
         recentActivity: 'Activitate Recentă',
+        recentActivityEmpty: 'Nu au fost găsite activități recente.',
         customerManagement: 'Gestionarea Clienților',
         customerManagementDesc: 'Vizualizează și gestionează toți clienții',
         nutritionPlansDesc: 'Proiectează planuri nutriționale',
         pricingCalculator: 'Calculator de Prețuri',
-        pricingCalculatorDesc: 'Calculează prețuri și tarife',
+        pricingCalculatorDesc: 'Calculează prețurile și tarifele',
         addMeasurements: 'Adaugă Măsurători',
         addMeasurementsDesc: 'Adaugă măsurători pentru un client',
         coachingSchedule: 'Programul de Coaching',
@@ -801,9 +888,91 @@ export const translations = {
         clients: 'Clienți',
         menu: 'Meniu'
       },
+      clientsPage: {
+        heading: 'Clienți',
+        subheading: 'Gestionează clienții și urmărește progresul lor în timp real.',
+        addClient: 'Adaugă client',
+        stats: {
+          total: 'Total clienți',
+          active: 'Clienți activi',
+          intake: 'În intake',
+          sessions: 'Sesiuni totale'
+        },
+        searchPlaceholder: 'Caută clienți...',
+        filter: 'Filtrează',
+        loading: 'Se încarcă lista de clienți...',
+        summary: {
+          total: 'Total {count} clienți',
+          filtered: '{filtered} din {total} clienți'
+        },
+        resetSearch: 'Resetează căutarea',
+        empty: {
+          title: 'Nu am găsit clienți',
+          description: 'Adaugă primul client pentru a începe.',
+          filteredDescription: 'Verifică termenii de căutare sau încearcă alt client.'
+        },
+        adminLabel: 'ADMIN',
+        statsSessions: 'Sesiuni',
+        statsPerWeek: 'Pe săptămână',
+        statsMeasurements: 'Măsurători',
+        statsPhotos: 'Fotografii',
+        missingPhotos: 'Mai lipsesc {count}',
+        weeksShort: 's',
+        joinedLabel: 'Înscris la',
+        payment: {
+          nextPayment: 'Plată următoare',
+          overdue: '{count} zile întârziere',
+          dueToday: 'Scadent azi!',
+          inDays: '{count} zile',
+          dateLabel: 'Scadent la {date}'
+        },
+        actions: {
+          activateClient: 'Activează client',
+          viewDetails: 'Vezi detalii →',
+          addClient: 'Adaugă client',
+          viewClient: 'Vezi client',
+          deleteClient: 'Șterge client'
+        },
+        addModal: {
+          title: 'Adaugă client',
+          nameLabel: 'Nume',
+          namePlaceholder: 'Introdu numele clientului',
+          emailLabel: 'Email',
+          emailPlaceholder: 'Introdu adresa de email',
+          phoneLabel: 'Telefon',
+          phonePlaceholder: 'Introdu numărul de telefon',
+          goalLabel: 'Obiectiv',
+          goalPlaceholder: 'Descrie obiectivele clientului',
+          trainingFrequencyLabel: 'Frecvență antrenamente',
+          cancel: 'Anulează',
+          create: 'Creează client',
+          frequencyOptions: {
+            once: '1x pe săptămână',
+            twice: '2x pe săptămână',
+            three: '3x pe săptămână',
+            four: '4x pe săptămână',
+            five: '5x pe săptămână'
+          }
+        },
+        deleteModal: {
+          title: 'Șterge client',
+          subtitle: 'Această acțiune va elimina permanent datele clientului.',
+          warningPrefix: 'Ești pe cale să ștergi ',
+          warningSuffix: '. Această acțiune nu poate fi anulată.',
+          description: 'Vor fi șterse:',
+          items: [
+            'Profilul clientului și informațiile de contact',
+            'Sesiunile de antrenament și istoricul de workout-uri',
+            'Măsurătorile și fotografiile de progres',
+            'Planurile nutriționale și monitorizarea acestora'
+          ],
+          cancel: 'Anulează',
+          confirm: 'Șterge clientul'
+        }
+      },
       customers: {
         title: 'Clienți',
-        subtitle: 'Gestionează baza ta de clienți',
+        subtitle: 'Gestionează baza de clienți',
         searchPlaceholder: 'Caută clienți...',
         newCustomer: 'Client Nou',
         viewCustomer: 'Vizualizează Client',
@@ -903,6 +1072,7 @@ export const translations = {
     },
     common: {
       loading: 'Se încarcă...',
+      refresh: 'Reîmprospătează',
       error: 'Ceva nu a mers bine',
       success: 'Succes!',
       back: 'Înapoi',

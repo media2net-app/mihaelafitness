@@ -32,11 +32,37 @@ interface Recipe {
   servings: number;
   ingredients: RecipeIngredient[];
   instructions: string[];
+  instructionsRo?: string[]; // Romanian instructions
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
+  labels?: string[];
+  mealType?: string;
 }
+
+const mealTypeOptions = [
+  { value: 'breakfast', label: 'Ontbijt' },
+  { value: 'morning-snack', label: 'Ochtendsnack' },
+  { value: 'lunch', label: 'Lunch' },
+  { value: 'afternoon-snack', label: 'Middagsnack' },
+  { value: 'dinner', label: 'Diner' },
+  { value: 'evening-snack', label: 'Avondsnack' },
+  { value: 'dessert', label: 'Dessert' },
+  { value: 'other', label: 'Overig' }
+] as const;
+
+const mealTypeLabels: Record<string, string> = {
+  breakfast: 'Ontbijt',
+  'morning-snack': 'Ochtendsnack',
+  lunch: 'Lunch',
+  'afternoon-snack': 'Middagsnack',
+  dinner: 'Diner',
+  'evening-snack': 'Avondsnack',
+  dessert: 'Dessert',
+  snack: 'Snack',
+  other: 'Overig'
+};
 
 export default function RecipeDetailPage() {
   const params = useParams();
@@ -47,11 +73,17 @@ export default function RecipeDetailPage() {
   const [editingName, setEditingName] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [editingInstructions, setEditingInstructions] = useState(false);
+  const [activeInstructionTab, setActiveInstructionTab] = useState<'EN' | 'RO'>('EN');
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editInstructions, setEditInstructions] = useState('');
+  const [editInstructionsRo, setEditInstructionsRo] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [savingMealType, setSavingMealType] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editingIngredientIndex, setEditingIngredientIndex] = useState<number | null>(null);
+  const [editIngredientQuantity, setEditIngredientQuantity] = useState<string>('');
+  const [editIngredientUnit, setEditIngredientUnit] = useState<string>('');
 
   // Function to extract correct unit from ingredient per value
   const getCorrectUnit = (ingredient: RecipeIngredient) => {
@@ -281,6 +313,8 @@ export default function RecipeDetailPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log(`[RecipeDetail] Loading recipe with ID: ${params.id}`);
+        
         // Load ingredients from database
         const ingredientsResponse = await fetch('/api/ingredients');
         if (ingredientsResponse.ok) {
@@ -289,8 +323,11 @@ export default function RecipeDetailPage() {
           
           // Load recipe from database
           const recipeResponse = await fetch(`/api/recipes/${params.id}`);
+          console.log(`[RecipeDetail] Recipe response status: ${recipeResponse.status}`);
+          
           if (recipeResponse.ok) {
             const recipeData = await recipeResponse.json();
+            console.log(`[RecipeDetail] Recipe loaded: ${recipeData.name}`);
             
             // Parse instructions if it's a JSON string
             let instructionsParsed = recipeData.instructions || '';
@@ -307,6 +344,21 @@ export default function RecipeDetailPage() {
               }
             }
             
+            // Parse RO instructions if it's a JSON string
+            let instructionsRoParsed = recipeData.instructionsRo || '';
+            if (typeof instructionsRoParsed === 'string' && instructionsRoParsed) {
+              try {
+                // Try to parse as JSON first
+                const parsed = JSON.parse(instructionsRoParsed);
+                if (Array.isArray(parsed)) {
+                  instructionsRoParsed = parsed.join('\n');
+                }
+              } catch {
+                // If not JSON, use as is
+                instructionsRoParsed = instructionsRoParsed;
+              }
+            }
+            
             // Convert database recipe to frontend format
             const updatedRecipe = {
               id: recipeData.id,
@@ -315,10 +367,13 @@ export default function RecipeDetailPage() {
               prepTime: recipeData.prepTime,
               servings: recipeData.servings,
               instructions: instructionsParsed,
+              instructionsRo: instructionsRoParsed,
               totalCalories: recipeData.totalCalories,
               totalProtein: recipeData.totalProtein,
               totalCarbs: recipeData.totalCarbs,
               totalFat: recipeData.totalFat,
+              labels: recipeData.labels || [],
+              mealType: recipeData.mealType || 'other',
               ingredients: recipeData.ingredients.map((dbIng: any) => {
                 // Find matching ingredient in database
                 let existingIngredient = ingredientsData.find((ing: Ingredient) => 
@@ -338,13 +393,28 @@ export default function RecipeDetailPage() {
                                      partialMatches[0];
                 }
                 
+                // Safely parse apiMatch - it might be a string, object, or null
+                let parsedApiMatch = null;
+                if (dbIng.apiMatch) {
+                  if (typeof dbIng.apiMatch === 'string') {
+                    try {
+                      parsedApiMatch = JSON.parse(dbIng.apiMatch);
+                    } catch (e) {
+                      console.error('Error parsing apiMatch:', e);
+                      parsedApiMatch = null;
+                    }
+                  } else if (typeof dbIng.apiMatch === 'object') {
+                    parsedApiMatch = dbIng.apiMatch;
+                  }
+                }
+                
                 return {
                   name: dbIng.name,
                   quantity: dbIng.quantity,
                   unit: dbIng.unit,
                   exists: existingIngredient ? true : false,
                   availableInApi: dbIng.availableInApi,
-                  apiMatch: dbIng.apiMatch ? JSON.parse(dbIng.apiMatch) : null,
+                  apiMatch: parsedApiMatch,
                   ingredient: existingIngredient
                 };
               })
@@ -352,18 +422,39 @@ export default function RecipeDetailPage() {
             
             setRecipe(updatedRecipe);
           } else {
-            console.error('Recipe not found in database');
+            let errorData;
+            try {
+              errorData = await recipeResponse.json();
+            } catch (e) {
+              errorData = { error: 'Failed to parse error response', status: recipeResponse.status };
+            }
+            console.error(`[RecipeDetail] Recipe request failed. Status: ${recipeResponse.status}`, errorData);
+            
+            // If it's a 500 error, show more details
+            if (recipeResponse.status === 500) {
+              console.error('[RecipeDetail] Server error details:', errorData);
+              alert(`Server error: ${errorData.details || errorData.error || 'Unknown server error'}\n\nCheck the server console for more details.`);
+            }
+            
             setRecipe(null);
           }
+        } else {
+          console.error('[RecipeDetail] Failed to load ingredients');
         }
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('[RecipeDetail] Error loading data:', error);
+        setRecipe(null);
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    if (params.id) {
+      loadData();
+    } else {
+      console.error('[RecipeDetail] No recipe ID provided');
+      setLoading(false);
+    }
   }, [params.id]);
 
   // Functions to handle editing name, description, and instructions
@@ -411,7 +502,11 @@ export default function RecipeDetailPage() {
 
   const handleStartEditInstructions = () => {
     if (recipe) {
-      setEditInstructions(recipe.instructions || '');
+      if (activeInstructionTab === 'EN') {
+        setEditInstructions(recipe.instructions || '');
+      } else {
+        setEditInstructionsRo(recipe.instructionsRo || '');
+      }
       setEditingInstructions(true);
     }
   };
@@ -419,7 +514,11 @@ export default function RecipeDetailPage() {
   const handleSaveInstructions = async () => {
     if (!recipe) return;
     
-    const updatedRecipe = { ...recipe, instructions: editInstructions };
+    const updatedRecipe = { 
+      ...recipe, 
+      instructions: activeInstructionTab === 'EN' ? editInstructions : recipe.instructions,
+      instructionsRo: activeInstructionTab === 'RO' ? editInstructionsRo : recipe.instructionsRo
+    };
     setRecipe(updatedRecipe);
     setEditingInstructions(false);
     await saveRecipeWithData(updatedRecipe, 'Recipe instructions updated', false, false, true);
@@ -427,7 +526,13 @@ export default function RecipeDetailPage() {
 
   const handleCancelEditInstructions = () => {
     setEditingInstructions(false);
-    if (recipe) setEditInstructions(recipe.instructions || '');
+    if (recipe) {
+      if (activeInstructionTab === 'EN') {
+        setEditInstructions(recipe.instructions || '');
+      } else {
+        setEditInstructionsRo(recipe.instructionsRo || '');
+      }
+    }
   };
 
   const handleDeleteRecipe = async () => {
@@ -933,6 +1038,79 @@ export default function RecipeDetailPage() {
     setIngredientUnits({});
   };
 
+  const handleStartEditIngredient = (index: number) => {
+    if (!recipe) return;
+    const ingredient = recipe.ingredients[index];
+    setEditingIngredientIndex(index);
+    setEditIngredientQuantity(String(ingredient.quantity));
+    setEditIngredientUnit(ingredient.unit);
+  };
+
+  const handleSaveIngredientEdit = async (index: number) => {
+    if (!recipe) return;
+    
+    const newQuantity = parseFloat(editIngredientQuantity);
+    if (isNaN(newQuantity) || newQuantity <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+
+    const updatedIngredients = [...recipe.ingredients];
+    updatedIngredients[index] = {
+      ...updatedIngredients[index],
+      quantity: newQuantity,
+      unit: editIngredientUnit
+    };
+
+    // Recalculate totals
+    const updatedRecipe = {
+      ...recipe,
+      ingredients: updatedIngredients,
+      totalCalories: updatedIngredients.reduce((total, ing) => {
+        if (ing.exists && ing.ingredient) {
+          const factor = ing.quantity / (ing.ingredient.per === '1' || ing.ingredient.per.includes('scoop') ? 1 : 100);
+          return total + (ing.ingredient.calories * factor);
+        }
+        return total;
+      }, 0),
+      totalProtein: updatedIngredients.reduce((total, ing) => {
+        if (ing.exists && ing.ingredient) {
+          const factor = ing.quantity / (ing.ingredient.per === '1' || ing.ingredient.per.includes('scoop') ? 1 : 100);
+          return total + (ing.ingredient.protein * factor);
+        }
+        return total;
+      }, 0),
+      totalCarbs: updatedIngredients.reduce((total, ing) => {
+        if (ing.exists && ing.ingredient) {
+          const factor = ing.quantity / (ing.ingredient.per === '1' || ing.ingredient.per.includes('scoop') ? 1 : 100);
+          return total + (ing.ingredient.carbs * factor);
+        }
+        return total;
+      }, 0),
+      totalFat: updatedIngredients.reduce((total, ing) => {
+        if (ing.exists && ing.ingredient) {
+          const factor = ing.quantity / (ing.ingredient.per === '1' || ing.ingredient.per.includes('scoop') ? 1 : 100);
+          return total + (ing.ingredient.fat * factor);
+        }
+        return total;
+      }, 0)
+    };
+
+    setRecipe(updatedRecipe);
+    setEditingIngredientIndex(null);
+    setEditIngredientQuantity('');
+    setEditIngredientUnit('');
+    
+    // Save to database
+    await saveRecipeWithData(updatedRecipe, `Ingredient quantity updated`);
+  };
+
+  const handleCancelEditIngredient = () => {
+    setEditingIngredientIndex(null);
+    setEditIngredientQuantity('');
+    setEditIngredientUnit('');
+  };
+
   const handleRemoveIngredient = (index: number) => {
     if (!recipe) return;
     
@@ -979,7 +1157,7 @@ export default function RecipeDetailPage() {
         return total;
       }, 0)
     };
-
+    
     setRecipe(updatedRecipe);
     
     // Save to database
@@ -993,14 +1171,16 @@ export default function RecipeDetailPage() {
           name: ing.name,
           quantity: ing.quantity,
           unit: ing.unit,
-          exists: ing.exists,
-          availableInApi: ing.availableInApi,
-          apiMatch: ing.apiMatch
+          exists: ing.exists || false,
+          availableInApi: ing.availableInApi || false,
+          apiMatch: ing.apiMatch ? (typeof ing.apiMatch === 'string' ? ing.apiMatch : JSON.stringify(ing.apiMatch)) : null
         })),
         totalCalories: recipeData.totalCalories,
         totalProtein: recipeData.totalProtein,
         totalCarbs: recipeData.totalCarbs,
-        totalFat: recipeData.totalFat
+        totalFat: recipeData.totalFat,
+        mealType: recipeData.mealType || 'other',
+        labels: recipeData.labels || []
       };
 
       // Include name, description, and instructions if requested
@@ -1012,7 +1192,28 @@ export default function RecipeDetailPage() {
           ? recipeData.instructions.split('\n').filter((line: string) => line.trim())
           : recipeData.instructions;
         payload.instructions = instructionsArray;
+        
+        // Also save RO instructions if they exist
+        if (recipeData.instructionsRo !== undefined) {
+          const instructionsRoArray = typeof recipeData.instructionsRo === 'string' 
+            ? recipeData.instructionsRo.split('\n').filter((line: string) => line.trim())
+            : recipeData.instructionsRo;
+          payload.instructionsRo = instructionsRoArray;
+        }
       }
+      
+      console.log('[RecipeDetail] Saving recipe:', {
+        recipeId: recipeData.id,
+        payload: {
+          ...payload,
+          ingredients: payload.ingredients.map((ing: any) => ({
+            name: ing.name,
+            quantity: ing.quantity,
+            unit: ing.unit,
+            exists: ing.exists
+          }))
+        }
+      });
       
       const response = await fetch(`/api/recipes/${recipeData.id}`, {
         method: 'PUT',
@@ -1029,13 +1230,36 @@ export default function RecipeDetailPage() {
           setShowSaveMessage(false);
         }, 3000);
       } else {
-        const errorData = await response.json();
-        console.error('Failed to save recipe:', errorData);
-        alert(`Failed to save recipe: ${errorData.error || 'Unknown error'}`);
+        let errorData;
+        const responseText = await response.text();
+        try {
+          errorData = responseText ? JSON.parse(responseText) : {};
+        } catch (e) {
+          errorData = { error: response.statusText || 'Unknown error' };
+        }
+        console.error('Failed to save recipe:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          responseText
+        });
+        const errorMessage = errorData?.error || errorData?.details || errorData?.message || response.statusText || `HTTP ${response.status}: Unknown error`;
+        alert(`Failed to save recipe: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Error saving recipe:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Error saving recipe: ${errorMessage}`);
     }
+  };
+
+  const handleMealTypeChange = async (newMealType: string) => {
+    if (!recipe) return;
+    setSavingMealType(true);
+    const updatedRecipe = { ...recipe, mealType: newMealType };
+    setRecipe(updatedRecipe);
+    await saveRecipeWithData(updatedRecipe, 'Maaltijdcategorie bijgewerkt');
+    setSavingMealType(false);
   };
 
   if (loading) {
@@ -1051,20 +1275,29 @@ export default function RecipeDetailPage() {
     );
   }
 
-  if (!recipe) {
+  if (!recipe && !loading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center py-12">
           <ChefHat className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-600 mb-2">Recipe not found</h3>
-          <p className="text-gray-500 mb-4">The recipe you're looking for doesn't exist.</p>
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Go Back
-          </button>
+          <p className="text-gray-500 mb-2">The recipe you're looking for doesn't exist.</p>
+          <p className="text-sm text-gray-400 mb-4">Recipe ID: {params.id}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => router.push('/admin/recepten')}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Recipes
+            </button>
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1170,6 +1403,34 @@ export default function RecipeDetailPage() {
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 <span className="font-medium">{recipe.servings} serving{recipe.servings !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+            
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Maaltijdcategorie</p>
+                  <p className="text-lg font-semibold text-indigo-900">
+                    {mealTypeLabels[recipe.mealType || 'other']}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={recipe.mealType || 'other'}
+                    onChange={(e) => handleMealTypeChange(e.target.value)}
+                    className="px-4 py-2 rounded-lg border border-indigo-200 bg-white text-sm font-medium text-gray-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+                    disabled={savingMealType}
+                  >
+                    {mealTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {savingMealType && (
+                    <span className="text-xs text-indigo-500 animate-pulse">Opslaan...</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1427,10 +1688,64 @@ export default function RecipeDetailPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-center text-sm text-gray-900">
-                            {(() => {
-                              const formatted = formatIngredientQuantity(ingredient);
-                              return `${formatted.quantity} ${formatted.unit}`;
-                            })()}
+                            {editingIngredientIndex === index ? (
+                              <div className="flex items-center gap-2 justify-center">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={editIngredientQuantity}
+                                  onChange={(e) => setEditIngredientQuantity(e.target.value)}
+                                  className="w-20 px-2 py-1 text-sm border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  autoFocus
+                                />
+                                <select
+                                  value={editIngredientUnit}
+                                  onChange={(e) => setEditIngredientUnit(e.target.value)}
+                                  className="px-2 py-1 text-sm border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                >
+                                  <option value="g">g</option>
+                                  <option value="kg">kg</option>
+                                  <option value="ml">ml</option>
+                                  <option value="l">l</option>
+                                  <option value="piece">piece</option>
+                                  <option value="tsp">tsp</option>
+                                  <option value="tbsp">tbsp</option>
+                                  <option value="cup">cup</option>
+                                  <option value="scoop">scoop</option>
+                                  <option value="scoops">scoops</option>
+                                </select>
+                                <button
+                                  onClick={() => handleSaveIngredientEdit(index)}
+                                  className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
+                                  title="Save"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={handleCancelEditIngredient}
+                                  className="px-2 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-xs"
+                                  title="Cancel"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 justify-center">
+                                <span>
+                                  {(() => {
+                                    const formatted = formatIngredientQuantity(ingredient);
+                                    return `${formatted.quantity} ${formatted.unit}`;
+                                  })()}
+                                </span>
+                                <button
+                                  onClick={() => handleStartEditIngredient(index)}
+                                  className="text-indigo-500 hover:text-indigo-700 transition-colors p-1"
+                                  title="Edit quantity"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-center text-sm font-medium text-orange-600">
                             {nutrition.calories}
@@ -1497,13 +1812,86 @@ export default function RecipeDetailPage() {
                 </button>
               )}
             </div>
+            
+            {/* Tabs */}
+            {!editingInstructions && (
+              <div className="flex gap-2 mb-4 border-b border-gray-200">
+                <button
+                  onClick={() => setActiveInstructionTab('EN')}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    activeInstructionTab === 'EN'
+                      ? 'text-indigo-600 border-b-2 border-indigo-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  onClick={() => setActiveInstructionTab('RO')}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    activeInstructionTab === 'RO'
+                      ? 'text-indigo-600 border-b-2 border-indigo-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  RO
+                </button>
+              </div>
+            )}
+            
             {editingInstructions ? (
               <div>
+                {/* Tab selector in edit mode */}
+                <div className="flex gap-2 mb-4 border-b border-gray-200">
+                  <button
+                    onClick={() => {
+                      if (activeInstructionTab === 'EN') {
+                        setEditInstructions(recipe?.instructions || '');
+                      } else {
+                        setEditInstructionsRo(recipe?.instructionsRo || '');
+                      }
+                      setActiveInstructionTab('EN');
+                      setEditInstructions(recipe?.instructions || '');
+                    }}
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      activeInstructionTab === 'EN'
+                        ? 'text-indigo-600 border-b-2 border-indigo-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (activeInstructionTab === 'RO') {
+                        setEditInstructionsRo(recipe?.instructionsRo || '');
+                      } else {
+                        setEditInstructions(recipe?.instructions || '');
+                      }
+                      setActiveInstructionTab('RO');
+                      setEditInstructionsRo(recipe?.instructionsRo || '');
+                    }}
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      activeInstructionTab === 'RO'
+                        ? 'text-indigo-600 border-b-2 border-indigo-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    RO
+                  </button>
+                </div>
+                
                 <textarea
-                  value={editInstructions}
-                  onChange={(e) => setEditInstructions(e.target.value)}
+                  value={activeInstructionTab === 'EN' ? editInstructions : editInstructionsRo}
+                  onChange={(e) => {
+                    if (activeInstructionTab === 'EN') {
+                      setEditInstructions(e.target.value);
+                    } else {
+                      setEditInstructionsRo(e.target.value);
+                    }
+                  }}
                   className="w-full px-4 py-3 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[300px] font-mono text-sm"
-                  placeholder="Enter instructions, one per line..."
+                  placeholder={activeInstructionTab === 'EN' ? "Enter instructions in English, one per line..." : "Enter instructions in Romanian, one per line..."}
                   autoFocus
                 />
                 <div className="flex gap-2 mt-4">
@@ -1523,28 +1911,40 @@ export default function RecipeDetailPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {recipe.instructions && recipe.instructions.trim() ? (
-                  recipe.instructions.split('\n').filter(line => line.trim()).map((instruction, index) => (
-                    <div key={index} className="flex gap-4">
-                      <div className="flex-shrink-0 w-8 h-8 bg-indigo-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
-                        {index + 1}
+                {(() => {
+                  const currentInstructions = activeInstructionTab === 'EN' 
+                    ? (recipe.instructions || '') 
+                    : (recipe.instructionsRo || '');
+                  
+                  if (currentInstructions && currentInstructions.trim()) {
+                    return currentInstructions.split('\n').filter(line => line.trim()).map((instruction, index) => (
+                      <div key={index} className="flex gap-4">
+                        <div className="flex-shrink-0 w-8 h-8 bg-indigo-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 pt-1">
+                          <p className="text-gray-700 leading-relaxed">{instruction.trim()}</p>
+                        </div>
                       </div>
-                      <div className="flex-1 pt-1">
-                        <p className="text-gray-700 leading-relaxed">{instruction.trim()}</p>
+                    ));
+                  } else {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="mb-2">
+                          {activeInstructionTab === 'EN' 
+                            ? 'No instructions added yet' 
+                            : 'No Romanian instructions added yet'}
+                        </p>
+                        <button
+                          onClick={handleStartEditInstructions}
+                          className="text-indigo-500 hover:text-indigo-600 underline"
+                        >
+                          Click to add instructions
+                        </button>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p className="mb-2">No instructions added yet</p>
-                    <button
-                      onClick={handleStartEditInstructions}
-                      className="text-indigo-500 hover:text-indigo-600 underline"
-                    >
-                      Click to add instructions
-                    </button>
-                  </div>
-                )}
+                    );
+                  }
+                })()}
               </div>
             )}
           </div>

@@ -34,7 +34,6 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [keepOpen, setKeepOpen] = useState(true); // default enabled
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
   // Right column: selected items (cart)
   const [selectedItems, setSelectedItems] = useState<Array<{ ingredient: Ingredient; quantity: number }>>([]);
@@ -121,10 +120,18 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
       
       const data = await response.json();
       
+      console.log('[IngredientSelector] Recipes API response:', { 
+        isArray: Array.isArray(data), 
+        length: Array.isArray(data) ? data.length : 0,
+        hasError: !!data.error,
+        data: Array.isArray(data) ? data.slice(0, 2) : data // Log first 2 recipes for debugging
+      });
+      
       // Check if data is an array or has an error
       if (Array.isArray(data)) {
         setRecipes(data);
         setFilteredRecipes(data);
+        console.log(`[IngredientSelector] Loaded ${data.length} recipes`);
       } else if (data.error) {
         console.error('API returned error:', data.error);
         setRecipes([]);
@@ -145,6 +152,14 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
       setLoadingRecipes(false);
     }
   };
+
+  // Load recipes when recipe selector opens
+  useEffect(() => {
+    if (showRecipeSelector && recipes.length === 0 && !loadingRecipes) {
+      loadRecipes();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRecipeSelector]);
 
   // Filter recipes based on search term and label
   useEffect(() => {
@@ -347,7 +362,7 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
       setTimeout(() => {
         setApplyingIngredients(false);
         setApplyProgress([]);
-        if (!keepOpen) setIsOpen(false);
+        setIsOpen(false); // Always close modal after adding ingredients
       }, 1000);
       
     } catch (error) {
@@ -537,13 +552,7 @@ export default function IngredientSelector({ onAddIngredient, onAddRecipe, mealT
                 </h3>
                 <div className="flex items-center gap-3">
                   {!applyingIngredients && (
-                    <>
-                      <label className="flex items-center gap-2 text-xs text-gray-600">
-                        <input type="checkbox" checked={keepOpen} onChange={(e)=>setKeepOpen(e.target.checked)} />
-                        Keep open
-                      </label>
-                      <button onClick={openCreateForm} className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded border border-blue-200 hover:bg-blue-100">New</button>
-                    </>
+                    <button onClick={openCreateForm} className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded border border-blue-200 hover:bg-blue-100">New</button>
                   )}
                   <button 
                     onClick={() => setIsOpen(false)} 

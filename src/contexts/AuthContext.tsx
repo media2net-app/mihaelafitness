@@ -8,6 +8,7 @@ interface User {
   email: string;
   plan: string;
   status: string;
+  role?: string; // 'admin' or 'client'
 }
 
 interface AuthContextType {

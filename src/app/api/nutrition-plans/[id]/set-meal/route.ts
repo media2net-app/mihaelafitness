@@ -18,7 +18,23 @@ export async function POST(
     if (!plan) return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
 
     const weekMenu: any = (plan.weekMenu as any) || {};
-    weekMenu[dayKey] = { ...(weekMenu[dayKey] || {}), [mealType]: mealText || '' };
+    const dayMenu = { ...(weekMenu[dayKey] || {}) };
+    const currentMealData = dayMenu[mealType];
+    
+    // Handle both string and object formats
+    // If current meal is an object with ingredients and cookingInstructions, preserve the structure
+    if (currentMealData && typeof currentMealData === 'object' && ('ingredients' in currentMealData || 'cookingInstructions' in currentMealData)) {
+      // New format: clear ingredients but preserve structure
+      dayMenu[mealType] = {
+        ingredients: mealText || '',
+        cookingInstructions: currentMealData.cookingInstructions || ''
+      };
+    } else {
+      // Old format: just set as string
+      dayMenu[mealType] = mealText || '';
+    }
+    
+    weekMenu[dayKey] = dayMenu;
 
     const updated = await prisma.nutritionPlan.update({
       where: { id: planId },

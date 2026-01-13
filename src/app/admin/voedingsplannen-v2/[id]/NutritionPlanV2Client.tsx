@@ -122,21 +122,25 @@ export default function NutritionPlanV2Client({ params }: { params: { id: string
       // Get calories - use attribute selector to handle spaces in class names
       const caloriesElement = document.querySelector(`[class*="totalcalories-${domMealType}"]`);
       const calories = caloriesElement ? parseInt(caloriesElement.textContent || '0') : 0;
+      console.log(`🔔 [DEBUG] ${mealType} calories element:`, caloriesElement, 'value:', calories);
 
       // Get protein - use attribute selector to handle spaces in class names
       const proteinElement = document.querySelector(`[class*="totalprotein-${domMealType}"]`);
       const proteinText = proteinElement?.textContent || '0g';
       const protein = parseFloat(proteinText.replace('g', '')) || 0;
+      console.log(`🔔 [DEBUG] ${mealType} protein element:`, proteinElement, 'value:', protein);
 
       // Get fat - use attribute selector to handle spaces in class names
       const fatElement = document.querySelector(`[class*="totalfat-${domMealType}"]`);
       const fatText = fatElement?.textContent || '0g';
       const fat = parseFloat(fatText.replace('g', '')) || 0;
+      console.log(`🔔 [DEBUG] ${mealType} fat element:`, fatElement, 'value:', fat);
 
       // Get carbs - use attribute selector to handle spaces in class names
       const carbsElement = document.querySelector(`[class*="totalcarbs-${domMealType}"]`);
       const carbsText = carbsElement?.textContent || '0g';
       const carbs = parseFloat(carbsText.replace('g', '')) || 0;
+      console.log(`🔔 [DEBUG] ${mealType} carbs element:`, carbsElement, 'value:', carbs);
 
       const result = {
         calories: Math.round(calories),
@@ -145,7 +149,7 @@ export default function NutritionPlanV2Client({ params }: { params: { id: string
         fat: Math.round(fat * 10) / 10,
       };
       
-      
+      console.log(`🔔 [DEBUG] ${mealType} final result:`, result);
       return result;
     } catch (error) {
       console.error(`❌ [V2] Error reading ${mealType} macros from DOM:`, error);
@@ -155,6 +159,7 @@ export default function NutritionPlanV2Client({ params }: { params: { id: string
 
   // Calculate daily totals by reading actual values from DOM
   const calculateDailyTotalsFromDOM = (): { calories: number; protein: number; carbs: number; fat: number } => {
+    console.log('🔔 [DEBUG] calculateDailyTotalsFromDOM called');
     
     let totalCalories = 0;
     let totalProtein = 0;
@@ -166,6 +171,7 @@ export default function NutritionPlanV2Client({ params }: { params: { id: string
         // Convert mealType to match the display format used in IngredientBreakdown
         const displayMealType = mealType.replace("-", " ").replace(/\b\w/g, (c) => c.toUpperCase());
         const mealMacros = getMealMacrosFromDOM(displayMealType);
+        console.log(`🔔 [DEBUG] ${mealType} macros from DOM:`, mealMacros);
         totalCalories += mealMacros.calories;
         totalProtein += mealMacros.protein;
         totalCarbs += mealMacros.carbs;
@@ -182,14 +188,21 @@ export default function NutritionPlanV2Client({ params }: { params: { id: string
       fat: Math.round(totalFat * 10) / 10,
     };
     
+    console.log('🔔 [DEBUG] Final calculated totals:', totals);
     return totals;
   };
 
   // V3-style callback for when meal macros change
   const onMealMacrosUpdated = useCallback(() => {
+    console.log('🔔 [DEBUG] onMealMacrosUpdated called');
     // Recalculate daily totals from DOM when any meal macros change (V3 approach)
     const totals = calculateDailyTotalsFromDOM();
-    setDailyTotals({...totals});
+    console.log('🔔 [DEBUG] Calculated totals from DOM:', totals);
+    setDailyTotals(prev => {
+      console.log('🔔 [DEBUG] Current dailyTotals state before update:', prev);
+      console.log('🔔 [DEBUG] Setting new dailyTotals to:', totals);
+      return {...totals};
+    });
     // Force table update to show new values
     setForceTableUpdate(prev => prev + 1);
     console.log('🔄 [V2] Daily totals and table updated from macros change:', totals);
@@ -197,10 +210,18 @@ export default function NutritionPlanV2Client({ params }: { params: { id: string
 
   // Calculate daily totals when active day or plan changes (V3-style)
   useEffect(() => {
+    console.log('🔔 [DEBUG] useEffect triggered for daily totals calculation');
+    console.log('🔔 [DEBUG] activeDay:', activeDay);
+    console.log('🔔 [DEBUG] plan?.weekMenu?.[activeDay]:', plan?.weekMenu?.[activeDay]);
+    
     if (plan?.weekMenu?.[activeDay]) {
       // Use DOM-based calculation for more accurate results (V3 approach)
       setTimeout(() => {
-        calculateDailyTotals();
+        console.log('🔔 [DEBUG] calculateDailyTotals called from useEffect');
+        const totals = calculateDailyTotalsFromDOM();
+        console.log('🔔 [DEBUG] Totals from useEffect calculation:', totals);
+        setDailyTotals(totals);
+        console.log('🔔 [DEBUG] setDailyTotals called from useEffect with:', totals);
       }, 1000); // Give more time for components to render
     }
   }, [activeDay, plan, calculateDailyTotals]);
@@ -529,9 +550,14 @@ export default function NutritionPlanV2Client({ params }: { params: { id: string
                       mealTypeKey={mealType}
                 editable={true}
                 onPlanUpdated={(updatedPlan) => {
-                  console.log('🔄 [V2] onPlanUpdated called with:', updatedPlan);
+                  console.log('🔔 [DEBUG] onPlanUpdated called');
+                  console.log('🔔 [DEBUG] updatedPlan:', updatedPlan);
+                  console.log('🔔 [DEBUG] Current dailyTotals before onPlanUpdated:', dailyTotals);
+                  console.log('🔔 [DEBUG] Current plan.weekMenu before update:', plan?.weekMenu?.[activeDay]);
+                  
                   if (updatedPlan && updatedPlan.weekMenu) {
                     console.log('✅ [V2] Updated plan has weekMenu, updating state');
+                    console.log('🔔 [DEBUG] New plan.weekMenu:', updatedPlan.weekMenu?.[activeDay]);
                     setPlan(updatedPlan);
                   } else {
                     console.log('❌ [V2] Updated plan is invalid or missing weekMenu, keeping current plan');
@@ -540,8 +566,12 @@ export default function NutritionPlanV2Client({ params }: { params: { id: string
                   setForceTableUpdate(prev => prev + 1);
                   // Recalculate daily totals after a short delay to ensure DOM is updated
                   setTimeout(() => {
+                    console.log('🔔 [DEBUG] Recalculating totals after onPlanUpdated timeout');
                     const totals = calculateDailyTotalsFromDOM();
+                    console.log('🔔 [DEBUG] New totals calculated:', totals);
+                    console.log('🔔 [DEBUG] Current dailyTotals state before setDailyTotals:', dailyTotals);
                     setDailyTotals(totals);
+                    console.log('🔔 [DEBUG] setDailyTotals called with:', totals);
                   }, 300);
                 }}
                 onMacrosUpdated={onMealMacrosUpdated}

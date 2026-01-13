@@ -11,15 +11,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const src = searchParams.get('src');
     const w = parseInt(searchParams.get('w') || '800', 10);
+    const h = parseInt(searchParams.get('h') || '0', 10);
     const q = parseInt(searchParams.get('q') || '80', 10);
     const fm = (searchParams.get('fm') || 'webp').toLowerCase();
     const v = searchParams.get('v') || '0';
+    const crop = searchParams.get('crop'); // 'top', 'center', 'bottom', or 'entropy', 'attention'
+    const zoom = parseFloat(searchParams.get('zoom') || '1'); // Zoom factor (e.g., 4 for 4x zoom)
 
     if (!src) {
       return NextResponse.json({ error: 'Missing src' }, { status: 400 });
     }
 
-    const cacheKey = `${src}|w:${w}|q:${q}|fm:${fm}|v:${v}`;
+    const cacheKey = `${src}|w:${w}|h:${h}|q:${q}|fm:${fm}|crop:${crop}|zoom:${zoom}|v:${v}`;
     if (bufferCache.has(cacheKey)) {
       const cached = bufferCache.get(cacheKey)!;
       const res = new NextResponse(cached);
@@ -42,10 +45,54 @@ export async function GET(request: NextRequest) {
       inputBuffer = await fs.readFile(fsPath);
     }
 
-    // Auto-orient based on EXIF, then resize
+    // Get image metadata
+    const metadata = await sharp(inputBuffer).metadata();
+    const originalWidth = metadata.width || 1;
+    const originalHeight = metadata.height || 1;
+
+    // Calculate crop dimensions for zoom
+    let cropWidth = originalWidth;
+    let cropHeight = originalHeight;
+    let cropLeft = 0;
+    let cropTop = 0;
+
+    if (zoom > 1) {
+      // Zoom in: crop to 1/zoom of the original size
+      cropWidth = Math.floor(originalWidth / zoom);
+      cropHeight = Math.floor(originalHeight / zoom);
+      
+      // Position crop based on crop parameter
+      if (crop === 'top') {
+        cropLeft = Math.floor((originalWidth - cropWidth) / 2); // Center horizontally
+        cropTop = 0; // Start from top
+      } else if (crop === 'center') {
+        cropLeft = Math.floor((originalWidth - cropWidth) / 2);
+        cropTop = Math.floor((originalHeight - cropHeight) / 2);
+      } else if (crop === 'bottom') {
+        cropLeft = Math.floor((originalWidth - cropWidth) / 2);
+        cropTop = originalHeight - cropHeight;
+      } else {
+        // Default: top center (for profile pictures)
+        cropLeft = Math.floor((originalWidth - cropWidth) / 2);
+        cropTop = 0;
+      }
+    }
+
+    // Auto-orient based on EXIF, then crop and resize
     let pipeline = sharp(inputBuffer)
       .rotate() // respect EXIF orientation
-      .resize({ width: w, withoutEnlargement: true });
+      .extract({
+        left: cropLeft,
+        top: cropTop,
+        width: cropWidth,
+        height: cropHeight
+      })
+      .resize({ 
+        width: w, 
+        height: h || undefined,
+        fit: h ? 'cover' : 'inside',
+        withoutEnlargement: true 
+      });
 
     if (fm === 'jpeg') pipeline = pipeline.jpeg({ quality: q, mozjpeg: true });
     else if (fm === 'png') pipeline = pipeline.png({ compressionLevel: 9 });

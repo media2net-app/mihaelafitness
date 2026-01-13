@@ -760,7 +760,12 @@ export const statsService = {
   async getDashboardStats(retryCount = 0) {
     try {
       console.log(`Fetching stats (attempt ${retryCount + 1})...`);
-      const response = await fetch('/api/stats');
+      const response = await fetch(`/api/stats?ts=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch stats: ${response.status} ${response.statusText}`);
       }

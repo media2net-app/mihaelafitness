@@ -80,3 +80,8 @@ recipes.forEach(({ names, labels }) => {
 // This script shows the mapping - actual update should be done via API or direct SQL
 exports.mapping = recipes;
 
+
+
+
+
+

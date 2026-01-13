@@ -1,14 +1,68 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Plus, Eye, Edit, Trash2, Phone, Calendar, Star, Dumbbell, X, Save, Target, Mail, User } from 'lucide-react';
+import { Users, Search, Plus, Filter, TrendingUp, Clock, CheckCircle, Dumbbell, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { userService, pricingService } from '@/lib/database';
+import { userService } from '@/lib/database';
+import { ClientCard, AdminBar } from '@/components/admin/clients/ClientComponents';
+
+function StatsCard({
+  title,
+  value,
+  icon: Icon,
+  gradient,
+  trend,
+}: {
+  title: string;
+  value: string | number;
+  icon: any;
+  gradient: string;
+  trend?: string;
+}) {
+  return (
+    <div className="bg-white/90 backdrop-blur-sm border border-[#F5D2E0] rounded-xl sm:rounded-2xl p-3 sm:p-6 shadow-sm">
+      {/* Mobile: Horizontal layout */}
+      <div className="flex sm:hidden items-center justify-between gap-3">
+        <div className={`p-2 rounded-lg text-white ${gradient} flex-shrink-0`}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xl font-bold text-[#3C1E35]">{value}</div>
+          <div className="text-xs text-[#8D5D7A] truncate">{title}</div>
+        </div>
+        {trend && (
+          <div className="flex items-center gap-1 text-xs text-emerald-600 flex-shrink-0">
+            <TrendingUp className="w-3 h-3" />
+            <span>{trend}</span>
+          </div>
+        )}
+      </div>
+      
+      {/* Desktop: Vertical layout */}
+      <div className="hidden sm:block">
+        <div className="flex items-center justify-between mb-4">
+          <div className={`p-3 rounded-xl text-white ${gradient}`}>
+            <Icon className="w-6 h-6" />
+          </div>
+          {trend && (
+            <div className="flex items-center gap-1 text-sm text-emerald-600">
+              <TrendingUp className="w-4 h-4" />
+              <span>{trend}</span>
+            </div>
+          )}
+        </div>
+        <div className="text-2xl sm:text-3xl font-bold text-[#3C1E35] mb-1">{value}</div>
+        <div className="text-sm text-[#8D5D7A]">{title}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function ClientsPage() {
   const router = useRouter();
   const { t } = useLanguage();
+  const clientsText = t.admin.clientsPage;
   
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -26,6 +80,15 @@ export default function ClientsPage() {
     totalSessions: number;
     scheduledSessions: number;
     completedSessions: number;
+    missedSessions?: number;
+    performanceScore?: number;
+    performanceLevel?: 'excellent' | 'good' | 'fair' | 'poor';
+    periodStats?: {
+      expected: number;
+      completed: number;
+      scheduled: number;
+      missed: number;
+    };
     rating?: number;
     subscriptionDuration?: number; // in weeks
     photosCount?: number;
@@ -57,26 +120,11 @@ export default function ClientsPage() {
     }>;
   }[]>([]);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<{
     id: string;
     name: string;
-  } | null>(null);
-  const [selectedClient, setSelectedClient] = useState<{
-    id: string;
-    name: string;
-    email: string;
-    phone?: string;
-    goal?: string;
-    joinDate: string;
-    status: string;
-    trainingFrequency?: number;
-    lastWorkout?: string;
-    totalSessions: number;
-    scheduledSessions: number;
-    completedSessions: number;
-    rating?: number;
   } | null>(null);
   const [newClient, setNewClient] = useState({
     name: '',
@@ -87,27 +135,26 @@ export default function ClientsPage() {
     trainingFrequency: 3
   });
 
-  const filteredClients = (Array.isArray(clients) ? clients : []).filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         client.email.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
-
   useEffect(() => {
     const loadClients = async () => {
       setLoading(true);
+      const startTime = performance.now();
+      
       try {
-        // Use optimized API endpoint that gets all data in one request
-        const response = await fetch('/api/clients/overview');
-        const data = await response.json();
+        // Use cached fetch for better performance
+        const { cachedFetch } = await import('@/lib/cache');
+        const data = await cachedFetch('/api/clients/overview', {}, 30000); // 30 second cache
 
-        if (response.ok) {
+        const duration = performance.now() - startTime;
+        console.log(`📊 Clients loaded in ${Math.round(duration)}ms`);
+
+        if (data) {
           const list = Array.isArray(data)
             ? data
             : (Array.isArray(data?.clients) ? data.clients : []);
           setClients(list);
         } else {
-          console.error('Failed to load clients:', data.error);
+          console.error('Failed to load clients: No data');
         }
       } catch (error) {
         console.error('Error loading clients:', error);
@@ -119,10 +166,60 @@ export default function ClientsPage() {
     loadClients();
   }, []);
 
-  const handleCreateClient = async () => {
+  const handleCreateClient = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
+    // Prevent double submission
+    if (isCreatingClient) {
+      return;
+    }
+    
+    // Validate required fields
+    if (!newClient.name || !newClient.name.trim()) {
+      alert('Vul alstublieft de naam van de klant in.');
+      return;
+    }
+    
+    if (!newClient.email || !newClient.email.trim()) {
+      alert('Vul alstublieft het e-mailadres van de klant in.');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newClient.email.trim())) {
+      alert('Vul alstublieft een geldig e-mailadres in.');
+      return;
+    }
+
+    setIsCreatingClient(true);
     try {
-      const client = await userService.createUser(newClient);
-      setClients([client, ...clients]);
+      const client = await userService.createUser({
+        name: newClient.name.trim(),
+        email: newClient.email.trim(),
+        phone: newClient.phone?.trim() || '',
+        goal: newClient.goal?.trim() || '',
+        status: newClient.status || 'active',
+        trainingFrequency: newClient.trainingFrequency || 3
+      });
+      
+      // Reload clients list to get full data (invalidate cache)
+      const { cachedFetch, apiCache } = await import('@/lib/cache');
+      apiCache.delete('/api/clients/overview'); // Clear cache
+      
+      const data = await cachedFetch('/api/clients/overview', {}, 30000);
+      if (data) {
+        const list = Array.isArray(data)
+          ? data
+          : (Array.isArray(data?.clients) ? data.clients : []);
+        setClients(list);
+      } else {
+        // Fallback: add the new client to the list
+        setClients([client, ...clients]);
+      }
+      
       setShowNewClientModal(false);
       setNewClient({
         name: '',
@@ -136,11 +233,13 @@ export default function ClientsPage() {
       console.error('Error creating client:', error);
       // Show a more user-friendly error message
       const errorMessage = error.message || 'Failed to create client';
-      if (errorMessage.includes('email already exists')) {
-        alert('A client with this email address already exists. Please use a different email.');
+      if (errorMessage.includes('email already exists') || errorMessage.includes('already exists')) {
+        alert('Een klant met dit e-mailadres bestaat al. Gebruik alstublieft een ander e-mailadres.');
       } else {
-        alert(errorMessage);
+        alert(`Fout bij het aanmaken van de klant: ${errorMessage}`);
       }
+    } finally {
+      setIsCreatingClient(false);
     }
   };
 
@@ -192,534 +291,360 @@ export default function ClientsPage() {
 
 
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-red-100 text-red-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'intake': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const adminEmailSet = new Set([
+    'info@mihaelafitness.com',
+    'mihaela@mihaelafitness.com',
+    'chiel@media2net.nl'
+  ]);
+
+  const allClients = Array.isArray(clients) ? clients : [];
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  const adminUsers = allClients.filter((client) =>
+    adminEmailSet.has(client.email?.toLowerCase?.() ?? '')
+  );
+
+  const sortedAdminUsers = [...adminUsers].sort((a, b) => {
+    const aIsMihaela = ['info@mihaelafitness.com', 'mihaela@mihaelafitness.com'].includes(
+      a.email?.toLowerCase?.() ?? ''
+    );
+    const bIsMihaela = ['info@mihaelafitness.com', 'mihaela@mihaelafitness.com'].includes(
+      b.email?.toLowerCase?.() ?? ''
+    );
+
+    if (aIsMihaela && !bIsMihaela) return -1;
+    if (!aIsMihaela && bIsMihaela) return 1;
+    return 0;
+  });
+
+  const regularClients = allClients.filter((client) =>
+    !adminEmailSet.has(client.email?.toLowerCase?.() ?? '')
+  );
+
+  const filteredClients = regularClients.filter((client) => {
+    if (!normalizedSearch) return true;
+    return (
+      client.name.toLowerCase().includes(normalizedSearch) ||
+      client.email.toLowerCase().includes(normalizedSearch)
+    );
+  });
+
+  const stats = {
+    total: allClients.length,
+    active: allClients.filter((c) => c.status?.toLowerCase?.() === 'active').length,
+    intake: allClients.filter((c) => c.status?.toLowerCase?.() === 'intake').length,
+    totalSessions: allClients.reduce((sum, c) => sum + (c.totalSessions || 0), 0)
   };
 
-  const getPlanColor = (plan: string) => {
-    switch (plan) {
-      case 'Premium': return 'bg-purple-100 text-purple-800';
-      case 'Standard': return 'bg-blue-100 text-blue-800';
-      case 'Basic': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const searchApplied = normalizedSearch.length > 0;
+  const summaryText = searchApplied
+    ? clientsText.summary.filtered
+        .replace('{filtered}', String(filteredClients.length))
+        .replace('{total}', String(regularClients.length))
+    : clientsText.summary.total.replace('{count}', String(regularClients.length));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen bg-[#FDF7FB]">
+      <div className="bg-white/70 backdrop-blur border-b border-[#F5D2E0]">
+        <div className="px-4 sm:px-6 py-6 sm:py-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2">Clients</h1>
-              <p className="text-gray-600">Manage your clients and their training progress</p>
+              <h1 className="text-2xl sm:text-3xl font-semibold text-[#3C1E35]">{clientsText.heading}</h1>
+              <p className="text-sm text-[#8D5D7A] mt-1">
+                {clientsText.subheading}
+              </p>
             </div>
             <button
               onClick={() => setShowNewClientModal(true)}
-              className="mt-4 md:mt-0 bg-rose-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium hover:bg-rose-600 transition-colors duration-200 flex items-center gap-2 text-sm sm:text-base"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#E11C48] to-[#F36B8D] px-4 sm:px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#E11C48]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl"
             >
               <Plus className="w-4 h-4" />
-              New Client
+              {clientsText.actions.addClient}
             </button>
           </div>
+
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <StatsCard
+              title={clientsText.stats.total}
+              value={stats.total}
+              icon={Users}
+              gradient="bg-gradient-to-r from-[#E11C48] to-[#F36B8D]"
+            />
+            <StatsCard
+              title={clientsText.stats.active}
+              value={stats.active}
+              icon={CheckCircle}
+              gradient="bg-gradient-to-r from-emerald-500 to-emerald-600"
+            />
+            <StatsCard
+              title={clientsText.stats.intake}
+              value={stats.intake}
+              icon={Clock}
+              gradient="bg-gradient-to-r from-amber-500 to-orange-500"
+            />
+            <StatsCard
+              title={clientsText.stats.sessions}
+              value={stats.totalSessions}
+              icon={Dumbbell}
+              gradient="bg-gradient-to-r from-purple-500 to-fuchsia-500"
+            />
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <div className="mt-6 flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1 max-w-xl">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#C67697] w-5 h-5" />
             <input
               type="text"
-              placeholder="Search clients..."
+                placeholder={clientsText.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-transparent bg-white"
+                className="w-full rounded-xl border border-[#F5D2E0] bg-white py-3 pl-11 pr-4 text-sm text-[#3C1E35] placeholder-[#C67697] shadow-sm focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
             />
           </div>
-        </div>
-
-        {/* Admin Account Section */}
-        {!loading && (
-          <div className="mb-6">
-            <div 
-              onClick={() => router.push('/admin/clients/mihaela')}
-              className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl p-4 mb-4 cursor-pointer hover:from-pink-100 hover:to-rose-100 hover:border-pink-300 transition-all duration-200"
+            <button
+              type="button"
+              className="flex items-center justify-center gap-2 rounded-xl border border-[#F5D2E0] bg-white px-4 py-2.5 text-sm font-medium text-[#8D5D7A] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-800">Mihaela (Admin)</h3>
-                  <p className="text-sm text-gray-600">mihaela@mihaelafitness.com</p>
-                  <span className="inline-block mt-1 px-2 py-1 bg-pink-100 text-pink-800 text-xs font-medium rounded-full">
-                    Admin Account
-                  </span>
-                </div>
-                <div className="text-pink-500">
-                  <Eye className="w-5 h-5" />
-                </div>
-              </div>
+              <Filter className="w-4 h-4 text-[#C67697]" />
+              {clientsText.filter}
+            </button>
+          </div>
             </div>
           </div>
-        )}
 
-        {/* Total Clients Count */}
-        {!loading && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-rose-500" />
-                <span className="text-sm font-medium text-gray-700">
-                  {searchTerm ? (
-                    <>
-                      {filteredClients.length} van {clients.length} clients
-                    </>
-                  ) : (
-                    <>
-                      Totaal {clients.length} clients
-                    </>
-                  )}
-                </span>
-              </div>
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="text-sm text-rose-500 hover:text-rose-600 transition-colors"
-                >
-                  Clear search
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Loading State */}
+      <div className="px-4 sm:px-6 py-6 sm:py-8">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-16">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading clients...</p>
+              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#E11C48]"></div>
+              <p className="text-sm font-medium text-[#8D5D7A]">{clientsText.loading}</p>
             </div>
           </div>
         ) : (
           <>
-            {/* Clients Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredClients.map((client) => (
-            <div
-              key={client.id}
-              className={`rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 ${
-                client.status === 'Intake' 
-                  ? 'bg-yellow-50 border-yellow-200' 
-                  : 'bg-white'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">{client.name}</h3>
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{client.email}</p>
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => router.push(`/admin/clients/${client.id}`)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="View Client"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick({id: client.id, name: client.name})}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete Client"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(client.status)}`}>
-                  {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-                </span>
-                {client.status === 'Intake' && (
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-300">
-                    ⏳ Pending Approval
-                  </span>
-                )}
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPlanColor(client.plan || 'Basic')}`}>
-                  {client.plan || 'Basic'}
-                </span>
-                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                  {client.trainingFrequency}x/week
-                </span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  client.subscriptionDuration 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {client.subscriptionDuration 
-                    ? `${client.subscriptionDuration} weken` 
-                    : 'No abonnement'
-                  }
-                </span>
-                {/* Group Subscriptions */}
-                {client.groupSubscriptions && client.groupSubscriptions.length > 0 && (
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Group ({client.groupSubscriptions.length})
-                  </span>
-                )}
-              </div>
-              
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Phone className="w-4 h-4" />
-                  <span>{client.phone || 'No phone'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>Joined {new Date(client.joinDate).toLocaleDateString()}</span>
-                </div>
-                <div className="flex flex-col gap-1 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Dumbbell className="w-4 h-4" />
-                    <span>{client.scheduledSessions} / {client.totalSessions} ingepland</span>
-                  </div>
-                  <div className="flex items-center gap-2 ml-6">
-                    <span>{client.completedSessions} / {client.totalSessions} voltooid</span>
-                  </div>
-                  {(client.measurementsCount !== undefined) && (
-                    <div className="flex items-center gap-2 ml-6">
-                      <span>Measurements: {client.measurementsCount}</span>
-                    </div>
-                  )}
-                  {(client.photosCount !== undefined) && (
-                    <div className="flex items-center gap-2 ml-6">
-                      <span>Photos: {client.photosCount}</span>
-                    </div>
-                  )}
-                </div>
-                {client.rating && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span>{client.rating}/5</span>
-                  </div>
-                )}
-                {/* Group Subscription Details */}
-                {client.groupSubscriptions && client.groupSubscriptions.length > 0 && (
-                  <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Users className="w-4 h-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-800">Group Training</span>
-                    </div>
-                    {client.groupSubscriptions.map((group, index) => (
-                      <div key={group.id} className="text-xs text-green-700 mb-1">
-                        <div className="font-medium">{group.service}</div>
-                        <div>Duration: {group.duration} weeks • {group.frequency}x/week</div>
-                        <div>Group size: {group.groupSize} people</div>
-                        <div>Price: {group.finalPrice} RON per person</div>
-                      </div>
+            {sortedAdminUsers.length > 0 && (
+              <div className="space-y-3 mb-8">
+                {sortedAdminUsers.map((admin) => (
+                  <AdminBar
+                    key={admin.id}
+                    client={admin}
+                    onView={(id) => router.push(`/admin/clients/${id}`)}
+                  />
                     ))}
                   </div>
                 )}
 
-                {/* Personal Subscription Details */}
-                {client.personalSubscriptions && client.personalSubscriptions.length > 0 && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <User className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-800">1:1 Coaching</span>
-                    </div>
-                    {client.personalSubscriptions.map((personal, index) => (
-                      <div key={personal.id} className="text-xs text-blue-700 mb-1">
-                        <div className="font-medium">{personal.service}</div>
-                        <div>Duration: {personal.duration} weeks • {personal.frequency}x/week</div>
-                        <div>Price: {personal.finalPrice} RON</div>
-                        {personal.discount > 0 && (
-                          <div className="text-blue-600">Discount: {personal.discount}%</div>
-                        )}
-                        {personal.includeNutritionPlan && (
-                          <div className="text-blue-600">+ Nutrition Plan ({personal.nutritionPlanCount}x)</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+              <div className="flex items-center gap-2 text-sm font-medium text-[#8D5D7A]">
+                <Users className="w-4 h-4 text-[#E11C48]" />
+                <span>{summaryText}</span>
               </div>
-
-              <div className="flex gap-2">
-                {client.status === 'Intake' ? (
-                  <>
+              {searchApplied && (
                     <button
-                      onClick={() => handleAcceptIntake(client.id)}
-                      className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors text-sm"
-                    >
-                      Accept Client
-                    </button>
-                    <button
-                      onClick={() => router.push(`/admin/clients/${client.id}`)}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
-                    >
-                      View
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => router.push(`/admin/clients/${client.id}`)}
-                    className="flex-1 bg-rose-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-rose-600 transition-colors text-sm"
-                  >
-                    View Details
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-            {filteredClients.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-600 mb-2">No Clients Found</h3>
-                <p className="text-gray-500 mb-6">
-                  {searchTerm ? 'No clients match your search criteria' : 'Add your first client to get started'}
-                </p>
-                <button
-                  onClick={() => setShowNewClientModal(true)}
-                  className="bg-rose-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-rose-600 transition-colors duration-200"
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="text-sm font-medium text-[#E11C48] hover:text-[#B01638]"
                 >
-                  Add New Client
-                </button>
+                  {clientsText.resetSearch}
+                  </button>
+                )}
               </div>
-            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredClients.map((client) => (
+                <ClientCard
+                  key={client.id}
+                  client={client}
+                  onView={(id) => router.push(`/admin/clients/${id}`)}
+                  onDelete={handleDeleteClick}
+                  onAcceptIntake={handleAcceptIntake}
+                />
+              ))}
+            </div>
           </>
         )}
 
-        {/* New Client Modal */}
-        {showNewClientModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-800">Add New Client</h2>
+        {!loading && filteredClients.length === 0 && (
+          <div className="mt-8 rounded-3xl border border-dashed border-[#F5D2E0] bg-white/70 px-6 py-16 text-center shadow-sm">
+            <Users className="mx-auto mb-6 h-16 w-16 text-[#EFB6CB]" />
+            <h3 className="text-lg font-semibold text-[#3C1E35] mb-2">{clientsText.empty.title}</h3>
+            <p className="text-sm text-[#8D5D7A] mb-6">
+              {searchApplied ? clientsText.empty.filteredDescription : clientsText.empty.description}
+                </p>
                 <button
-                  onClick={() => setShowNewClientModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                  onClick={() => setShowNewClientModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#E11C48] to-[#F36B8D] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#E11C48]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+                >
+              <Plus className="w-4 h-4" />
+              {clientsText.actions.addClient}
+                </button>
+              </div>
+        )}
+      </div>
+
+        {showNewClientModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-[#3C1E35]">{clientsText.addModal.title}</h2>
+                <button
+                  onClick={() => {
+                    if (!isCreatingClient) {
+                      setShowNewClientModal(false);
+                    }
+                  }}
+                  disabled={isCreatingClient}
+                  className="rounded-full p-2 text-[#C67697] transition-colors hover:bg-[#FDF1F6] hover:text-[#E11C48] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
+              <form onSubmit={handleCreateClient}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.nameLabel}</label>
                   <input
                     type="text"
                     value={newClient.name}
-                    onChange={(e) => setNewClient({...newClient, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                    placeholder="Enter client name"
+                  onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                  placeholder={clientsText.addModal.namePlaceholder}
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.emailLabel}</label>
                   <input
                     type="email"
                     value={newClient.email}
-                    onChange={(e) => setNewClient({...newClient, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                    placeholder="Enter email address"
+                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                  placeholder={clientsText.addModal.emailPlaceholder}
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.phoneLabel}</label>
                   <input
                     type="tel"
                     value={newClient.phone}
-                    onChange={(e) => setNewClient({...newClient, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                    placeholder="Enter phone number"
+                  onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                  placeholder={clientsText.addModal.phonePlaceholder}
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Goal</label>
+                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.goalLabel}</label>
                   <textarea
                     value={newClient.goal}
-                    onChange={(e) => setNewClient({...newClient, goal: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                    placeholder="Enter client goals"
+                  onChange={(e) => setNewClient({ ...newClient, goal: e.target.value })}
+                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                  placeholder={clientsText.addModal.goalPlaceholder}
                     rows={3}
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Training Frequency</label>
+                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.trainingFrequencyLabel}</label>
                   <select
                     value={newClient.trainingFrequency}
-                    onChange={(e) => setNewClient({...newClient, trainingFrequency: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                  >
-                    <option value={1}>1x per week</option>
-                    <option value={2}>2x per week</option>
-                    <option value={3}>3x per week</option>
-                    <option value={4}>4x per week</option>
-                    <option value={5}>5x per week</option>
+                  onChange={(e) => setNewClient({ ...newClient, trainingFrequency: parseInt(e.target.value, 10) })}
+                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                >
+                  <option value={1}>{clientsText.addModal.frequencyOptions.once}</option>
+                  <option value={2}>{clientsText.addModal.frequencyOptions.twice}</option>
+                  <option value={3}>{clientsText.addModal.frequencyOptions.three}</option>
+                  <option value={4}>{clientsText.addModal.frequencyOptions.four}</option>
+                  <option value={5}>{clientsText.addModal.frequencyOptions.five}</option>
                   </select>
                 </div>
               </div>
               
-              <div className="flex gap-3 mt-6">
+            <div className="mt-6 flex gap-3">
                 <button
-                  onClick={() => setShowNewClientModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateClient}
-                  className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
-                >
-                  Create Client
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* View Client Modal */}
-        {showViewModal && selectedClient && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-800">Client Details</h2>
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800">{selectedClient.name}</h3>
-                  <p className="text-gray-600">{selectedClient.email}</p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Phone</label>
-                    <p className="text-gray-900">{selectedClient.phone || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Status</label>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedClient.status)}`}>
-                      {selectedClient.status}
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Training Frequency</label>
-                    <p className="text-gray-900">{selectedClient.trainingFrequency}x per week</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Sessions</label>
-                    <p className="text-gray-900">{selectedClient.scheduledSessions} / {selectedClient.totalSessions} ingepland</p>
-                    <p className="text-gray-900">{selectedClient.completedSessions} / {selectedClient.totalSessions} voltooid</p>
-                  </div>
-                </div>
-                
-                {selectedClient.goal && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Goals</label>
-                    <p className="text-gray-900">{selectedClient.goal}</p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Close
-                </button>
-                <button
+                  type="button"
                   onClick={() => {
-                    setShowViewModal(false);
-                    router.push(`/admin/clients/${selectedClient.id}`);
+                    if (!isCreatingClient) {
+                      setShowNewClientModal(false);
+                    }
                   }}
-                  className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
+                  disabled={isCreatingClient}
+                  className="flex-1 rounded-xl border border-[#F5D2E0] px-4 py-2.5 text-sm font-medium text-[#8D5D7A] transition-all duration-200 hover:bg-[#FDF1F6] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  View Full Profile
+                {clientsText.addModal.cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingClient}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-[#E11C48] to-[#F36B8D] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#E11C48]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isCreatingClient ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span>Aanmaken...</span>
+                    </>
+                  ) : (
+                    clientsText.addModal.create
+                  )}
                 </button>
               </div>
+              </form>
             </div>
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
-        {showDeleteModal && clientToDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+      {showDeleteModal && clientToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-800">Delete Client</h2>
+              <h2 className="text-xl font-semibold text-[#3C1E35]">{clientsText.deleteModal.title}</h2>
                 <button
-                  onClick={handleDeleteCancel}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={handleDeleteCancel}
+                className="rounded-full p-2 text-[#C67697] transition-colors hover:bg-[#FDF1F6] hover:text-[#E11C48]"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Trash2 className="w-8 h-8 text-red-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                  Are you sure you want to delete this client?
+            <div className="mb-6 rounded-2xl border border-[#F5D2E0] bg-[#FFF6FA] p-4 text-left">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FCE1EB]">
+                <Trash2 className="h-7 w-7 text-[#E11C48]" />
+              </div>
+              <h3 className="text-base font-semibold text-[#3C1E35] text-center mb-2">
+                {clientsText.deleteModal.subtitle}
                 </h3>
-                <p className="text-gray-600 mb-4">
-                  You are about to delete <strong>{clientToDelete.name}</strong>. This action cannot be undone.
-                </p>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-red-800 text-sm">
-                    <strong>Warning:</strong> This will permanently delete all client data including:
-                  </p>
-                  <ul className="text-red-700 text-sm mt-2 space-y-1">
-                    <li>• Client profile and contact information</li>
-                    <li>• Training sessions and workout history</li>
-                    <li>• Measurements and progress photos</li>
-                    <li>• Nutrition plans and meal tracking</li>
+              <p className="text-sm text-[#8D5D7A] text-center">
+                {clientsText.deleteModal.warningPrefix}
+                <strong>{clientToDelete.name}</strong>
+                {clientsText.deleteModal.warningSuffix}
+              </p>
+              <p className="mt-4 text-sm font-medium text-[#3C1E35]">{clientsText.deleteModal.description}</p>
+              <ul className="mt-2 space-y-1 text-sm text-[#C67697] pl-5 list-disc">
+                {clientsText.deleteModal.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
                   </ul>
-                </div>
               </div>
               
               <div className="flex gap-3">
                 <button
                   onClick={handleDeleteCancel}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                className="flex-1 rounded-xl border border-[#F5D2E0] px-4 py-2.5 text-sm font-medium text-[#8D5D7A] transition-colors hover:bg-[#FDF1F6]"
                 >
-                  Cancel
+                {clientsText.deleteModal.cancel}
                 </button>
                 <button
                   onClick={handleDeleteConfirm}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                className="flex-1 rounded-xl bg-[#E11C48] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#E11C48]/30 transition-all hover:-translate-y-0.5 hover:bg-[#B01638]"
                 >
-                  Delete Client
+                {clientsText.deleteModal.confirm}
                 </button>
               </div>
             </div>
           </div>
         )}
-
-      </main>
     </div>
   );
 }

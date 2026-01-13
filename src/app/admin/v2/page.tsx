@@ -16,6 +16,15 @@ import {
   Plus
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { statsService } from '@/lib/database';
+
+type DashboardStats = {
+  totalUsers: number;
+  activeUsers: number;
+  totalWorkouts: number;
+  totalNutritionPlans: number;
+  totalServices: number;
+};
 
 // Feature Card Component
 function FeatureCard({ 
@@ -59,38 +68,17 @@ function FeatureCard({
 }
 
 // Quick Stats Component
-function QuickStats() {
-  const [stats, setStats] = useState([
-    { label: 'Total Clients', value: '0', change: '+0%', icon: Users, color: 'text-blue-600' },
-    { label: 'Active Sessions', value: '0', change: '+0%', icon: Calendar, color: 'text-green-600' },
-    { label: 'Workouts Created', value: '0', change: '+0%', icon: Dumbbell, color: 'text-purple-600' },
-    { label: 'Nutrition Plans', value: '0', change: '+0%', icon: ChefHat, color: 'text-orange-600' },
-  ]);
-
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const response = await fetch(`/api/dashboard/stats?t=${Date.now()}`);
-        if (response.ok) {
-          const data = await response.json();
-          setStats([
-            { label: 'Total Clients', value: data.totalClients.toString(), change: data.changes.totalClients, icon: Users, color: 'text-blue-600' },
-            { label: 'Active Sessions', value: data.activeClients.toString(), change: data.changes.activeClients, icon: Calendar, color: 'text-green-600' },
-            { label: 'Workouts Created', value: data.totalSessions.toString(), change: data.changes.totalSessions, icon: Dumbbell, color: 'text-purple-600' },
-            { label: 'Nutrition Plans', value: data.nutritionPlans.toString(), change: data.changes.nutritionPlans, icon: ChefHat, color: 'text-orange-600' },
-          ]);
-        }
-      } catch (error) {
-        console.error('Error loading stats:', error);
-      }
-    };
-
-    loadStats();
-  }, []);
+function QuickStats({ stats, loading }: { stats: DashboardStats; loading: boolean }) {
+  const items = [
+    { label: 'Total Customers', value: stats.totalUsers.toString(), icon: Users, color: 'text-blue-600' },
+    { label: 'Active Customers', value: stats.activeUsers.toString(), icon: Calendar, color: 'text-green-600' },
+    { label: 'Workouts Created', value: stats.totalWorkouts.toString(), icon: Dumbbell, color: 'text-purple-600' },
+    { label: 'Nutrition Plans', value: stats.totalNutritionPlans.toString(), icon: ChefHat, color: 'text-orange-600' },
+  ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {stats.map((stat, index) => (
+      {items.map((stat, index) => (
         <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <div className={`p-3 rounded-xl bg-gray-50`}>
@@ -98,10 +86,12 @@ function QuickStats() {
             </div>
             <div className="flex items-center gap-1 text-sm text-emerald-600">
               <TrendingUp className="w-4 h-4" />
-              <span>{stat.change}</span>
+              <span>{loading ? '—' : '+0%'}</span>
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
+          <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+            {loading ? '...' : stat.value}
+          </div>
           <div className="text-sm text-gray-500">{stat.label}</div>
         </div>
       ))}
@@ -173,28 +163,26 @@ function RecentActivity() {
 
 export default function AdminV2Page() {
   const router = useRouter();
-  const [dashboardData, setDashboardData] = useState({
-    totalClients: 0,
-    activeClients: 0,
-    totalSessions: 0,
-    nutritionPlans: 0
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalWorkouts: 0,
+    totalNutritionPlans: 0,
+    totalServices: 0,
   });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
         console.log('🔄 Loading dashboard data...');
-        const response = await fetch(`/api/dashboard/stats?t=${Date.now()}`);
-        console.log('📊 API response status:', response.status);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('📊 Dashboard data received:', data);
-          setDashboardData(data);
-        } else {
-          console.error('❌ API response not ok:', response.status);
-        }
+        const data = await statsService.getDashboardStats();
+        console.log('📊 Dashboard data received:', data);
+        setDashboardStats(data);
       } catch (error) {
         console.error('❌ Error loading dashboard data:', error);
+      } finally {
+        setLoadingStats(false);
       }
     };
 
@@ -208,7 +196,7 @@ export default function AdminV2Page() {
       icon: Users,
       color: 'bg-blue-500',
       href: '/admin/v2/clients',
-      stats: `${dashboardData.totalClients} active clients`
+      stats: loadingStats ? 'Loading…' : `${dashboardStats.totalUsers} klanten`
     },
     {
       title: 'Schedule Management',
@@ -216,7 +204,7 @@ export default function AdminV2Page() {
       icon: Calendar,
       color: 'bg-green-500',
       href: '/admin/schedule',
-      stats: `${dashboardData.activeClients} sessions today`
+      stats: loadingStats ? 'Loading…' : `${dashboardStats.activeUsers} actieve klanten`
     },
     {
       title: 'Workout Builder',
@@ -224,7 +212,7 @@ export default function AdminV2Page() {
       icon: Dumbbell,
       color: 'bg-purple-500',
       href: '/admin/workouts',
-      stats: `${dashboardData.totalSessions} workouts created`
+      stats: loadingStats ? 'Loading…' : `${dashboardStats.totalWorkouts} workouts`
     },
     {
       title: 'Nutrition Plans',
@@ -232,7 +220,7 @@ export default function AdminV2Page() {
       icon: ChefHat,
       color: 'bg-orange-500',
       href: '/admin/voedingsplannen',
-      stats: `${dashboardData.nutritionPlans} active plans`
+      stats: loadingStats ? 'Loading…' : `${dashboardStats.totalNutritionPlans} plannen`
     },
     {
       title: 'Analytics & Reports',
@@ -277,7 +265,7 @@ export default function AdminV2Page() {
             </div>
           </div>
 
-          <QuickStats />
+          <QuickStats stats={dashboardStats} loading={loadingStats} />
         </div>
       </div>
 

@@ -134,7 +134,7 @@ export default function CookingInstructions({
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || !instructions.trim()}
+                disabled={saving}
                 className="px-3 py-1 text-sm bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-1"
               >
                 {saving ? (

@@ -38,3 +38,8 @@ CREATE INDEX IF NOT EXISTS "nutrition_calculations_v2_customerId_idx" ON "nutrit
 CREATE INDEX IF NOT EXISTS "nutrition_calculations_v2_createdAt_idx" ON "nutrition_calculations_v2"("createdAt");
 
 
+
+
+
+
+

@@ -8,35 +8,43 @@ datasource db {
 }
 
 model User {
-  id                     String                       @id @default(cuid())
-  email                  String                       @unique
-  name                   String
-  phone                  String?
-  goal                   String?
-  profilePicture         String?                      // URL to profile picture
-  joinDate               DateTime                     @default(now())
-  status                 String                       @default("active")
-  plan                   String                       @default("Basic")
-  trainingFrequency      Int                          @default(1)
-  lastWorkout            DateTime?
-  totalSessions          Int                          @default(0)
-  rating                 Float?                       @default(0)
-  createdAt              DateTime                     @default(now())
-  updatedAt              DateTime                     @updatedAt
-  achievements           Achievement[]
-  measurements           CustomerMeasurement[]
-  customerNutritionPlans CustomerNutritionPlan[]
-  progressions           CustomerProgression[]
-  scheduleAssignments    CustomerScheduleAssignment[]
-  customerWorkouts       CustomerWorkout[]
-  customerPhotos         CustomerPhoto[]
-  goals                  Goal[]
-  nutritionPlans         NutritionPlan[]
-  trainingSessions       TrainingSession[]
-  workouts               Workout[]
-  todos                  Todo[]
-  payments               Payment[]
+  id                          String                       @id @default(cuid())
+  email                       String                       @unique
+  name                        String
+  password                    String? // Hashed password for client login
+  phone                       String?
+  goal                        String?
+  profilePicture              String? // URL to profile picture
+  joinDate                    DateTime                     @default(now())
+  status                      String                       @default("active")
+  plan                        String                       @default("Basic")
+  trainingFrequency           Int                          @default(1)
+  lastWorkout                 DateTime?
+  totalSessions               Int                          @default(0)
+  rating                      Float?                       @default(0)
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  achievements                Achievement[]
+  measurements                CustomerMeasurement[]
+  customerNutritionPlans      CustomerNutritionPlan[]
+  progressions                CustomerProgression[]
+  scheduleAssignments         CustomerScheduleAssignment[]
+  customerWorkouts            CustomerWorkout[]
+  customerPhotos              CustomerPhoto[]
+  goals                       Goal[]
+  nutritionPlans              NutritionPlan[]
+  trainingSessions            TrainingSession[]
+  workouts                    Workout[]
+  todos                       Todo[]
+  payments                    Payment[]
   onlineCoachingRegistrations OnlineCoachingRegistration[]
+  trainingFrequencyHistory    TrainingFrequencyHistory[]
+  periodAdjustments           PeriodAdjustment[]
+  dailyTasks                  DailyTask[]
+  dailyTaskCompletions        DailyTaskCompletion[]
+  dailyNutritionTracking      DailyNutritionTracking[]
+  dailyMealCompletions         DailyMealCompletion[]
+  dailyWaterTracking          DailyWaterTracking[]
 
   @@map("users")
 }
@@ -216,31 +224,31 @@ model NutritionCalculation {
 }
 
 model NutritionCalculationV2 {
-  id                    String   @id @default(cuid())
-  customerId            String
-  customerName          String
-  weight                Float
-  age                   Int
-  gender                String
-  bodyType              String
-  objective             String
-  objectivePercentage   Float
-  dailyActivity         Float
-  trainingHours         Float
-  trainingIntensity     Float
-  step1_mb              Float
-  step2_gender          Float
-  step3_age             Float
-  step4_bodyType        Float
-  step5_objective       Float
-  step6_dailyActivity   Float
-  step7_training         Float
-  finalCalories         Int
-  protein               Int
-  fat                   Int
-  carbs                 Int
-  calculationType       String   @default("v2")
-  createdAt             DateTime @default(now())
+  id                  String   @id @default(cuid())
+  customerId          String
+  customerName        String
+  weight              Float
+  age                 Int
+  gender              String
+  bodyType            String
+  objective           String
+  objectivePercentage Float
+  dailyActivity       Float
+  trainingHours       Float
+  trainingIntensity   Float
+  step1_mb            Float
+  step2_gender        Float
+  step3_age           Float
+  step4_bodyType      Float
+  step5_objective     Float
+  step6_dailyActivity Float
+  step7_training      Float
+  finalCalories       Int
+  protein             Int
+  fat                 Int
+  carbs               Int
+  calculationType     String   @default("v2")
+  createdAt           DateTime @default(now())
 
   @@map("nutrition_calculations_v2")
 }
@@ -349,9 +357,9 @@ model CustomerScheduleAssignment {
 model Ingredient {
   id        String   @id @default(cuid())
   name      String   @unique
-  nameRo    String?  // Romanian translation
-  per       String?  // Per 100g, per stuk, etc.
-  perRo     String?  // Romanian translation for 'per' field
+  nameRo    String? // Romanian translation
+  per       String? // Per 100g, per stuk, etc.
+  perRo     String? // Romanian translation for 'per' field
   calories  Float
   protein   Float
   carbs     Float
@@ -359,7 +367,7 @@ model Ingredient {
   fiber     Float?
   sugar     Float?
   category  String?
-  aliases  String[] // Array of alternative names
+  aliases   String[] // Array of alternative names
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -371,7 +379,7 @@ model CustomerPhoto {
   id         String   @id @default(cuid())
   customerId String
   week       Int
-  position   String   // 'front', 'side', 'back'
+  position   String // 'front', 'side', 'back'
   date       DateTime
   imageUrl   String
   notes      String?
@@ -400,53 +408,55 @@ model Todo {
 }
 
 model Payment {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   customerId    String
-  customer      User      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer      User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   amount        Float
-  paymentMethod String    // 'cash', 'card', 'bank_transfer', 'online'
-  paymentType   String    // 'full', 'installment', 'monthly'
-  status        String    @default("completed") // 'pending', 'completed', 'failed', 'refunded'
+  paymentMethod String // 'cash', 'card', 'bank_transfer', 'online'
+  paymentType   String // 'full', 'installment', 'monthly'
+  status        String   @default("completed") // 'pending', 'completed', 'failed', 'refunded'
   notes         String?
-  paymentDate   DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  paymentDate   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("payments")
 }
 
 model Recipe {
-  id            String            @id @default(cuid())
-  name          String
-  description   String?
-  prepTime      Int?              // in minutes
-  servings      Int               @default(1)
-  instructions  String?           // JSON string of instructions array
-  totalCalories Float             @default(0)
-  totalProtein  Float             @default(0)
-  totalCarbs    Float             @default(0)
-  totalFat      Float             @default(0)
-  labels        String[]          @default([]) // e.g., ["breakfast", "lunch", "dinner"]
-  status        String            @default("active")
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  ingredients   RecipeIngredient[]
+  id             String             @id @default(cuid())
+  name           String
+  description    String?
+  prepTime       Int? // in minutes
+  servings       Int                @default(1)
+  instructions   String? // JSON string of instructions array (EN)
+  instructionsRo String? // JSON string of instructions array (RO - Romanian)
+  totalCalories  Float              @default(0)
+  totalProtein   Float              @default(0)
+  totalCarbs     Float              @default(0)
+  totalFat       Float              @default(0)
+  mealType       String             @default("other") // breakfast, lunch, dinner, etc.
+  labels         String[]           @default([]) // e.g., ["breakfast", "lunch", "dinner"]
+  status         String             @default("active")
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  ingredients    RecipeIngredient[]
 
   @@map("recipes")
 }
 
 model RecipeIngredient {
-  id              String   @id @default(cuid())
-  recipeId        String
-  name            String
-  quantity        Float
-  unit            String
-  exists          Boolean  @default(false)
-  availableInApi  Boolean  @default(false)
-  apiMatch        String?  // JSON string of API match data
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  recipe          Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  recipeId       String
+  name           String
+  quantity       Float
+  unit           String
+  exists         Boolean  @default(false)
+  availableInApi Boolean  @default(false)
+  apiMatch       String? // JSON string of API match data
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  recipe         Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@map("recipe_ingredients")
 }
@@ -463,20 +473,142 @@ model LaunchNotification {
 }
 
 model OnlineCoachingRegistration {
-  id               String    @id @default(cuid())
-  name             String
-  email            String
-  phone            String?
-  program          String?
-  status           String    @default("pending")
-  startDate        DateTime?
-  endDate          DateTime?
-  notes            String?
-  interests        String[]  @default([])
-  userId           String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  user             User?     @relation(fields: [userId], references: [id])
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  program   String?
+  status    String    @default("pending")
+  startDate DateTime?
+  endDate   DateTime?
+  notes     String?
+  interests String[]  @default([])
+  userId    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User?     @relation(fields: [userId], references: [id])
 
   @@map("online_coaching_registrations")
+}
+
+model TrainingFrequencyHistory {
+  id            String   @id @default(cuid())
+  customerId    String
+  frequency     Int // The training frequency value
+  effectiveFrom DateTime @default(now()) // When this frequency became active
+  createdAt     DateTime @default(now())
+  customer      User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("training_frequency_history")
+}
+
+model PeriodAdjustment {
+  id              String   @id @default(cuid())
+  customerId      String
+  periodNumber    Int // Which period (1, 2, 3, etc.)
+  customStartDate DateTime // Custom start date for this period
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  customer        User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, periodNumber])
+  @@map("period_adjustments")
+}
+
+// Daily Task Template - Tasks that are assigned to a customer
+model DailyTask {
+  id          String                @id @default(cuid())
+  customerId  String
+  title       String // e.g., "10.000 stappen"
+  description String? // Optional description
+  targetValue Float? // Optional numeric target (e.g., 10000 for steps)
+  unit        String? // Optional unit (e.g., "stappen", "paginas", "minuten")
+  icon        String? // Optional icon name
+  isActive    Boolean               @default(true)
+  order       Int                   @default(0) // Order for display
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  customer    User                  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  completions DailyTaskCompletion[]
+
+  @@map("daily_tasks")
+}
+
+// Daily Task Completion - Records when a task was completed on a specific date
+model DailyTaskCompletion {
+  id          String    @id @default(cuid())
+  dailyTaskId String
+  customerId  String
+  date        DateTime // Date of completion (time set to 00:00:00)
+  completed   Boolean   @default(true)
+  value       Float? // Optional value if task has a numeric target
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  dailyTask   DailyTask @relation(fields: [dailyTaskId], references: [id], onDelete: Cascade)
+  customer    User      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([dailyTaskId, customerId, date])
+  @@map("daily_task_completions")
+}
+
+// Daily Nutrition Tracking - Track daily nutrition adherence
+model DailyNutritionTracking {
+  id         String   @id @default(cuid())
+  customerId String
+  date       DateTime // Date (time set to 00:00:00)
+  followed   Boolean  @default(false) // Whether nutrition plan was followed
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, date])
+  @@map("daily_nutrition_tracking")
+}
+
+// Daily Meal Completion - Track individual meal completion
+model DailyMealCompletion {
+  id          String                @id @default(cuid())
+  customerId  String
+  date        DateTime              @default(now()) @db.Date
+  mealType    String                // 'breakfast', 'morning-snack', 'lunch', 'afternoon-snack', 'dinner', 'evening-snack'
+  completed   Boolean               @default(false)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  customer    User                  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  mealItems   DailyMealItem[]       // Individual items within a meal
+
+  @@unique([customerId, date, mealType])
+  @@map("daily_meal_completions")
+}
+
+// Daily Meal Item - Individual items within a meal (e.g., "1 shake", "1 boterham")
+model DailyMealItem {
+  id                String              @id @default(cuid())
+  mealCompletionId  String
+  itemText          String              // e.g., "1 shake", "1 boterham"
+  completed         Boolean             @default(false)
+  order             Int                 @default(0) // Order within the meal
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  mealCompletion   DailyMealCompletion @relation(fields: [mealCompletionId], references: [id], onDelete: Cascade)
+
+  @@map("daily_meal_items")
+}
+
+// Daily Water Tracking - Track daily water intake
+model DailyWaterTracking {
+  id         String   @id @default(cuid())
+  customerId String
+  date       DateTime // Date (time set to 00:00:00)
+  amount     Float // Amount in liters
+  target     Float    @default(2.0) // Target amount in liters (default 2L)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, date])
+  @@map("daily_water_tracking")
 }

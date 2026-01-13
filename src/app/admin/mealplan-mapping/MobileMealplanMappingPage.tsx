@@ -15,7 +15,10 @@ import {
   X,
   Download,
   Eye,
-  Search
+  Search,
+  Sunrise,
+  UtensilsCrossed,
+  Moon
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -319,11 +322,12 @@ export default function MobileMealplanMappingPage() {
   };
 
   const getMealTypeIcon = (mealType: string) => {
-    if (mealType.toLowerCase().includes('breakfast')) return '🌅';
-    if (mealType.toLowerCase().includes('lunch')) return '☀️';
-    if (mealType.toLowerCase().includes('dinner')) return '🌙';
-    if (mealType.toLowerCase().includes('snack')) return '🍎';
-    return '🍽️';
+    const iconClass = "w-4 h-4 text-gray-700";
+    if (mealType.toLowerCase().includes('breakfast')) return <Sunrise className={iconClass} />;
+    if (mealType.toLowerCase().includes('lunch')) return <UtensilsCrossed className={iconClass} />;
+    if (mealType.toLowerCase().includes('dinner')) return <Moon className={iconClass} />;
+    if (mealType.toLowerCase().includes('snack')) return <Apple className={iconClass} />;
+    return <UtensilsCrossed className={iconClass} />;
   };
 
   return (
@@ -543,7 +547,7 @@ export default function MobileMealplanMappingPage() {
                     <div key={mealIndex} className="bg-gray-700 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-2">
-                          <span className="text-lg">{getMealTypeIcon(meal.type)}</span>
+                          <span className="flex items-center">{getMealTypeIcon(meal.type)}</span>
                           <h4 className="font-medium">{meal.name}</h4>
                         </div>
                         <div className="text-sm">
