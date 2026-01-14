@@ -23,7 +23,6 @@ import {
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getWeekDates } from '@/lib/utils';
-import { cachedFetch, apiCache } from '@/lib/cache';
 
 interface TrainingSession {
   id: string;
@@ -309,48 +308,27 @@ export default function MobileScheduleClient({
   };
 
   // Function to load schedule data (extracted to be reusable)
-  const loadScheduleData = useCallback(async (bypassCache = false) => {
+  const loadScheduleData = useCallback(async () => {
     try {
       if (isMobile) {
         // Use mobile-optimized API endpoint that loads only selected day data
         const selectedDate = selectedDay || currentWeekDates[0].toLocaleDateString('en-CA');
         
-        // Clear client-side cache before fetching if bypassing cache
-        if (bypassCache) {
-          // Clear all schedule-related cache entries from client-side cache
-          const cacheKeys = apiCache.getKeys();
-          cacheKeys.forEach((key: string) => {
-            if (key.includes('/api/schedule/')) {
-              apiCache.delete(key);
-            }
-          });
-        }
+        const url = `/api/schedule/mobile?date=${selectedDate}`;
         
-        // Add timestamp to bypass cache if needed
-        const url = bypassCache 
-          ? `/api/schedule/mobile?date=${selectedDate}&_t=${Date.now()}`
-          : `/api/schedule/mobile?date=${selectedDate}`;
-        
-        // Use cached fetch with 30 second TTL for mobile schedule, or bypass cache if needed
-        // When bypassing, use fetch directly instead of cachedFetch to avoid any caching
-        let data;
-        if (bypassCache) {
-          const response = await fetch(url, {
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
-          });
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        // Always fetch fresh data without caching
+        const response = await fetch(url, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           }
-          data = await response.json();
-        } else {
-          const cacheTTL = 30000;
-          data = await cachedFetch(url, {}, cacheTTL);
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
+        const data = await response.json();
         
         if (data) {
           setCustomers(data.customers);
@@ -422,14 +400,21 @@ export default function MobileScheduleClient({
             return `${year}-${month}-${day}`;
           }));
           
-          // Add timestamp to bypass cache if needed
-          const url = bypassCache
-            ? `/api/schedule/desktop?startDate=${startDate}&endDate=${endDate}&_t=${Date.now()}`
-            : `/api/schedule/desktop?startDate=${startDate}&endDate=${endDate}`;
+          const url = `/api/schedule/desktop?startDate=${startDate}&endDate=${endDate}`;
           
-          // Use cached fetch with 30 second TTL for desktop schedule, or bypass cache if needed
-          const cacheTTL = bypassCache ? 0 : 30000;
-          const data = await cachedFetch(url, {}, cacheTTL);
+          // Always fetch fresh data without caching
+          const response = await fetch(url, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
           
           if (data) {
             setCustomers(data.customers);
@@ -591,8 +576,19 @@ export default function MobileScheduleClient({
         if (isMobile) {
           const selectedDate = selectedDay || currentWeekDates[0].toLocaleDateString('en-CA');
           
-          // Use mobile-optimized endpoint for session refresh (with cache)
-          const data = await cachedFetch(`/api/schedule/mobile?date=${selectedDate}`, {}, 30000);
+          // Use mobile-optimized endpoint for session refresh (no cache)
+          const response = await fetch(`/api/schedule/mobile?date=${selectedDate}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
           
           if (response.ok) {
             const transformedSessions = data.sessions.map((session: any) => {
@@ -622,8 +618,19 @@ export default function MobileScheduleClient({
           
           console.log(`🔄 Refreshing sessions: startDate=${startDate}, endDate=${endDate}`);
           
-          // Use desktop-optimized endpoint for session refresh (with cache)
-          const data = await cachedFetch(`/api/schedule/desktop?startDate=${startDate}&endDate=${endDate}`, {}, 30000);
+          // Use desktop-optimized endpoint for session refresh (no cache)
+          const response = await fetch(`/api/schedule/desktop?startDate=${startDate}&endDate=${endDate}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
           
           if (data) {
             const transformedSessions = data.sessions.map((session: any) => {
@@ -842,9 +849,6 @@ export default function MobileScheduleClient({
         }
 
         if (successfulSessions.length > 0) {
-          // Clear cache for schedule endpoints to force fresh data
-          apiCache.clearPattern('/api/schedule/');
-          
           // Close modal first
           setShowNewSessionModal(false);
           // Reset form
@@ -855,7 +859,7 @@ export default function MobileScheduleClient({
           setClickedTimeSlot(null);
           setModalSelectedDate(null);
           // Refresh schedule data to show new sessions immediately (bypass cache with timestamp)
-          await loadScheduleData(true);
+          await loadScheduleData();
           alert(`Successfully created ${successfulSessions.length} recurring sessions!`);
         } else {
           alert('Failed to create any sessions');
@@ -958,14 +962,6 @@ export default function MobileScheduleClient({
           }
 
           if (successfulSessions.length > 0) {
-            // Clear cache for schedule endpoints to force fresh data
-            const cacheKeys = Array.from((apiCache as any).cache?.keys() || []);
-            cacheKeys.forEach((key: string) => {
-              if (key.includes('/api/schedule/')) {
-                apiCache.delete(key);
-              }
-            });
-            
             // Close modal first
             setShowNewSessionModal(false);
             // Reset form
@@ -975,8 +971,8 @@ export default function MobileScheduleClient({
             setRecurringWeeks(12);
             setClickedTimeSlot(null);
             setModalSelectedDate(null);
-            // Refresh schedule data to show new sessions immediately (bypass cache)
-            await loadScheduleData(true);
+            // Refresh schedule data to show new sessions immediately
+            await loadScheduleData();
             alert(`Successfully created ${successfulSessions.length} recurring group sessions for ${selectedGroup.name}!`);
           } else {
             alert('Failed to create recurring group sessions');
@@ -1014,14 +1010,6 @@ export default function MobileScheduleClient({
           }
 
           if (successfulSessions.length > 0) {
-            // Clear cache for schedule endpoints to force fresh data
-            const cacheKeys = Array.from((apiCache as any).cache?.keys() || []);
-            cacheKeys.forEach((key: string) => {
-              if (key.includes('/api/schedule/')) {
-                apiCache.delete(key);
-              }
-            });
-            
             // Close modal first
             setShowNewSessionModal(false);
             // Reset form
@@ -1031,8 +1019,8 @@ export default function MobileScheduleClient({
             setRecurringWeeks(12);
             setClickedTimeSlot(null);
             setModalSelectedDate(null);
-            // Refresh schedule data to show new sessions immediately (bypass cache)
-            await loadScheduleData(true);
+            // Refresh schedule data to show new sessions immediately
+            await loadScheduleData();
             alert(`Successfully created ${successfulSessions.length} group sessions for ${selectedGroup.name}!`);
           } else {
             alert('Failed to create any group sessions');
@@ -1057,9 +1045,6 @@ export default function MobileScheduleClient({
         });
 
         if (response.ok) {
-          // Clear cache for schedule endpoints to force fresh data
-          apiCache.clearPattern('/api/schedule/');
-          
           // Close modal first
           setShowNewSessionModal(false);
           // Reset form
@@ -1070,7 +1055,7 @@ export default function MobileScheduleClient({
           setClickedTimeSlot(null);
           setModalSelectedDate(null);
           // Refresh schedule data to show new session immediately (bypass cache)
-          await loadScheduleData(true);
+          await loadScheduleData();
           alert('Time blocked successfully!');
         } else {
           alert('Failed to block time');
@@ -1094,17 +1079,6 @@ export default function MobileScheduleClient({
         });
 
         if (response.ok) {
-          // Clear both server-side and client-side cache for schedule endpoints
-          apiCache.clearPattern('/api/schedule/');
-          
-          // Also clear client-side cachedFetch cache
-          const cacheKeys = apiCache.getKeys();
-          cacheKeys.forEach((key: string) => {
-            if (key.includes('/api/schedule/')) {
-              apiCache.delete(key);
-            }
-          });
-          
           // Close modal first
           setShowNewSessionModal(false);
           // Reset form
@@ -1119,7 +1093,7 @@ export default function MobileScheduleClient({
           await new Promise(resolve => setTimeout(resolve, 100));
           
           // Refresh schedule data to show new session immediately (bypass cache)
-          await loadScheduleData(true);
+          await loadScheduleData();
           alert('Session created successfully!');
         } else {
           const error = await response.json();

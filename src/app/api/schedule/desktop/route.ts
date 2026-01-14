@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { apiCache } from '@/lib/cache';
 
 const buildGroupData = async (
   users: Array<{ id: string; name: string; email: string }>
@@ -112,17 +111,6 @@ const buildGroupData = async (
         { error: 'Start date and end date parameters are required' },
         { status: 400 }
       );
-    }
-
-    // Check cache first (30 second TTL for schedule data)
-    const cacheKey = `schedule-desktop-${startDate}-${endDate}`;
-    const cached = apiCache.get(cacheKey);
-    if (cached) {
-      return NextResponse.json(cached, {
-        headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-        },
-      });
     }
 
     // Convert date strings to proper Date objects for comparison
@@ -359,13 +347,12 @@ const buildGroupData = async (
       paymentStatus,
       groups
     };
-
-    // Cache the response (30 second TTL)
-    apiCache.set(cacheKey, responseData, 30000);
  
     return NextResponse.json(responseData, {
       headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
   } catch (error) {

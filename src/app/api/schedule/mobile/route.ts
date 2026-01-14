@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { apiCache } from '@/lib/cache';
 
 const getGroupData = async (
   users: Array<{ id: string; name: string; email: string }>
@@ -111,17 +110,6 @@ export async function GET(request: NextRequest) {
         { error: 'Date parameter is required' },
         { status: 400 }
       );
-    }
-
-    // Check cache first (30 second TTL for schedule data)
-    const cacheKey = `schedule-mobile-${selectedDate}`;
-    const cached = apiCache.get(cacheKey);
-    if (cached) {
-      return NextResponse.json(cached, {
-        headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-        },
-      });
     }
 
     // Get only essential user data for schedule calendar (no Customer Overview needed)
@@ -322,11 +310,6 @@ export async function GET(request: NextRequest) {
       paymentStatus,
       groups
     };
-
-    // Cache the response (30 second TTL) - but only if not a cache-busting request
-    if (!cacheBust) {
-      apiCache.set(cacheKey, responseData, 30000);
-    }
 
     return NextResponse.json(responseData, {
       headers: {
