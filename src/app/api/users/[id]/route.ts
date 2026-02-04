@@ -122,16 +122,25 @@ export async function PUT(
       updateData.lastWorkout = new Date(data.lastWorkout)
     }
     
-    // If trainingFrequency changed, create history entry
+    // If trainingFrequency changed, create history entry (if table exists)
     if (newFrequency !== undefined && newFrequency !== currentUser.trainingFrequency) {
-      await prisma.trainingFrequencyHistory.create({
-        data: {
-          customerId: id,
-          frequency: newFrequency,
-          effectiveFrom: new Date()
+      try {
+        // Check if the model exists in Prisma client
+        if ('trainingFrequencyHistory' in prisma) {
+          await (prisma as any).trainingFrequencyHistory.create({
+            data: {
+              customerId: id,
+              frequency: newFrequency,
+              effectiveFrom: new Date()
+            }
+          });
+          console.log(`Training frequency changed from ${currentUser.trainingFrequency} to ${newFrequency} for user ${id}`);
         }
-      });
-      console.log(`Training frequency changed from ${currentUser.trainingFrequency} to ${newFrequency} for user ${id}`);
+      } catch (historyError: any) {
+        // If table doesn't exist, just log a warning and continue with the update
+        console.warn('Could not create training frequency history entry (table may not exist):', historyError.message);
+        // Don't fail the entire update if history creation fails
+      }
     }
     
     const user = await prisma.user.update({

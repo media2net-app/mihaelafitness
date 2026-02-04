@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 // In-memory cache for clients overview
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 30000; // 30 seconds cache
+const CACHE_TTL = 10000; // 10 seconds cache (reduced for faster updates)
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       console.log('🚀 Clients overview cache hit');
       return NextResponse.json(cached.data, {
         headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=20',
           'X-Cache': 'HIT'
         }
       });
@@ -221,14 +221,17 @@ export async function GET(request: Request) {
       const userSessions = sessionsByCustomer[user.id] || [];
       const userPricing = pricingByCustomer[user.id] || [];
       
-      // Calculate session stats
-      const totalSessions = userSessions.length;
-      const completedSessions = userSessions.filter(session => session.status === 'completed').length;
-      const scheduledSessions = userSessions.filter(session => session.status === 'scheduled').length;
+      // Exclude intake sessions from calculations
+      const trainingSessionsOnly = userSessions.filter(s => s.type !== 'Intake Consultation');
+      
+      // Calculate session stats (excluding intake sessions)
+      const totalSessions = trainingSessionsOnly.length;
+      const completedSessions = trainingSessionsOnly.filter(session => session.status === 'completed').length;
+      const scheduledSessions = trainingSessionsOnly.filter(session => session.status === 'scheduled').length;
       
       // Calculate missed sessions (scheduled sessions in the past that are not completed)
       const now = new Date();
-      const missedSessions = userSessions.filter(session => {
+      const missedSessions = trainingSessionsOnly.filter(session => {
         const sessionDate = new Date(session.date);
         return sessionDate < now && 
                (session.status === 'scheduled' || session.status === 'no-show' || 
@@ -236,40 +239,117 @@ export async function GET(request: Request) {
       }).length;
       
       // Calculate performance score based on current period
-      // Each period is 4 weeks, expected sessions = trainingFrequency * 4
+      // Each period is based on completed sessions: trainingFrequency * 4 completed sessions
       const trainingFrequency = user.trainingFrequency || 3;
       const expectedSessionsPerPeriod = trainingFrequency * 4;
       
-      // Calculate current period based on joinDate (same logic as PeriodTrackingTab)
+      // Calculate current period based on completed sessions (excluding intake)
+      // Period = floor(completedSessions / sessionsPerPeriod) + 1
+      const currentPeriodNumber = Math.floor(completedSessions / expectedSessionsPerPeriod) + 1;
+      const sessionsInCurrentPeriod = completedSessions % expectedSessionsPerPeriod;
+      
+      // A period is completed when:
+      // All sessions of that period are completed
+      // This happens when completedSessions is a multiple of expectedSessionsPerPeriod
+      // AND we have at least one completed session
+      // Example: 12 completed sessions (3x/week * 4 weeks) = period 1 is done, we're now in period 2
+      const isPeriodJustCompleted = completedSessions > 0 && 
+                                     completedSessions % expectedSessionsPerPeriod === 0;
+      // For period stats, we need to get sessions from the current period
+      // Since periods are based on completed sessions, we need to find which sessions belong to current period
+      const completedTrainingSessions = trainingSessionsOnly
+        .filter(s => s.status === 'completed')
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+      // Calculate period stats based on current period's completed sessions
+      const periodStartIndex = (currentPeriodNumber - 1) * expectedSessionsPerPeriod;
+      const periodEndIndex = periodStartIndex + expectedSessionsPerPeriod;
+      const currentPeriodCompletedSessions = completedTrainingSessions.slice(periodStartIndex, periodEndIndex);
+      
+      // Get date range for current period (from first to last completed session in this period)
       const joinDate = new Date(user.createdAt);
       joinDate.setHours(0, 0, 0, 0);
       
-      // Find which period we're in
-      const daysSinceJoin = Math.floor((now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
-      const currentPeriodNumber = Math.floor(daysSinceJoin / 28) + 1;
-      const periodStart = new Date(joinDate);
-      periodStart.setDate(periodStart.getDate() + (currentPeriodNumber - 1) * 28);
-      periodStart.setHours(0, 0, 0, 0);
+      let periodStart: Date;
+      let periodEnd: Date;
       
-      const periodEnd = new Date(periodStart);
-      periodEnd.setDate(periodEnd.getDate() + 27); // 28 days - 1 (0-indexed)
-      periodEnd.setHours(23, 59, 59, 999);
+      if (currentPeriodCompletedSessions.length > 0) {
+        periodStart = new Date(currentPeriodCompletedSessions[0].date);
+        periodStart.setHours(0, 0, 0, 0);
+        periodEnd = new Date(currentPeriodCompletedSessions[currentPeriodCompletedSessions.length - 1].date);
+        periodEnd.setHours(23, 59, 59, 999);
+      } else {
+        // No completed sessions in current period yet, use joinDate as start
+        periodStart = new Date(joinDate);
+        periodStart.setHours(0, 0, 0, 0);
+        periodEnd = new Date(now);
+        periodEnd.setHours(23, 59, 59, 999);
+      }
       
-      // Get sessions from current period
-      const periodSessions = userSessions.filter(session => {
+      // Get all sessions (excluding intake) from current period date range
+      const periodSessions = trainingSessionsOnly.filter(session => {
         const sessionDate = new Date(session.date);
         sessionDate.setHours(0, 0, 0, 0);
         return sessionDate >= periodStart && sessionDate <= periodEnd;
       });
       
       const periodCompleted = periodSessions.filter(s => s.status === 'completed').length;
-      const periodScheduled = periodSessions.filter(s => s.status === 'scheduled').length;
+      const periodScheduled = periodSessions.filter(s => s.status === 'scheduled' || s.status === 'confirmed').length;
       const periodMissed = periodSessions.filter(s => {
         const sessionDate = new Date(s.date);
         return sessionDate < now && 
                (s.status === 'scheduled' || s.status === 'no-show' || 
                 (s.status === 'cancelled' && sessionDate < now));
       }).length;
+      
+      // Check if period is completed: all expected sessions are completed
+      // This happens when sessionsInCurrentPeriod === 0 and completedSessions is a multiple of expectedSessionsPerPeriod
+      // OR if there's only one scheduled session left and it's within 7 days
+      const isPeriodCompleted = isPeriodJustCompleted;
+      
+      // Alternative: Check if there's only one session left and it's scheduled within 7 days
+      const remainingSessions = expectedSessionsPerPeriod - periodCompleted;
+      const upcomingScheduledSessions = periodSessions.filter(s => {
+        if (s.status !== 'scheduled' && s.status !== 'confirmed') return false;
+        const sessionDate = new Date(s.date);
+        const daysUntil = Math.ceil((sessionDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return daysUntil >= 0 && daysUntil <= 7;
+      });
+      
+      const isPeriodAlmostCompleted = remainingSessions === 1 && upcomingScheduledSessions.length === 1;
+      
+      // Final check: period is completed if just completed OR almost completed
+      const finalIsPeriodCompleted = isPeriodCompleted || isPeriodAlmostCompleted;
+      
+      // Check if there's a recent pricing calculation (within last 7 days) for this client
+      // If there is, don't show the notice bar even if period is completed
+      const recentPricing = userPricing.length > 0 ? userPricing
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] : null;
+      
+      const hasRecentPricing = recentPricing && (() => {
+        const pricingDate = new Date(recentPricing.createdAt);
+        const daysSincePricing = Math.floor((now.getTime() - pricingDate.getTime()) / (1000 * 60 * 60 * 24));
+        return daysSincePricing <= 7; // Pricing created within last 7 days
+      })();
+      
+      // Only show notice if period is completed AND no recent pricing exists
+      const shouldShowNotice = finalIsPeriodCompleted && !hasRecentPricing;
+      
+      // Debug logging for period completion
+      if (finalIsPeriodCompleted) {
+        console.log(`Period completed for ${user.name}:`, {
+          completedSessions,
+          expectedSessionsPerPeriod,
+          currentPeriodNumber,
+          sessionsInCurrentPeriod,
+          isPeriodJustCompleted,
+          isPeriodCompleted,
+          isPeriodAlmostCompleted,
+          hasRecentPricing,
+          shouldShowNotice,
+          recentPricingDate: recentPricing ? new Date(recentPricing.createdAt).toISOString() : null
+        });
+      }
       
       // Calculate performance score (0-100) - Simple win/lose rate
       // Score = completed / (completed + missed)
@@ -350,6 +430,9 @@ export async function GET(request: Request) {
           scheduled: periodScheduled,
           missed: periodMissed
         },
+        currentPeriodNumber: currentPeriodNumber,
+        sessionsInCurrentPeriod: sessionsInCurrentPeriod,
+        isPeriodCompleted: shouldShowNotice, // Only true if period completed AND no recent pricing
         rating: user.rating,
         subscriptionDuration: subscriptionDuration,
         groupSubscriptions: userGroupSubscriptions,
@@ -403,7 +486,7 @@ export async function GET(request: Request) {
       console.log('⚠️ Using stale cache due to error');
       return NextResponse.json(cached.data, {
         headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=20',
           'X-Cache': 'STALE'
         }
       });

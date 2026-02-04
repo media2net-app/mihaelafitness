@@ -129,13 +129,9 @@ function PeriodTrackingTab({
     }
   };
 
-  // Calculate periods (each period is 4 weeks)
+  // Calculate periods based on completed sessions (not time)
+  // Each period = trainingFrequency * 4 completed sessions
   const calculatePeriods = () => {
-    const startDate = new Date(joinDate);
-    startDate.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    
     const periods: Array<{
       periodNumber: number;
       startDate: Date;
@@ -148,76 +144,226 @@ function PeriodTrackingTab({
       frequency: number;
     }> = [];
     
-    let currentPeriodStart = new Date(startDate);
-    let periodNumber = 1;
+    // Sort all sessions by date (oldest first)
+    // Exclude intake sessions from period calculations
+    const sortedSessions = [...trainingSessions]
+      .filter(s => s.type !== 'Intake Consultation')
+      .sort((a, b) => {
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      });
     
-    // Calculate all periods from start date until today (and one future period)
-    while (currentPeriodStart <= today || periods.length === 0 || periodNumber <= Math.ceil((today.getTime() - startDate.getTime()) / (28 * 24 * 60 * 60 * 1000)) + 1) {
-      // Check if there's a custom start date for this period
-      if (periodAdjustments[periodNumber]) {
-        currentPeriodStart = new Date(periodAdjustments[periodNumber]);
-        currentPeriodStart.setHours(0, 0, 0, 0);
-      }
-
-      const periodEnd = new Date(currentPeriodStart);
-      periodEnd.setDate(periodEnd.getDate() + 27); // 28 days - 1 (0-indexed)
-      periodEnd.setHours(23, 59, 59, 999);
+    // Get only completed sessions for period grouping (excluding intake sessions)
+    const completedSessions = sortedSessions.filter(s => s.status === 'completed');
+    
+    let periodNumber = 1;
+    let completedSessionIndex = 0;
+    
+    // Group completed sessions into periods
+    while (completedSessionIndex < completedSessions.length) {
+      // Get the first completed session in this period to determine frequency
+      const firstSessionInPeriod = completedSessions[completedSessionIndex];
+      const firstSessionDate = new Date(firstSessionInPeriod.date);
+      firstSessionDate.setHours(0, 0, 0, 0);
       
-      // Get sessions in this period
-      const periodSessions = trainingSessions.filter(session => {
+      // Get the frequency that was active when this session was completed
+      const periodFrequency = getFrequencyForDate(firstSessionDate);
+      const sessionsPerPeriod = periodFrequency * 4;
+      
+      // Get completed sessions for this period
+      const periodCompletedSessions = completedSessions.slice(
+        completedSessionIndex,
+        completedSessionIndex + sessionsPerPeriod
+      );
+      
+      if (periodCompletedSessions.length === 0) break;
+      
+      // Period start date is the date of the first completed session in this period
+      const periodStartDate = new Date(periodCompletedSessions[0].date);
+      periodStartDate.setHours(0, 0, 0, 0);
+      
+      // Period end date is the date of the last completed session in this period
+      const periodEndDate = new Date(periodCompletedSessions[periodCompletedSessions.length - 1].date);
+      periodEndDate.setHours(23, 59, 59, 999);
+      
+      // Get ALL sessions (not just completed) that fall within this period's date range
+      // This includes scheduled, missed, etc. for display purposes (including intake sessions for display)
+      const allSessionsSorted = [...trainingSessions].sort((a, b) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      const allPeriodSessions = allSessionsSorted.filter(session => {
         const sessionDate = new Date(session.date);
         sessionDate.setHours(0, 0, 0, 0);
-        return sessionDate >= currentPeriodStart && sessionDate <= periodEnd;
+        return sessionDate >= periodStartDate && sessionDate <= periodEndDate;
       });
       
-      // Get the frequency that was active during this period (use start date of period)
-      const periodFrequency = getFrequencyForDate(currentPeriodStart);
+      // Count scheduled, completed, and missed sessions (excluding intake sessions from counts)
+      const nonIntakePeriodSessions = allPeriodSessions.filter(s => s.type !== 'Intake Consultation');
+      const scheduled = nonIntakePeriodSessions.filter(s => 
+        s.status === 'scheduled' || s.status === 'confirmed'
+      ).length;
+      const completed = nonIntakePeriodSessions.filter(s => s.status === 'completed').length;
       
-      // Expected sessions per period: trainingFrequency * 4 weeks
-      const expectedSessions = periodFrequency * 4;
-      
-      // Count scheduled, completed, and missed sessions
-      const scheduled = periodSessions.filter(s => s.status === 'scheduled').length;
-      const completed = periodSessions.filter(s => s.status === 'completed').length;
-      // Missed = scheduled sessions that should have been completed but weren't (past date + not completed/cancelled)
+      // Missed = scheduled sessions that should have been completed but weren't (past date + not completed)
       const now = new Date();
-      const missed = periodSessions.filter(s => {
+      const missed = nonIntakePeriodSessions.filter(s => {
         const sessionDate = new Date(s.date);
         return sessionDate < now && 
-               (s.status === 'scheduled' || s.status === 'no-show' || (s.status === 'cancelled' && new Date(s.date) < now));
+               (s.status === 'scheduled' || s.status === 'no-show' || 
+                (s.status === 'cancelled' && new Date(s.date) < now));
       }).length;
       
       periods.push({
         periodNumber,
-        startDate: new Date(currentPeriodStart),
-        endDate: new Date(periodEnd),
-        expectedSessions,
-        sessions: periodSessions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+        startDate: periodStartDate,
+        endDate: periodEndDate,
+        expectedSessions: sessionsPerPeriod,
+        sessions: allPeriodSessions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
         scheduled,
         completed,
         missed,
         frequency: periodFrequency
       });
       
-      // Move to next period
-      currentPeriodStart = new Date(periodEnd);
-      currentPeriodStart.setDate(currentPeriodStart.getDate() + 1);
-      currentPeriodStart.setHours(0, 0, 0, 0);
+      // Move to next period (only count completed sessions)
+      completedSessionIndex += sessionsPerPeriod;
       periodNumber++;
       
       // Limit to reasonable number of periods (max 20)
       if (periodNumber > 20) break;
     }
     
+    // If there are no completed sessions yet, create at least one period starting from joinDate
+    if (periods.length === 0) {
+      const startDate = new Date(joinDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 27); // Rough estimate for display
+      endDate.setHours(23, 59, 59, 999);
+      
+      const periodFrequency = trainingFrequency;
+      const sessionsPerPeriod = periodFrequency * 4;
+      
+      // Get all sessions from joinDate onwards (including intake for display, but exclude from counts)
+      const allSessionsSorted = [...trainingSessions].sort((a, b) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      const allSessions = allSessionsSorted.filter(session => {
+        const sessionDate = new Date(session.date);
+        sessionDate.setHours(0, 0, 0, 0);
+        return sessionDate >= startDate;
+      });
+      
+      const nonIntakeSessions = allSessions.filter(s => s.type !== 'Intake Consultation');
+      const scheduled = nonIntakeSessions.filter(s => 
+        s.status === 'scheduled' || s.status === 'confirmed'
+      ).length;
+      const completed = nonIntakeSessions.filter(s => s.status === 'completed').length;
+      const now = new Date();
+      const missed = nonIntakeSessions.filter(s => {
+        const sessionDate = new Date(s.date);
+        return sessionDate < now && 
+               (s.status === 'scheduled' || s.status === 'no-show' || 
+                (s.status === 'cancelled' && new Date(s.date) < now));
+      }).length;
+      
+      periods.push({
+        periodNumber: 1,
+        startDate,
+        endDate,
+        expectedSessions: sessionsPerPeriod,
+        sessions: allSessions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+        scheduled,
+        completed,
+        missed,
+        frequency: periodFrequency
+      });
+    } else {
+      // Check if we need to add a current period
+      const lastPeriod = periods[periods.length - 1];
+      const lastPeriodCompletedSessions = lastPeriod.sessions.filter(s => s.status === 'completed').length;
+      
+      if (lastPeriodCompletedSessions >= lastPeriod.expectedSessions) {
+        // Last period is complete, create a new current period
+        // Start date is the day after the last completed session in the last period
+        const lastPeriodCompleted = lastPeriod.sessions.filter(s => s.status === 'completed');
+        if (lastPeriodCompleted.length > 0) {
+          const lastCompletedSession = lastPeriodCompleted[lastPeriodCompleted.length - 1];
+          const currentPeriodStart = new Date(lastCompletedSession.date);
+          currentPeriodStart.setDate(currentPeriodStart.getDate() + 1);
+          currentPeriodStart.setHours(0, 0, 0, 0);
+        } else {
+          // Fallback: use the end date of the last period
+          const currentPeriodStart = new Date(lastPeriod.endDate);
+          currentPeriodStart.setDate(currentPeriodStart.getDate() + 1);
+          currentPeriodStart.setHours(0, 0, 0, 0);
+        }
+        
+        const currentPeriodStart = lastPeriodCompleted.length > 0
+          ? (() => {
+              const date = new Date(lastPeriodCompleted[lastPeriodCompleted.length - 1].date);
+              date.setDate(date.getDate() + 1);
+              date.setHours(0, 0, 0, 0);
+              return date;
+            })()
+          : (() => {
+              const date = new Date(lastPeriod.endDate);
+              date.setDate(date.getDate() + 1);
+              date.setHours(0, 0, 0, 0);
+              return date;
+            })();
+        
+        const currentPeriodEnd = new Date();
+        currentPeriodEnd.setHours(23, 59, 59, 999);
+        
+        // Get frequency for current period
+        const currentPeriodFrequency = getFrequencyForDate(currentPeriodStart);
+        const currentPeriodSessionsPerPeriod = currentPeriodFrequency * 4;
+        
+        // Get all sessions from current period start onwards (including intake for display, but exclude from counts)
+        const allSessionsSorted = [...trainingSessions].sort((a, b) => 
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        const currentPeriodSessions = allSessionsSorted.filter(session => {
+          const sessionDate = new Date(session.date);
+          sessionDate.setHours(0, 0, 0, 0);
+          return sessionDate >= currentPeriodStart;
+        });
+        
+        const nonIntakeCurrentSessions = currentPeriodSessions.filter(s => s.type !== 'Intake Consultation');
+        const scheduled = nonIntakeCurrentSessions.filter(s => 
+          s.status === 'scheduled' || s.status === 'confirmed'
+        ).length;
+        const completed = nonIntakeCurrentSessions.filter(s => s.status === 'completed').length;
+        const now = new Date();
+        const missed = nonIntakeCurrentSessions.filter(s => {
+          const sessionDate = new Date(s.date);
+          return sessionDate < now && 
+                 (s.status === 'scheduled' || s.status === 'no-show' || 
+                  (s.status === 'cancelled' && new Date(s.date) < now));
+        }).length;
+        
+        periods.push({
+          periodNumber: periods.length + 1,
+          startDate: currentPeriodStart,
+          endDate: currentPeriodEnd,
+          expectedSessions: currentPeriodSessionsPerPeriod,
+          sessions: currentPeriodSessions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+          scheduled,
+          completed,
+          missed,
+          frequency: currentPeriodFrequency
+        });
+      }
+      // If last period is not complete, it's the current period - no need to add a new one
+    }
+    
     return periods;
   };
   
   const periods = calculatePeriods();
-  const currentPeriodIndex = periods.findIndex(p => {
-    const now = new Date();
-    return now >= p.startDate && now <= p.endDate;
-  });
-  const currentPeriod = currentPeriodIndex >= 0 ? periods[currentPeriodIndex] : null;
+  // Current period is the one that hasn't reached the required number of completed sessions yet
+  const currentPeriodIndex = periods.findIndex(p => p.completed < p.expectedSessions);
+  const currentPeriod = currentPeriodIndex >= 0 ? periods[currentPeriodIndex] : (periods.length > 0 ? periods[periods.length - 1] : null);
   
   if (loading) {
     return (
@@ -235,7 +381,7 @@ function PeriodTrackingTab({
       <div>
         <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-2">Period Overview</h3>
         <p className="text-sm text-gray-600">
-          Each period lasts 4 weeks. Frequency may vary per period based on training history.
+          Each period is based on completed sessions: trainingFrequency × 4 completed sessions. A period only advances when the required number of sessions are completed.
         </p>
       </div>
       
@@ -404,12 +550,15 @@ function PeriodTrackingTab({
                       const sessionDate = new Date(session.date);
                       const isPastDate = sessionDate < new Date();
                       const isMissed = isPastDate && (session.status === 'scheduled' || session.status === 'no-show');
+                      const isIntake = session.type === 'Intake Consultation';
                       
                       return (
                         <div
                           key={session.id}
                           className={`flex items-center justify-between p-2 sm:p-3 rounded-lg text-xs sm:text-sm ${
-                            session.status === 'completed'
+                            isIntake
+                              ? 'bg-yellow-100 border border-yellow-300'
+                              : session.status === 'completed'
                               ? 'bg-green-100 border border-green-200'
                               : isMissed
                               ? 'bg-red-100 border border-red-200'
@@ -419,7 +568,9 @@ function PeriodTrackingTab({
                           }`}
                         >
                           <div className="flex items-center gap-2 sm:gap-3">
-                            {session.status === 'completed' ? (
+                            {isIntake ? (
+                              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-700 flex-shrink-0" />
+                            ) : session.status === 'completed' ? (
                               <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
                             ) : isMissed ? (
                               <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" />
@@ -427,19 +578,21 @@ function PeriodTrackingTab({
                               <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
                             )}
                             <div>
-                              <div className="font-medium text-gray-800">
+                              <div className={`font-medium ${isIntake ? 'text-yellow-800' : 'text-gray-800'}`}>
                                 {sessionDate.toLocaleDateString('en-US', {
                                   weekday: 'short',
                                   day: 'numeric',
                                   month: 'short'
                                 })}
                               </div>
-                              <div className="text-gray-600">{session.startTime} - {session.endTime}</div>
+                              <div className={isIntake ? 'text-yellow-700' : 'text-gray-600'}>{session.startTime} - {session.endTime}</div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              session.status === 'completed'
+                              isIntake
+                                ? 'bg-yellow-200 text-yellow-800'
+                                : session.status === 'completed'
                                 ? 'bg-green-200 text-green-800'
                                 : isMissed
                                 ? 'bg-red-200 text-red-800'
@@ -449,10 +602,10 @@ function PeriodTrackingTab({
                                 ? 'bg-gray-200 text-gray-800'
                                 : 'bg-yellow-200 text-yellow-800'
                             }`}>
-                              {isMissed ? 'Missed' : session.status}
+                              {isIntake ? 'Intake' : isMissed ? 'Missed' : session.status}
                             </span>
                             {session.type && (
-                              <span className="text-xs text-gray-600 hidden sm:inline">{session.type}</span>
+                              <span className={`text-xs hidden sm:inline ${isIntake ? 'text-yellow-700' : 'text-gray-600'}`}>{session.type}</span>
                             )}
                           </div>
                         </div>
@@ -2053,24 +2206,27 @@ export default function ClientDetailPage() {
                 <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800 truncate">{client.name}</h2>
                   {/* Current Period Badge */}
-                  {client.joinDate && client.trainingFrequency && (() => {
-                    const joinDate = new Date(client.joinDate);
-                    joinDate.setHours(0, 0, 0, 0);
-                    const now = new Date();
-                    now.setHours(23, 59, 59, 999);
-                    const daysSinceJoin = Math.floor((now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
-                    const currentPeriodNumber = Math.floor(daysSinceJoin / 28) + 1;
-                    const periodStart = new Date(joinDate);
-                    periodStart.setDate(periodStart.getDate() + (currentPeriodNumber - 1) * 28);
-                    periodStart.setHours(0, 0, 0, 0);
-                    const periodEnd = new Date(periodStart);
-                    periodEnd.setDate(periodEnd.getDate() + 27);
-                    periodEnd.setHours(23, 59, 59, 999);
+                  {client.joinDate && client.trainingFrequency && trainingSessions && (() => {
+                    // Calculate current period based on completed sessions (excluding intake sessions)
+                    const sortedSessions = [...trainingSessions]
+                      .filter(s => s.type !== 'Intake Consultation')
+                      .sort((a, b) => 
+                        new Date(a.date).getTime() - new Date(b.date).getTime()
+                      );
+                    const completedSessions = sortedSessions.filter(s => s.status === 'completed');
+                    
+                    const baseFrequency = client.trainingFrequency || 3;
+                    const sessionsPerPeriod = baseFrequency * 4;
+                    
+                    // Current period = floor(completedSessions / sessionsPerPeriod) + 1
+                    // Period 1: 0-11 completed, Period 2: 12-23 completed, etc.
+                    const currentPeriodNumber = Math.floor(completedSessions.length / sessionsPerPeriod) + 1;
+                    const sessionsInCurrentPeriod = completedSessions.length % sessionsPerPeriod;
                     
                     return (
                       <span 
                         className="px-2.5 py-1 bg-rose-100 text-rose-700 text-xs font-medium rounded-full border border-rose-200 flex items-center gap-1"
-                        title={`Current Period ${currentPeriodNumber}: ${periodStart.toLocaleDateString('en-US')} - ${periodEnd.toLocaleDateString('en-US')}`}
+                        title={`Current Period ${currentPeriodNumber}: ${sessionsInCurrentPeriod}/${sessionsPerPeriod} completed sessions`}
                       >
                         <Clock className="w-3 h-3" />
                         Period {currentPeriodNumber}
@@ -2677,57 +2833,71 @@ export default function ClientDetailPage() {
             </div>
 
             {/* Training Statistics */}
-            {trainingSessions.length > 0 && (
+            {trainingSessions.length > 0 && (() => {
+              // Exclude intake sessions from statistics
+              const trainingSessionsOnly = trainingSessions.filter(s => s.type !== 'Intake Consultation');
+              return (
               <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4 sm:p-6">
                 <h4 className="text-lg font-semibold text-gray-800 mb-4">Training Statistics</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="text-center p-4 bg-blue-50 rounded-lg">
                     <div className="text-2xl font-bold text-blue-600">
-                      {trainingSessions.length}
+                      {trainingSessionsOnly.length}
                     </div>
                     <div className="text-sm text-blue-800">Total Sessions</div>
                   </div>
                   <div className="text-center p-4 bg-green-50 rounded-lg">
                     <div className="text-2xl font-bold text-green-600">
-                      {trainingSessions.filter(session => session.status === 'completed').length}
+                      {trainingSessionsOnly.filter(session => session.status === 'completed').length}
                     </div>
                     <div className="text-sm text-green-800">Completed</div>
                   </div>
                   <div className="text-center p-4 bg-orange-50 rounded-lg">
                     <div className="text-2xl font-bold text-orange-600">
-                      {trainingSessions.filter(session => session.status === 'scheduled').length}
+                      {trainingSessionsOnly.filter(session => session.status === 'scheduled').length}
                     </div>
                     <div className="text-sm text-orange-800">Scheduled</div>
                   </div>
             </div>
           </div>
-        )}
+              );
+            })()}
 
             {trainingSessions.length > 0 ? (
               <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-3 sm:p-6">
                 <div className="space-y-4">
-                  {trainingSessions.map((session) => (
+                  {trainingSessions.map((session) => {
+                    const isIntake = session.type === 'Intake Consultation';
+                    return (
                     <div key={session.id} className={`border rounded-lg p-3 sm:p-4 ${
-                      session.status === 'completed' 
+                      isIntake
+                        ? 'bg-yellow-100 border-yellow-300'
+                        : session.status === 'completed' 
                         ? 'bg-green-100 border-green-200' 
                         : 'border-gray-200 bg-white'
                     }`}>
                       <div className="flex items-center justify-between mb-2 sm:mb-3">
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            session.status === 'completed' 
+                            isIntake
+                              ? 'bg-yellow-200'
+                              : session.status === 'completed' 
                               ? 'bg-green-200' 
                               : 'bg-rose-100'
                           }`}>
                             <Calendar className={`w-5 h-5 ${
-                              session.status === 'completed' 
+                              isIntake
+                                ? 'text-yellow-700'
+                                : session.status === 'completed' 
                                 ? 'text-green-700' 
                                 : 'text-rose-600'
                             }`} />
                           </div>
                           <div>
                             <h4 className={`font-semibold text-sm sm:text-base ${
-                              session.status === 'completed' 
+                              isIntake
+                                ? 'text-yellow-800'
+                                : session.status === 'completed' 
                                 ? 'text-green-800' 
                                 : 'text-gray-800'
                             }`}>
@@ -2739,7 +2909,9 @@ export default function ClientDetailPage() {
                               })}
                             </h4>
                             <p className={`text-sm ${
-                              session.status === 'completed' 
+                              isIntake
+                                ? 'text-yellow-700'
+                                : session.status === 'completed' 
                                 ? 'text-green-600' 
                                 : 'text-gray-600'
                             }`}>
@@ -2749,12 +2921,13 @@ export default function ClientDetailPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            isIntake ? 'bg-yellow-200 text-yellow-800' :
                             session.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
                             session.status === 'completed' ? 'bg-green-200 text-green-800' :
                             session.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {session.status}
+                            {isIntake ? 'Intake' : session.status}
                           </span>
                           <button
                             onClick={async () => {
@@ -2788,12 +2961,12 @@ export default function ClientDetailPage() {
                       
                       <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
                         <div className="flex justify-between">
-                          <span className={session.status === 'completed' ? 'text-green-600' : 'text-gray-500'}>Type:</span>
-                          <span className={`font-medium ${session.status === 'completed' ? 'text-green-800' : 'text-gray-800'}`}>{session.type}</span>
+                          <span className={isIntake ? 'text-yellow-600' : session.status === 'completed' ? 'text-green-600' : 'text-gray-500'}>Type:</span>
+                          <span className={`font-medium ${isIntake ? 'text-yellow-800' : session.status === 'completed' ? 'text-green-800' : 'text-gray-800'}`}>{session.type}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className={session.status === 'completed' ? 'text-green-600' : 'text-gray-500'}>Duration:</span>
-                          <span className={`font-medium ${session.status === 'completed' ? 'text-green-800' : 'text-gray-800'}`}>
+                          <span className={isIntake ? 'text-yellow-600' : session.status === 'completed' ? 'text-green-600' : 'text-gray-500'}>Duration:</span>
+                          <span className={`font-medium ${isIntake ? 'text-yellow-800' : session.status === 'completed' ? 'text-green-800' : 'text-gray-800'}`}>
                             {(() => {
                               const start = new Date(`2000-01-01T${session.startTime}`);
                               const end = new Date(`2000-01-01T${session.endTime}`);
@@ -2805,19 +2978,23 @@ export default function ClientDetailPage() {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className={session.status === 'completed' ? 'text-green-600' : 'text-gray-500'}>Status:</span>
-                          <span className={`font-medium capitalize ${session.status === 'completed' ? 'text-green-800' : 'text-gray-800'}`}>{session.status}</span>
+                          <span className={isIntake ? 'text-yellow-600' : session.status === 'completed' ? 'text-green-600' : 'text-gray-500'}>Status:</span>
+                          <span className={`font-medium capitalize ${isIntake ? 'text-yellow-800' : session.status === 'completed' ? 'text-green-800' : 'text-gray-800'}`}>{session.status}</span>
                         </div>
                       </div>
                       
                       {session.notes && (
                         <div className={`mt-3 p-3 rounded-lg ${
-                          session.status === 'completed' 
+                          isIntake
+                            ? 'bg-yellow-50'
+                            : session.status === 'completed' 
                             ? 'bg-green-50' 
                             : 'bg-gray-50'
                         }`}>
                           <p className={`text-sm ${
-                            session.status === 'completed' 
+                            isIntake
+                              ? 'text-yellow-700'
+                              : session.status === 'completed' 
                               ? 'text-green-700' 
                               : 'text-gray-600'
                           }`}>
@@ -2826,7 +3003,8 @@ export default function ClientDetailPage() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -3005,17 +3183,27 @@ export default function ClientDetailPage() {
                         <th className="text-left py-3 px-2 font-semibold text-gray-700">Frequency</th>
                         <th className="text-left py-3 px-2 font-semibold text-gray-700">Discount</th>
                         <th className="text-left py-3 px-2 font-semibold text-gray-700">Total Price</th>
+                        <th className="text-left py-3 px-2 font-semibold text-gray-700">Date</th>
                         <th className="text-left py-3 px-2 font-semibold text-gray-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {customerPricing.map((pricing) => (
+                      {[...customerPricing]
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        .map((pricing) => (
                         <tr key={pricing.id} className="border-b border-gray-100">
                           <td className="py-3 px-2 text-gray-800">{pricing.service}</td>
                           <td className="py-3 px-2 text-gray-600">{pricing.duration} weeks</td>
                           <td className="py-3 px-2 text-gray-600">{pricing.frequency}x per week</td>
                           <td className="py-3 px-2 text-gray-600">{pricing.discount}%</td>
                           <td className="py-3 px-2 font-bold text-rose-600">{pricing.finalPrice} RON</td>
+                          <td className="py-3 px-2 text-gray-600 text-xs">
+                            {new Date(pricing.createdAt).toLocaleDateString('en-US', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </td>
                           <td className="py-3 px-2">
                             <button
                               onClick={async () => {

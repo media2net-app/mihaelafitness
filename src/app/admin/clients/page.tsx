@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Search, Plus, Filter, TrendingUp, Clock, CheckCircle, Dumbbell, Trash2, X } from 'lucide-react';
+import { Users, Search, Plus, Filter, TrendingUp, Clock, CheckCircle, Dumbbell, Trash2, X, AlertCircle, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { userService } from '@/lib/database';
@@ -21,39 +21,23 @@ function StatsCard({
   trend?: string;
 }) {
   return (
-    <div className="bg-white/90 backdrop-blur-sm border border-[#F5D2E0] rounded-xl sm:rounded-2xl p-3 sm:p-6 shadow-sm">
-      {/* Mobile: Horizontal layout */}
-      <div className="flex sm:hidden items-center justify-between gap-3">
-        <div className={`p-2 rounded-lg text-white ${gradient} flex-shrink-0`}>
-          <Icon className="w-5 h-5" />
+    <div className="bg-white/90 backdrop-blur-sm border border-[#F5D2E0] rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className={`p-2 sm:p-3 rounded-lg text-white ${gradient} flex-shrink-0`}>
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-xl font-bold text-[#3C1E35]">{value}</div>
-          <div className="text-xs text-[#8D5D7A] truncate">{title}</div>
+          <div className="flex items-baseline gap-2">
+            <div className="text-xl sm:text-2xl font-bold text-[#3C1E35]">{value}</div>
+            <div className="text-xs sm:text-sm text-[#8D5D7A]">{title}</div>
+          </div>
         </div>
         {trend && (
-          <div className="flex items-center gap-1 text-xs text-emerald-600 flex-shrink-0">
-            <TrendingUp className="w-3 h-3" />
+          <div className="flex items-center gap-1 text-xs sm:text-sm text-emerald-600 flex-shrink-0">
+            <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
             <span>{trend}</span>
           </div>
         )}
-      </div>
-      
-      {/* Desktop: Vertical layout */}
-      <div className="hidden sm:block">
-        <div className="flex items-center justify-between mb-4">
-          <div className={`p-3 rounded-xl text-white ${gradient}`}>
-            <Icon className="w-6 h-6" />
-          </div>
-          {trend && (
-            <div className="flex items-center gap-1 text-sm text-emerald-600">
-              <TrendingUp className="w-4 h-4" />
-              <span>{trend}</span>
-            </div>
-          )}
-        </div>
-        <div className="text-2xl sm:text-3xl font-bold text-[#3C1E35] mb-1">{value}</div>
-        <div className="text-sm text-[#8D5D7A]">{title}</div>
       </div>
     </div>
   );
@@ -93,6 +77,9 @@ export default function ClientsPage() {
     subscriptionDuration?: number; // in weeks
     photosCount?: number;
     measurementsCount?: number;
+    currentPeriodNumber?: number | null;
+    sessionsInCurrentPeriod?: number | null;
+    isPeriodCompleted?: boolean;
     groupSubscriptions?: Array<{
       id: string;
       service: string;
@@ -121,6 +108,7 @@ export default function ClientsPage() {
   }[]>([]);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showActiveClientsModal, setShowActiveClientsModal] = useState(false);
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<{
     id: string;
@@ -329,10 +317,19 @@ export default function ClientsPage() {
     );
   });
 
+  const activeClients = allClients.filter((c) => 
+    c.status?.toLowerCase?.() === 'active' && 
+    !adminEmailSet.has(c.email?.toLowerCase?.() ?? '')
+  );
+  const activeClientNames = activeClients.map((c) => c.name).filter(Boolean);
+
   const stats = {
     total: allClients.length,
-    active: allClients.filter((c) => c.status?.toLowerCase?.() === 'active').length,
-    intake: allClients.filter((c) => c.status?.toLowerCase?.() === 'intake').length,
+    active: activeClients.length,
+    intake: allClients.filter((c) => 
+      c.status?.toLowerCase?.() === 'intake' && 
+      !adminEmailSet.has(c.email?.toLowerCase?.() ?? '')
+    ).length,
     totalSessions: allClients.reduce((sum, c) => sum + (c.totalSessions || 0), 0)
   };
 
@@ -422,6 +419,62 @@ export default function ClientsPage() {
           </div>
         ) : (
           <>
+            {/* Period Completed Notice Bars */}
+            {(() => {
+              const clientsWithCompletedPeriods = clients.filter(client => {
+                const isActive = client.status?.toLowerCase() === 'active';
+                const hasCompletedPeriod = client.isPeriodCompleted === true;
+                return isActive && hasCompletedPeriod;
+              });
+              
+              // Debug logging
+              if (clientsWithCompletedPeriods.length > 0) {
+                console.log('Clients with completed periods:', clientsWithCompletedPeriods.map(c => ({
+                  name: c.name,
+                  currentPeriod: c.currentPeriodNumber,
+                  sessionsInPeriod: c.sessionsInCurrentPeriod,
+                  completedSessions: c.completedSessions,
+                  isPeriodCompleted: c.isPeriodCompleted
+                })));
+              }
+              
+              return clientsWithCompletedPeriods.length > 0 ? (
+                <div className="space-y-3 mb-6">
+                  {clientsWithCompletedPeriods.map((client) => {
+                    // Show the period that was just completed (currentPeriodNumber - 1)
+                    const completedPeriodNumber = (client.currentPeriodNumber || 1) - 1;
+                    return (
+                      <div
+                        key={client.id}
+                        className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg shadow-sm"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3 flex-1">
+                            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-yellow-800 mb-1">
+                              Period {completedPeriodNumber > 0 ? completedPeriodNumber : 1} completed for {client.name}
+                            </h3>
+                            <p className="text-sm text-yellow-700">
+                              Create a new pricing for period {client.currentPeriodNumber || 1}.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => router.push(`/admin/tarieven?customerId=${client.id}`)}
+                          className="ml-4 px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2 flex-shrink-0"
+                        >
+                          New Pricing
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null;
+            })()}
+
             {sortedAdminUsers.length > 0 && (
               <div className="space-y-3 mb-8">
                 {sortedAdminUsers.map((admin) => (
@@ -645,6 +698,54 @@ export default function ClientsPage() {
             </div>
           </div>
         )}
+
+      {showActiveClientsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-semibold text-[#3C1E35]">Actieve Clients</h2>
+                <p className="text-sm text-[#8D5D7A] mt-1">
+                  {activeClientNames.length} {activeClientNames.length === 1 ? 'client' : 'clients'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowActiveClientsModal(false)}
+                className="rounded-full p-2 text-[#C67697] transition-colors hover:bg-[#FDF1F6] hover:text-[#E11C48]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {activeClientNames.map((name, index) => (
+                  <div
+                    key={index}
+                    className="p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        {name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium text-[#3C1E35]">{name}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-[#F5D2E0]">
+              <button
+                onClick={() => setShowActiveClientsModal(false)}
+                className="w-full rounded-xl bg-gradient-to-r from-[#E11C48] to-[#F36B8D] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#E11C48]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+              >
+                Sluiten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Calculator, Plus, Save, Download, Euro, Users, Clock, Target, TrendingUp, X } from 'lucide-react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Calculator, Plus, Save, Download, Euro, Users, Clock, Target, TrendingUp, X, Search } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-export default function TarievenPage() {
+function TarievenPageContent() {
+  const searchParams = useSearchParams();
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   const [selectedService, setSelectedService] = useState('personal-training-1-1');
@@ -23,6 +25,8 @@ export default function TarievenPage() {
     status: string;
     plan: string;
   }[]>([]);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [groupCustomerSearchTerm, setGroupCustomerSearchTerm] = useState('');
 
   // Service options
   const services = [
@@ -44,23 +48,52 @@ export default function TarievenPage() {
 
   const nutritionPlanPrice = 200; // 200 RON per nutrition plan
 
+  // Set selected customer from URL parameter
+  useEffect(() => {
+    const customerIdFromUrl = searchParams.get('customerId');
+    if (customerIdFromUrl) {
+      setSelectedCustomer(customerIdFromUrl);
+      setSelectedService('personal-training-1-1'); // Default to personal training
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await fetch('/api/users');
-        if (response.ok) {
-          const data = await response.json();
-          // Handle the new API response structure with users array and pagination
-          if (data.users && Array.isArray(data.users)) {
-            setCustomers(data.users);
-          } else if (Array.isArray(data)) {
-            // Fallback for old API structure
-            setCustomers(data);
+        // Fetch all customers by using a high limit or fetching all pages
+        let allCustomers: any[] = [];
+        let page = 1;
+        let hasMore = true;
+        
+        while (hasMore) {
+          const response = await fetch(`/api/users?page=${page}&limit=100`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.users && Array.isArray(data.users)) {
+              allCustomers = [...allCustomers, ...data.users];
+              hasMore = data.pagination?.hasNext || false;
+              page++;
+            } else if (Array.isArray(data)) {
+              // Fallback for old API structure
+              allCustomers = [...allCustomers, ...data];
+              hasMore = false;
+            } else {
+              console.warn('Expected /api/users to return an object with users array. Got:', data);
+              hasMore = false;
+            }
           } else {
-            console.warn('Expected /api/users to return an object with users array. Got:', data);
-            setCustomers([]);
+            hasMore = false;
           }
         }
+        
+        // Filter out system users like "Blocked Time" and "Own Training"
+        const filteredCustomers = allCustomers.filter(customer => 
+          !customer.name?.includes('Own Training') && 
+          !customer.name?.includes('Blocked Time') &&
+          customer.email !== 'blocked-time@system.local'
+        );
+        
+        setCustomers(filteredCustomers);
       } catch (error) {
         console.error('Error fetching customers:', error);
         setCustomers([]);
@@ -71,6 +104,21 @@ export default function TarievenPage() {
   }, []);
 
   const selectedCustomerData = customers.find(c => c.id === selectedCustomer);
+  
+  // Filter customers based on search term
+  const filteredCustomers = customers.filter(customer => {
+    const searchLower = customerSearchTerm.toLowerCase();
+    return customer.name.toLowerCase().includes(searchLower) ||
+           customer.email.toLowerCase().includes(searchLower) ||
+           customer.plan.toLowerCase().includes(searchLower);
+  });
+  
+  const filteredGroupCustomers = customers.filter(customer => {
+    const searchLower = groupCustomerSearchTerm.toLowerCase();
+    return customer.name.toLowerCase().includes(searchLower) ||
+           customer.email.toLowerCase().includes(searchLower) ||
+           customer.plan.toLowerCase().includes(searchLower);
+  });
 
   // Frequency-based pricing for training sessions
   const getPricePerSession = (frequency: number | '', serviceType: string, groupSize: number = 1) => {
@@ -362,14 +410,26 @@ export default function TarievenPage() {
               {selectedService === 'personal-training-1-1' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Customer *</label>
+                  <div className="flex gap-2 mb-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="Search customers..."
+                        value={customerSearchTerm}
+                        onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                      />
+                    </div>
+                  </div>
                   <select
                     value={selectedCustomer}
                     onChange={(e) => setSelectedCustomer(e.target.value)}
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
                     required
                   >
-                    <option value="">Select a customer... ({customers.length} available)</option>
-                    {customers.map((customer) => (
+                    <option value="">Select a customer... ({filteredCustomers.length} of {customers.length} available)</option>
+                    {filteredCustomers.map((customer) => (
                       <option key={customer.id} value={customer.id}>
                         {customer.name} ({customer.email}) - {customer.plan}
                       </option>
@@ -387,34 +447,50 @@ export default function TarievenPage() {
               {selectedService === 'group-training' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Select Customers (2-6 people) *</label>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search customers..."
+                      value={groupCustomerSearchTerm}
+                      onChange={(e) => setGroupCustomerSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                    />
+                  </div>
                   <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl bg-gray-50">
-                    {customers.map((customer) => (
-                      <label key={customer.id} className="flex items-center p-3 hover:bg-gray-100 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedCustomers.includes(customer.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              if (selectedCustomers.length < 6) {
-                                setSelectedCustomers([...selectedCustomers, customer.id]);
+                    {filteredGroupCustomers.length > 0 ? (
+                      filteredGroupCustomers.map((customer) => (
+                        <label key={customer.id} className="flex items-center p-3 hover:bg-gray-100 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedCustomers.includes(customer.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                if (selectedCustomers.length < 6) {
+                                  setSelectedCustomers([...selectedCustomers, customer.id]);
+                                }
+                              } else {
+                                setSelectedCustomers(selectedCustomers.filter(id => id !== customer.id));
+                                // Remove nutrition plan count when customer is deselected
+                                const newGroupNutritionPlans = { ...groupNutritionPlans };
+                                delete newGroupNutritionPlans[customer.id];
+                                setGroupNutritionPlans(newGroupNutritionPlans);
                               }
-                            } else {
-                              setSelectedCustomers(selectedCustomers.filter(id => id !== customer.id));
-                              // Remove nutrition plan count when customer is deselected
-                              const newGroupNutritionPlans = { ...groupNutritionPlans };
-                              delete newGroupNutritionPlans[customer.id];
-                              setGroupNutritionPlans(newGroupNutritionPlans);
-                            }
-                          }}
-                          className="mr-3 h-4 w-4 text-rose-600 focus:ring-rose-500 border-gray-300 rounded"
-                          disabled={!selectedCustomers.includes(customer.id) && selectedCustomers.length >= 6}
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">{customer.name}</div>
-                          <div className="text-sm text-gray-500">{customer.email} • {customer.plan}</div>
-                        </div>
-                      </label>
-                    ))}
+                            }}
+                            className="mr-3 h-4 w-4 text-rose-600 focus:ring-rose-500 border-gray-300 rounded"
+                            disabled={!selectedCustomers.includes(customer.id) && selectedCustomers.length >= 6}
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                            <div className="text-sm text-gray-500">{customer.email} • {customer.plan}</div>
+                          </div>
+                        </label>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        No customers found matching "{groupCustomerSearchTerm}"
+                      </div>
+                    )}
                   </div>
                   <p className="text-sm text-gray-600 mt-2">
                     Selected: {selectedCustomers.length} customers
@@ -778,5 +854,20 @@ export default function TarievenPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function TarievenPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-rose-500"></div>
+          <p className="text-rose-600 font-medium">Loading...</p>
+        </div>
+      </div>
+    }>
+      <TarievenPageContent />
+    </Suspense>
   );
 }

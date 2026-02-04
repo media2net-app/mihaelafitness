@@ -1187,6 +1187,8 @@ export default function MobileScheduleClient({
       });
 
       if (response.ok) {
+        const updatedSession = await response.json();
+        
         // Update session in local state
         setSessions(prev => prev.map(session => 
           session.id === sessionId 
@@ -1199,17 +1201,71 @@ export default function MobileScheduleClient({
           setSelectedSession({ ...selectedSession, status: newStatus as 'scheduled' | 'completed' | 'cancelled' | 'no-show' });
         }
         
-        setShowEditModal(false);
-        alert(`Session status updated to ${newStatus}`);
+        // Don't close modal when updating from details modal
+        // Only close if called from edit modal
+        if (showEditModal) {
+          setShowEditModal(false);
+        }
       } else {
         const error = await response.json();
+        console.error('Failed to update session status:', error);
         alert(error.error || 'Failed to update session status');
+        // Revert the select value on error
+        if (selectedSession && selectedSession.id === sessionId) {
+          // Force re-render by updating state
+          setSelectedSession({ ...selectedSession });
+        }
       }
     } catch (error) {
       console.error('Error updating session status:', error);
       alert('Failed to update session status');
+      // Revert the select value on error
+      if (selectedSession && selectedSession.id === sessionId) {
+        // Force re-render by updating state
+        setSelectedSession({ ...selectedSession });
+      }
     }
   };
+
+  // Helper function to check if a session is the first session of a new period
+  const isFirstSessionOfNewPeriod = useCallback((session: TrainingSession) => {
+    // Only check scheduled sessions (not completed ones)
+    if (session.status !== 'scheduled' && session.status !== 'confirmed') {
+      return false;
+    }
+    
+    // Exclude intake sessions
+    if (session.type === 'Intake Consultation') {
+      return false;
+    }
+    
+    const customer = customers.find(c => c.id === session.customerId);
+    if (!customer || !customer.trainingFrequency) {
+      return false;
+    }
+    
+    // Get completed sessions count (excluding intake)
+    const completedSessions = (customer as any).completedSessions || 0;
+    const sessionsPerPeriod = customer.trainingFrequency * 4;
+    
+    // A session is the first of a new period if:
+    // - The number of completed sessions is a multiple of sessionsPerPeriod
+    // - This means the next session will start a new period
+    const isFirst = completedSessions > 0 && completedSessions % sessionsPerPeriod === 0;
+    
+    // Debug logging
+    if (isFirst) {
+      console.log(`🔍 [Mobile] First session of new period detected for ${customer.name}:`, {
+        completedSessions,
+        sessionsPerPeriod,
+        periodNumber: Math.floor(completedSessions / sessionsPerPeriod) + 1,
+        sessionDate: session.date,
+        sessionStatus: session.status
+      });
+    }
+    
+    return isFirst;
+  }, [customers]);
 
   const getSessionsForDayAndTime = useCallback((date: Date, timeSlot: string) => {
     // Use consistent date formatting - get local date parts to avoid timezone issues
@@ -1735,83 +1791,7 @@ export default function MobileScheduleClient({
                       )}
                     </div>
                     
-                    {/* Payment Reminders at 08:30 */}
-                    {timeSlot === '08:30' && (() => {
-                      const dayStr = currentDay.toLocaleDateString('en-CA');
-                      const paymentReminders = Object.entries(paymentStatus)
-                        .filter(([customerId, status]) => {
-                          if (status.isPaid || !status.nextPaymentDate) return false;
-                          const nextPaymentDate = new Date(status.nextPaymentDate);
-                          const today = new Date(dayStr);
-                          // Show reminder only if payment is due today
-                          const daysUntil = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                          return daysUntil === 0;
-                        })
-                        .map(([customerId, status]) => {
-                          const nextPaymentDate = new Date(status.nextPaymentDate);
-                          const today = new Date(dayStr);
-                          const daysUntil = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                          return { customerId, ...status, daysUntil };
-                        });
-                      
-                      return paymentReminders.map((reminder) => (
-                        <div
-                          key={`payment-${reminder.customerId}`}
-                          className={`mt-2 p-3 rounded-lg border-2 ${
-                            reminder.daysUntil < 0 
-                              ? 'bg-red-50 border-red-300' 
-                              : reminder.daysUntil <= 3 
-                              ? 'bg-orange-50 border-orange-300'
-                              : 'bg-yellow-50 border-yellow-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <Clock className={`w-4 h-4 ${
-                                reminder.daysUntil < 0 
-                                  ? 'text-red-600' 
-                                  : reminder.daysUntil <= 3 
-                                  ? 'text-orange-600'
-                                  : 'text-yellow-600'
-                              }`} />
-                              <span className={`text-xs font-semibold ${
-                                reminder.daysUntil < 0 
-                                  ? 'text-red-800' 
-                                  : reminder.daysUntil <= 3 
-                                  ? 'text-orange-800'
-                                  : 'text-yellow-800'
-                              }`}>
-                                Next Payment
-                              </span>
-                            </div>
-                            <span className={`text-sm font-bold ${
-                              reminder.daysUntil < 0 
-                                ? 'text-red-700' 
-                                : reminder.daysUntil <= 3 
-                                ? 'text-orange-700'
-                                : 'text-yellow-700'
-                            }`}>
-                              {reminder.amount} RON
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-700">
-                            <div>{reminder.customerName}</div>
-                            <div className="mt-1">
-                              Date: <span className="font-semibold">{new Date(reminder.nextPaymentDate).toLocaleDateString('ro-RO')}</span>
-                            </div>
-                            <div className="mt-1">
-                              {reminder.daysUntil < 0 ? (
-                                <span className="text-red-600 font-semibold">Overdue by {Math.abs(reminder.daysUntil)} days</span>
-                              ) : reminder.daysUntil === 0 ? (
-                                <span className="text-red-600 font-semibold">Due today!</span>
-                              ) : (
-                                <span>{reminder.daysUntil} days remaining</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ));
-                    })()}
+                    {/* Payment reminders removed - now shown with first session of new period */}
                     
                     {daySessions.map((session) => {
                       const isMergedWithNext = shouldMergeWithNextSlot(session, timeSlot);
@@ -1913,101 +1893,75 @@ export default function MobileScheduleClient({
                         }`}
                         title={isAvailable ? `Click to schedule session at ${formatTime(timeSlot)}` : 'Time slot unavailable'}
                       >
-                        {/* Payment Reminders at 08:30 */}
-                        {timeSlot === '08:30' && (() => {
-                          const dayStr = date.toLocaleDateString('en-CA');
-                          const paymentReminders = Object.entries(paymentStatus)
-                            .filter(([customerId, status]) => {
-                              if (status.isPaid || !status.nextPaymentDate) return false;
-                              const nextPaymentDate = new Date(status.nextPaymentDate);
-                              const today = new Date(dayStr);
-                              // Show reminder only if payment is due today
-                              const daysUntil = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                              return daysUntil === 0;
-                            })
-                            .map(([customerId, status]) => {
-                              const nextPaymentDate = new Date(status.nextPaymentDate);
-                              const today = new Date(dayStr);
-                              const daysUntil = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                              return { customerId, ...status, daysUntil };
-                            });
-                          
-                          return paymentReminders.map((reminder) => (
-                            <div
-                              key={`payment-${reminder.customerId}`}
-                              className={`mb-1 p-2 rounded-lg border-2 text-xs ${
-                                reminder.daysUntil < 0 
-                                  ? 'bg-red-50 border-red-300' 
-                                  : reminder.daysUntil <= 3 
-                                  ? 'bg-orange-50 border-orange-300'
-                                  : 'bg-yellow-50 border-yellow-300'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-1">
-                                  <Clock className={`w-3 h-3 ${
-                                    reminder.daysUntil < 0 
-                                      ? 'text-red-600' 
-                                      : reminder.daysUntil <= 3 
-                                      ? 'text-orange-600'
-                                      : 'text-yellow-600'
-                                  }`} />
-                                  <span className={`font-semibold ${
-                                    reminder.daysUntil < 0 
-                                      ? 'text-red-800' 
-                                      : reminder.daysUntil <= 3 
-                                      ? 'text-orange-800'
-                                      : 'text-yellow-800'
-                                  }`}>
-                                    Next Payment
-                                  </span>
-                                </div>
-                                <span className={`font-bold ${
-                                  reminder.daysUntil < 0 
-                                    ? 'text-red-700' 
-                                    : reminder.daysUntil <= 3 
-                                    ? 'text-orange-700'
-                                    : 'text-yellow-700'
-                                }`}>
-                                  {reminder.amount} RON
-                                </span>
-                              </div>
-                              <div className="text-gray-700 text-xs">
-                                <div className="truncate font-medium">{reminder.customerName}</div>
-                                <div className="mt-0.5">
-                                  {new Date(reminder.nextPaymentDate).toLocaleDateString('ro-RO')}
-                                </div>
-                                <div className="mt-0.5">
-                                  {reminder.daysUntil < 0 ? (
-                                    <span className="text-red-600 font-semibold">Overdue {Math.abs(reminder.daysUntil)}d</span>
-                                  ) : reminder.daysUntil === 0 ? (
-                                    <span className="text-red-600 font-semibold">Due today</span>
-                                  ) : (
-                                    <span>{reminder.daysUntil} days</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ));
-                        })()}
+                        {/* Payment reminders removed - now shown with first session of new period */}
                         
                         {daySessions.map((session) => {
                           const isMergedWithNext = shouldMergeWithNextSlot(session, timeSlot);
                           const isMergedWithPrevious = shouldMergeWithPreviousSlot(session, timeSlot);
+                          const isFirstOfNewPeriod = isFirstSessionOfNewPeriod(session);
+                          const paymentInfo = paymentStatus[session.customerId];
+                          const customer = customers.find(c => c.id === session.customerId);
+                          
+                          // Show payment reminder if it's the first session of a new period
+                          // Always show it when starting a new period, regardless of payment status
+                          // This ensures the reminder appears when a new period begins
+                          const showPaymentReminder = isFirstOfNewPeriod && paymentInfo && paymentInfo.amount > 0;
+                          
+                          // Debug logging for payment reminder
+                          if (isFirstOfNewPeriod) {
+                            console.log(`💰 [Mobile] Payment reminder check for ${customer?.name || session.customerId}:`, {
+                              isFirstOfNewPeriod,
+                              hasPaymentInfo: !!paymentInfo,
+                              amount: paymentInfo?.amount,
+                              nextPaymentDate: paymentInfo?.nextPaymentDate,
+                              isPaid: paymentInfo?.isPaid,
+                              showPaymentReminder,
+                              completedSessions: (customer as any)?.completedSessions,
+                              trainingFrequency: customer?.trainingFrequency
+                            });
+                          }
                           
                           return (
-                            <div
-                              key={session.id}
-                              className={`p-2 text-xs font-medium mb-1 cursor-pointer transition-all duration-200 hover:shadow-md ${getSessionTypeColor(session.type, session.status)} ${
-                                isMergedWithNext ? 'rounded-t-lg rounded-b-none' : 
-                                isMergedWithPrevious ? 'rounded-b-lg rounded-t-none' : 
-                                'rounded-lg'
-                              }`}
-                              onClick={() => {
-                                setSelectedSession(session);
-                                setShowSessionDetailsModal(true);
-                              }}
-                            >
+                            <div key={session.id}>
+                              {showPaymentReminder && (
+                                <div className={`mb-1 p-2 rounded-lg border-2 text-xs ${
+                                  'bg-yellow-50 border-yellow-300'
+                                }`}>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3 text-yellow-600" />
+                                      <span className="font-semibold text-yellow-800">Payment Due</span>
+                                    </div>
+                                    <span className="font-bold text-yellow-700">
+                                      {paymentInfo.amount} RON
+                                    </span>
+                                  </div>
+                                  <div className="text-gray-700">
+                                    <div className="truncate font-medium">{paymentInfo.customerName}</div>
+                                    {paymentInfo.nextPaymentDate && (
+                                      <div className="mt-0.5 text-xs">
+                                        Next payment: <span className="font-semibold">{new Date(paymentInfo.nextPaymentDate).toLocaleDateString('ro-RO')}</span>
+                                      </div>
+                                    )}
+                                    {!paymentInfo.nextPaymentDate && customer && (
+                                      <div className="mt-0.5 text-xs text-yellow-700">
+                                        New period starting
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              <div
+                                className={`p-2 text-xs font-medium mb-1 cursor-pointer transition-all duration-200 hover:shadow-md ${getSessionTypeColor(session.type, session.status)} ${
+                                  isMergedWithNext ? 'rounded-t-lg rounded-b-none' : 
+                                  isMergedWithPrevious ? 'rounded-b-lg rounded-t-none' : 
+                                  'rounded-lg'
+                                }`}
+                                onClick={() => {
+                                  setSelectedSession(session);
+                                  setShowSessionDetailsModal(true);
+                                }}
+                              >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center">
                                 {session.type === 'block-time' ? (
@@ -2041,6 +1995,7 @@ export default function MobileScheduleClient({
                             <div className="text-xs text-gray-500 mt-1">
                               {formatTime(session.startTime)} - {formatTime(session.endTime)}
                             </div>
+                              </div>
                             </div>
                           );
                         })}
@@ -2102,12 +2057,24 @@ export default function MobileScheduleClient({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Status
                   </label>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSessionStatusColor(selectedSession.status)}`}>
-                    {selectedSession.status}
-                  </span>
+                  <select
+                    value={selectedSession.status || 'scheduled'}
+                    onChange={async (e) => {
+                      const newStatus = e.target.value;
+                      if (selectedSession) {
+                        await handleUpdateSessionStatus(selectedSession.id, newStatus);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
+                  >
+                    <option value="scheduled">Scheduled</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="no-show">No Show</option>
+                  </select>
                 </div>
 
                 {selectedSession.notes && (

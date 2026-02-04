@@ -253,6 +253,30 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Get completed sessions count per customer (excluding intake sessions)
+    const allCustomerSessions = await prisma.trainingSession.findMany({
+      where: {
+        customerId: {
+          in: customerIds
+        },
+        type: {
+          not: 'Intake Consultation'
+        }
+      },
+      select: {
+        customerId: true,
+        status: true
+      }
+    });
+
+    // Count completed sessions per customer
+    const completedSessionsByCustomer = allCustomerSessions.reduce((acc, session) => {
+      if (session.status === 'completed') {
+        acc[session.customerId] = (acc[session.customerId] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
     // Process users with their related data
     const customersWithData = users.map(user => ({
       id: user.id,
@@ -263,6 +287,7 @@ export async function GET(request: NextRequest) {
       status: user.status,
       plan: user.plan,
       discount: pricingByCustomer[user.id] || 0,
+      completedSessions: completedSessionsByCustomer[user.id] || 0,
       customerWorkouts: user.customerWorkouts.map(cw => ({
         id: cw.id,
         assignedAt: cw.assignedAt,

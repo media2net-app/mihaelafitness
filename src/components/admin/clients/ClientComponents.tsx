@@ -127,11 +127,23 @@ export function ClientCard({
       .join('')
       .slice(0, 2) || 'MF';
 
-  const expectedTotal =
-    client.subscriptionDuration && client.trainingFrequency
-      ? client.subscriptionDuration * client.trainingFrequency
-      : client.totalSessions || 0;
   const completed = client.completedSessions || 0;
+  
+  // Calculate expected total: use subscription duration * frequency if available,
+  // but ensure it's at least equal to completed sessions
+  let expectedTotal = 0;
+  if (client.subscriptionDuration && client.trainingFrequency) {
+    expectedTotal = client.subscriptionDuration * client.trainingFrequency;
+  } else if (client.totalSessions) {
+    expectedTotal = client.totalSessions;
+  }
+  
+  // Ensure expected total is at least equal to completed sessions
+  // This handles cases where clients have completed more sessions than their subscription
+  if (completed > expectedTotal) {
+    expectedTotal = completed;
+  }
+  
   const percentage = expectedTotal > 0 ? Math.round((completed / expectedTotal) * 100) : 0;
   const remaining = expectedTotal - completed;
   const weeksRemaining =
@@ -252,7 +264,7 @@ export function ClientCard({
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {!isAdmin && status && (
                   <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(status)}`}>
-                    {client.status}
+                    {client.status.replace(/\s+\d+$/, '')}
                   </span>
                 )}
                 {client.groupName && (
@@ -266,37 +278,69 @@ export function ClientCard({
                     {client.groupName}
                   </span>
                 )}
-                {client.rating && (
-                  <div className="flex items-center gap-1">
-                    <Star className={`w-3 h-3 ${isAdmin ? 'text-yellow-200' : 'text-yellow-400'} fill-current`} />
-                    <span className={`text-xs ${isAdmin ? 'text-white/80' : 'text-gray-600'}`}>
-                      {client.rating}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => onView(client.id)}
-              className={`p-2 ${
-                isAdmin ? 'text-white/80 hover:text-white hover:bg-white/20' : 'text-gray-400 hover:text-rose-600 hover:bg-rose-50'
-              } rounded-xl transition-colors`}
-              title={clientsText.actions.viewClient}
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-            {!isAdmin && onDelete && (
+          <div className="flex items-center gap-2">
+            {/* Current Period Badge */}
+            {(() => {
+              // Use joinDate or createdAt
+              const joinDate = client.joinDate || (client as any).createdAt;
+              
+              // Calculate period if not provided by API
+              const currentPeriodNumber = (client as any).currentPeriodNumber;
+              const sessionsInCurrentPeriod = (client as any).sessionsInCurrentPeriod;
+              const completedSessions = (client as any).completedSessions || 0;
+              
+              // If API didn't provide period, calculate it locally
+              let periodNumber = currentPeriodNumber;
+              let sessionsInPeriod = sessionsInCurrentPeriod;
+              
+              if (!periodNumber && joinDate && client.trainingFrequency) {
+                const sessionsPerPeriod = client.trainingFrequency * 4;
+                periodNumber = Math.floor(completedSessions / sessionsPerPeriod) + 1;
+                sessionsInPeriod = completedSessions % sessionsPerPeriod;
+              }
+              
+              // Show badge if we have a period number and training frequency
+              if (client.trainingFrequency && periodNumber) {
+                return (
+                  <span 
+                    className={`px-2.5 py-1 text-xs font-medium rounded-full border flex items-center gap-1 flex-shrink-0 ${
+                      isAdmin 
+                        ? 'bg-white/20 text-white border-white/30' 
+                        : 'bg-rose-100 text-rose-700 border-rose-200'
+                    }`}
+                    title={`Current Period ${periodNumber}: ${sessionsInPeriod !== undefined ? sessionsInPeriod : completedSessions % (client.trainingFrequency * 4)}/${client.trainingFrequency * 4} completed sessions`}
+                  >
+                    <Clock className="w-3 h-3 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Period {periodNumber}</span>
+                  </span>
+                );
+              }
+              return null;
+            })()}
+            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
-                onClick={() => onDelete({ id: client.id, name: client.name })}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                title={clientsText.actions.deleteClient}
+                onClick={() => onView(client.id)}
+                className={`p-2 ${
+                  isAdmin ? 'text-white/80 hover:text-white hover:bg-white/20' : 'text-gray-400 hover:text-rose-600 hover:bg-rose-50'
+                } rounded-xl transition-colors`}
+                title={clientsText.actions.viewClient}
               >
-                <Trash2 className="w-4 h-4" />
+                <Eye className="w-4 h-4" />
               </button>
-            )}
+              {!isAdmin && onDelete && (
+                <button
+                  onClick={() => onDelete({ id: client.id, name: client.name })}
+                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                  title={clientsText.actions.deleteClient}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -498,11 +542,21 @@ export function AdminBar({ client, onView }: AdminBarProps) {
       ? 'bg-gradient-to-r from-blue-500 to-cyan-600 border-blue-300'
       : 'bg-gradient-to-r from-blue-500 to-purple-600';
 
-  const expectedTotal =
-    client.subscriptionDuration && client.trainingFrequency
-      ? client.subscriptionDuration * client.trainingFrequency
-      : client.totalSessions || 0;
   const completed = client.completedSessions || 0;
+  
+  // Calculate expected total: use subscription duration * frequency if available,
+  // but ensure it's at least equal to completed sessions
+  let expectedTotal = 0;
+  if (client.subscriptionDuration && client.trainingFrequency) {
+    expectedTotal = client.subscriptionDuration * client.trainingFrequency;
+  } else if (client.totalSessions) {
+    expectedTotal = client.totalSessions;
+  }
+  
+  // Ensure expected total is at least equal to completed sessions
+  if (completed > expectedTotal) {
+    expectedTotal = completed;
+  }
   const nextPaymentLabel = client.paymentInfo?.nextPaymentDate
     ? clientsText.payment.dateLabel.replace(
         '{date}',
