@@ -36,6 +36,8 @@ function WorkoutCard({ workout, onEdit, onDelete, onView, onCopy, onStart }: {
   onCopy: (workout: any) => void;
   onStart: (workout: any) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty?.toLowerCase()) {
       case 'beginner': return 'bg-green-100 text-green-800 border-green-200';
@@ -56,53 +58,70 @@ function WorkoutCard({ workout, onEdit, onDelete, onView, onCopy, onStart }: {
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
-            <Dumbbell className="w-6 h-6 text-white" />
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => !menuOpen && onView(workout)}
+      onKeyDown={(e) => e.key === 'Enter' && !menuOpen && onView(workout)}
+      className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Dumbbell className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">{workout.name}</h3>
-            <p className="text-sm text-gray-500">{workout.description}</p>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{workout.name}</h3>
+            <p className="text-sm text-gray-500 line-clamp-2 sm:line-clamp-1">{workout.description}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between sm:justify-end gap-2 flex-shrink-0">
           <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getDifficultyColor(workout.difficulty)}`}>
             {workout.difficulty}
           </span>
-          <div className="relative group">
-            <button className="p-1 text-gray-400 hover:text-gray-600 rounded">
-              <MoreVertical className="w-4 h-4" />
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              aria-expanded={menuOpen}
+              aria-haspopup="true"
+              onClick={(e) => { e.preventDefault(); setMenuOpen((o) => !o); }}
+              className="p-2 -m-2 text-gray-400 hover:text-gray-600 rounded-lg touch-manipulation"
+            >
+              <MoreVertical className="w-5 h-5" />
             </button>
-            <div className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => onStart(workout)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full">
-                <Play className="w-4 h-4" />
-                Start Workout
-              </button>
-              <button onClick={() => onView(workout)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full">
-                <Eye className="w-4 h-4" />
-                View Details
-              </button>
-              <button onClick={() => onEdit(workout)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full">
-                <Edit className="w-4 h-4" />
-                Edit
-              </button>
-              <button onClick={() => onCopy(workout)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full">
-                <Copy className="w-4 h-4" />
-                Duplicate
-              </button>
-              <button onClick={() => onDelete(workout)} className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 w-full">
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </button>
-            </div>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" aria-hidden onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
+                  <button onClick={() => { onStart(workout); setMenuOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 w-full text-left">
+                    <Play className="w-4 h-4" />
+                    Start Workout
+                  </button>
+                  <button onClick={() => { onView(workout); setMenuOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 w-full text-left">
+                    <Eye className="w-4 h-4" />
+                    View Details
+                  </button>
+                  <button onClick={() => { onEdit(workout); setMenuOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 w-full text-left">
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button onClick={() => { onCopy(workout); setMenuOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 w-full text-left">
+                    <Copy className="w-4 h-4" />
+                    Duplicate
+                  </button>
+                  <button onClick={() => { onDelete(workout); setMenuOpen(false); }} className="flex items-center gap-2 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 w-full text-left">
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {/* Workout Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
         <div className="text-center">
           <div className="text-xl font-bold text-gray-900">
             {typeof workout.duration === 'number' ? workout.duration.toFixed(1) : (workout.duration || '--')}
@@ -149,14 +168,14 @@ function WorkoutCard({ workout, onEdit, onDelete, onView, onCopy, onStart }: {
       </div>
 
       {/* Additional Info */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-600">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1">
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4 flex-shrink-0" />
             <span>{workout.clientCount || 0} clients</span>
           </div>
           <div className="flex items-center gap-1">
-            <Calendar className="w-4 h-4" />
+            <Calendar className="w-4 h-4 flex-shrink-0" />
             <span>{workout.frequency || '--'}x/week</span>
           </div>
         </div>
@@ -171,54 +190,54 @@ function WorkoutCard({ workout, onEdit, onDelete, onView, onCopy, onStart }: {
 // Quick Stats Component
 function QuickStats({ stats }: { stats: any }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-2">
-          <div className="p-2 bg-purple-500 rounded-lg">
+          <div className="p-2 bg-purple-500 rounded-lg flex-shrink-0">
             <Dumbbell className="w-5 h-5 text-white" />
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-gray-900">{stats.totalWorkouts}</div>
-            <div className="text-sm text-gray-500">Total Workouts</div>
+          <div className="text-right min-w-0">
+            <div className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{stats.totalWorkouts}</div>
+            <div className="text-xs sm:text-sm text-gray-500">Total Workouts</div>
           </div>
         </div>
         <div className="text-xs text-gray-600">+{stats.newThisMonth} this month</div>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-2">
           <div className="p-2 bg-blue-500 rounded-lg">
             <Users className="w-5 h-5 text-white" />
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-gray-900">{stats.activeClients}</div>
-            <div className="text-sm text-gray-500">Active Clients</div>
+          <div className="text-right min-w-0">
+            <div className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{stats.activeClients}</div>
+            <div className="text-xs sm:text-sm text-gray-500">Active Clients</div>
           </div>
         </div>
         <div className="text-xs text-gray-600">{stats.avgPerClient} workouts per client</div>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-2">
           <div className="p-2 bg-green-500 rounded-lg">
             <Clock className="w-5 h-5 text-white" />
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-gray-900">{stats.avgDuration}</div>
-            <div className="text-sm text-gray-500">Avg Duration</div>
+          <div className="text-right min-w-0">
+            <div className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{stats.avgDuration}</div>
+            <div className="text-xs sm:text-sm text-gray-500">Avg Duration</div>
           </div>
         </div>
         <div className="text-xs text-gray-600">minutes per workout</div>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-2">
-          <div className="p-2 bg-orange-500 rounded-lg">
+          <div className="p-2 bg-orange-500 rounded-lg flex-shrink-0">
             <Target className="w-5 h-5 text-white" />
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-gray-900">{stats.completionRate}</div>
-            <div className="text-sm text-gray-500">Completion Rate</div>
+          <div className="text-right min-w-0">
+            <div className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{stats.completionRate}</div>
+            <div className="text-xs sm:text-sm text-gray-500">Completion Rate</div>
           </div>
         </div>
         <div className="text-xs text-gray-600">% workouts completed</div>
@@ -230,16 +249,16 @@ function QuickStats({ stats }: { stats: any }) {
 // Workout Builder Preview Component
 function WorkoutBuilderPreview() {
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Workout Builder</h3>
-        <button className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+    <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100 mb-6 sm:mb-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900">Workout Builder</h3>
+        <button className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors w-full sm:w-auto">
           <Plus className="w-4 h-4" />
           <span>Create New</span>
         </button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="text-center p-4 bg-gray-50 rounded-lg">
           <Dumbbell className="w-8 h-8 text-gray-400 mx-auto mb-2" />
           <h4 className="font-medium text-gray-900 mb-1">Strength Training</h4>
@@ -395,7 +414,7 @@ export default function TrainingSchedulesV2Page() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading workouts...</p>
@@ -405,23 +424,23 @@ export default function TrainingSchedulesV2Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="px-4 sm:px-6 py-6 sm:py-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Training Schedules</h1>
-              <p className="text-gray-600 mt-1">Create and manage workout programs for your clients</p>
+        <div className="px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Training Schedules</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-0.5 sm:mt-1">Create and manage workout programs for your clients</p>
             </div>
-            <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                <FileText className="w-5 h-5 text-gray-600" />
-                <span className="text-gray-700">Templates</span>
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex-1 sm:flex-none min-w-0">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                <span className="text-gray-700 text-sm sm:text-base truncate">Templates</span>
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors">
-                <Plus className="w-5 h-5" />
-                <span>New Workout</span>
+              <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors flex-1 sm:flex-none min-w-0">
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="text-sm sm:text-base">New Workout</span>
               </button>
             </div>
           </div>
@@ -433,21 +452,21 @@ export default function TrainingSchedulesV2Page() {
           <WorkoutBuilderPreview />
 
           {/* Filters */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Search className="w-5 h-5 text-gray-400" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+            <div className="flex items-center gap-2 min-w-0 flex-1 sm:flex-initial sm:min-w-[200px]">
+              <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
               <input
                 type="text"
                 placeholder="Search workouts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base"
               />
             </div>
             <select
               value={filterDifficulty}
               onChange={(e) => setFilterDifficulty(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full sm:w-auto px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base bg-white min-w-0"
             >
               <option value="all">All Difficulties</option>
               <option value="beginner">Beginner</option>
@@ -457,7 +476,7 @@ export default function TrainingSchedulesV2Page() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full sm:w-auto px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base bg-white min-w-0"
             >
               <option value="all">All Types</option>
               <option value="strength">Strength</option>
@@ -468,7 +487,7 @@ export default function TrainingSchedulesV2Page() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full sm:w-auto px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-base bg-white min-w-0"
             >
               <option value="name">Name A-Z</option>
               <option value="duration">Longest Duration</option>
@@ -481,9 +500,9 @@ export default function TrainingSchedulesV2Page() {
       </div>
 
       {/* Content */}
-      <div className="px-4 sm:px-6 py-6 sm:py-8">
+      <div className="px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
         {filteredWorkouts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredWorkouts.map(workout => (
               <WorkoutCard
                 key={workout.id}

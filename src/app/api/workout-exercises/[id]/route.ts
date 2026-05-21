@@ -17,6 +17,14 @@ export async function PUT(
         weight: data.weight,
         restTime: data.restTime,
         notes: data.notes,
+        ...(Object.prototype.hasOwnProperty.call(data, 'section')
+          ? {
+              section:
+                typeof data.section === 'string' && data.section.trim() !== ''
+                  ? data.section.trim()
+                  : null,
+            }
+          : {}),
       },
       include: {
         exercise: true,

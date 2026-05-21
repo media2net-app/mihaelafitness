@@ -20,6 +20,10 @@ export async function GET(
         category: true,
         trainingType: true,
         exercises: true,
+        clients: true,
+        status: true,
+        created: true,
+        lastUsed: true,
         createdAt: true,
         updatedAt: true
       }

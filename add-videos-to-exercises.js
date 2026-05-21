@@ -1,61 +1,68 @@
+require('dotenv').config();
+require('dotenv').config({ path: '.env.local' });
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || 'AIzaSyAoDCmpyPRWZKKpoTznftSwZ7uOJjud4bI';
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+if (!YOUTUBE_API_KEY) {
+  console.error('Missing YOUTUBE_API_KEY in .env or .env.local. Get one at https://console.cloud.google.com/apis/credentials');
+  process.exit(1);
+}
 
-async function searchYouTubeVideo(query) {
-  try {
-    // Search query with exercise name + tutorial keywords
-    const searchQuery = `${query} how to form tutorial exercise`;
-    
-    const url = `https://www.googleapis.com/youtube/v3/search?` +
-      `part=snippet&` +
-      `q=${encodeURIComponent(searchQuery)}&` +
-      `type=video&` +
-      `videoEmbeddable=true&` +
-      `maxResults=1&` +
-      `key=${YOUTUBE_API_KEY}`;
+async function searchYouTubeWithQuery(searchQuery, apiKey) {
+  const url = `https://www.googleapis.com/youtube/v3/search?` +
+    `part=snippet&` +
+    `q=${encodeURIComponent(searchQuery)}&` +
+    `type=video&` +
+    `videoEmbeddable=true&` +
+    `maxResults=1&` +
+    `key=${apiKey}`;
 
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error(`YouTube API error for "${query}":`, errorData);
-      return null;
-    }
-
-    const data = await response.json();
-    
-    if (data.items && data.items.length > 0) {
-      const video = data.items[0];
-      const embedUrl = `https://www.youtube.com/embed/${video.id.videoId}`;
-      return {
-        videoId: video.id.videoId,
-        title: video.snippet.title,
-        embedUrl: embedUrl,
-        thumbnail: video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default?.url
-      };
-    }
-    
-    return null;
-  } catch (error) {
-    console.error(`Error searching YouTube for "${query}":`, error.message);
+  const response = await fetch(url);
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error(`YouTube API error:`, errorData?.error?.message || response.status);
     return null;
   }
+
+  const data = await response.json();
+  if (data.items && data.items.length > 0) {
+    const video = data.items[0];
+    return {
+      videoId: video.id.videoId,
+      title: video.snippet.title,
+      embedUrl: `https://www.youtube.com/embed/${video.id.videoId}`,
+      thumbnail: video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default?.url
+    };
+  }
+  return null;
+}
+
+async function searchYouTubeVideo(exerciseName) {
+  const queries = [
+    `${exerciseName} how to form tutorial exercise`,
+    `${exerciseName} exercise tutorial`,
+    `${exerciseName} workout`
+  ];
+  for (const q of queries) {
+    const result = await searchYouTubeWithQuery(q, YOUTUBE_API_KEY);
+    if (result) return result;
+    await new Promise(r => setTimeout(r, 150));
+  }
+  return null;
 }
 
 async function addVideosToExercises() {
   try {
     console.log('Starting to add videos to exercises...\n');
 
-    // Get all exercises without videos
+    // Get all exercises without videos (active and inactive)
     const exercisesWithoutVideos = await prisma.exercise.findMany({
       where: {
         OR: [
           { videoUrl: null },
           { videoUrl: '' }
-        ],
-        isActive: true
+        ]
       },
       select: {
         id: true,

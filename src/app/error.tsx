@@ -1,6 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { clearAppClientCache } from '@/lib/clearClientCache';
+import { translations, type Language } from '@/lib/translations';
+
+function getErrorPageCopy(language: Language) {
+  return translations[language].errorPage;
+}
 
 export default function Error({
   error,
@@ -9,48 +17,98 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { language } = useLanguage();
+  const ep = getErrorPageCopy(language);
+  const [clearing, setClearing] = useState(false);
+
   useEffect(() => {
-    // Log the error to an error reporting service
     console.error(error);
   }, [error]);
 
+  const handleClearAndLogin = async () => {
+    setClearing(true);
+    try {
+      await clearAppClientCache();
+      window.location.href = '/login?cleared=1';
+    } catch (e) {
+      console.error(e);
+      setClearing(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl p-8 shadow-xl max-w-md w-full text-center">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+          <AlertTriangle className="h-8 w-8 text-red-600" aria-hidden />
         </div>
-        
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Something went wrong!</h1>
-        <p className="text-gray-600 mb-6">
-          An unexpected error occurred. Please try again.
-        </p>
-        
+
+        <h1 className="mb-2 text-2xl font-bold text-gray-800">{ep.title}</h1>
+        <p className="mb-4 text-left text-sm leading-relaxed text-gray-600">{ep.body}</p>
+
+        <ul className="mb-6 space-y-2 text-left text-sm text-gray-600">
+          {ep.hintList.map((hint) => (
+            <li key={hint} className="flex gap-2">
+              <span className="mt-0.5 shrink-0 text-rose-500" aria-hidden>
+                •
+              </span>
+              <span>{hint}</span>
+            </li>
+          ))}
+        </ul>
+
         <div className="space-y-3">
           <button
-            onClick={reset}
-            className="w-full bg-rose-500 text-white py-3 rounded-lg font-medium hover:bg-rose-600 transition-colors"
+            type="button"
+            onClick={handleClearAndLogin}
+            disabled={clearing}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-rose-500 py-3 font-medium text-white transition-colors hover:bg-rose-600 disabled:opacity-70"
           >
-            Try again
+            <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+            {clearing ? ep.clearing : ep.clearCache}
           </button>
-          
+
           <button
-            onClick={() => window.location.href = '/'}
-            className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            type="button"
+            onClick={() => reset()}
+            disabled={clearing}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-70"
           >
-            Go home
+            <RefreshCw className="h-4 w-4 shrink-0" aria-hidden />
+            {ep.tryAgain}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = '/login';
+            }}
+            disabled={clearing}
+            className="w-full py-2 text-sm font-medium text-rose-600 hover:text-rose-700 disabled:opacity-70"
+          >
+            {ep.goLogin}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = '/';
+            }}
+            disabled={clearing}
+            className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-70"
+          >
+            {ep.goHome}
           </button>
         </div>
-        
+
         {process.env.NODE_ENV === 'development' && (
           <details className="mt-6 text-left">
             <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
-              Error details (development)
+              {ep.devDetails}
             </summary>
-            <pre className="mt-2 text-xs text-red-600 bg-red-50 p-3 rounded overflow-auto">
+            <pre className="mt-2 max-h-40 overflow-auto rounded bg-red-50 p-3 text-xs text-red-600">
               {error.message}
+              {error.digest ? `\nDigest: ${error.digest}` : ''}
             </pre>
           </details>
         )}

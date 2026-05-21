@@ -11,6 +11,8 @@ import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
 import MetricsRow from '@/components/dashboard/MetricsRow';
 import NutritionProgressCard from '@/components/dashboard/NutritionProgressCard';
 import LineGraph from '@/components/dashboard/LineGraph';
+import OnlineDashboard from '@/components/online/OnlineDashboard';
+import { isOnlineClient } from '@/lib/clientTypes';
 
 // Period Tracking Component (same as admin detail page)
 function PeriodTrackingTab({ 
@@ -405,6 +407,10 @@ export default function DashboardPage() {
         router.push('/admin');
         return;
       }
+      if (isOnlineClient(user)) {
+        setLoading(false);
+        return;
+      }
       
       // Fetch data for client role (or if role is undefined, assume client)
       if (!user?.role || user?.role === 'client') {
@@ -523,6 +529,10 @@ export default function DashboardPage() {
       setUpdatingTask(null);
     }
   };
+
+  if (isOnlineClient(user)) {
+    return <OnlineDashboard />;
+  }
 
   if (loading) {
     return (

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calculator, Edit, Trash2, Download, Share2, Eye, X, Ruler, TrendingUp, Plus, Clock, Target, Award, Camera, Upload, Image as ImageIcon, BookOpen, DollarSign, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calculator, Edit, Trash2, Download, Share2, Eye, X, Ruler, TrendingUp, Plus, Clock, Target, Award, Camera, Upload, Image as ImageIcon, BookOpen, DollarSign, CheckCircle2, XCircle, AlertCircle, Wifi } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { isOnlineClient } from '@/lib/clientTypes';
 
 
 // Period Tracking Component
@@ -1337,6 +1338,7 @@ export default function ClientDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { t } = useLanguage();
+  const clientsText = t.admin.clientsPage;
   
   const [client, setClient] = useState<any>(null);
   const [measurements, setMeasurements] = useState<any[]>([]);
@@ -2149,7 +2151,7 @@ export default function ClientDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading client data...</p>
@@ -2160,7 +2162,7 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-800 mb-4">Client Not Found</h1>
           <button
@@ -2175,7 +2177,7 @@ export default function ClientDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+    <div className="min-h-full">
       <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-full overflow-hidden">
         {/* Header */}
         <div className="mb-4 sm:mb-8">
@@ -2233,6 +2235,12 @@ export default function ClientDetailPage() {
                       </span>
                     );
                   })()}
+                  {isOnlineClient(client) && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-sky-100 text-sky-800 text-xs font-semibold rounded-full border border-sky-200">
+                      <Wifi className="w-3 h-3" />
+                      {clientsText.onlineLabel}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm sm:text-base text-gray-600 truncate">{client.email}</p>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-600">

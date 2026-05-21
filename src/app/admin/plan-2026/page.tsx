@@ -118,7 +118,7 @@ export default function Plan2026Page() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      <div className="min-h-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
@@ -132,7 +132,7 @@ export default function Plan2026Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-4 sm:pt-6 lg:pt-0">
+    <div className="min-h-full px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-4 sm:pt-6 lg:pt-0">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">

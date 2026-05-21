@@ -7,10 +7,39 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    
-    const exercise = await prisma.exercise.findUnique({
-      where: { id }
-    });
+
+    let exercise: any;
+    try {
+      exercise = await prisma.exercise.findUnique({
+        where: { id }
+      });
+    } catch (firstError) {
+      const errMsg = String((firstError as Error)?.message || firstError);
+      if (errMsg.includes('hasOwnVideo') || errMsg.includes('column') || errMsg.includes('Unknown field')) {
+        const fallback = await prisma.exercise.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            muscleGroup: true,
+            equipment: true,
+            difficulty: true,
+            category: true,
+            instructions: true,
+            tips: true,
+            videoUrl: true,
+            imageUrl: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+        exercise = fallback ? { ...fallback, hasOwnVideo: false } : null;
+      } else {
+        throw firstError;
+      }
+    }
 
     if (!exercise) {
       return NextResponse.json(
@@ -50,6 +79,7 @@ export async function PUT(
         tips: data.tips,
         videoUrl: data.videoUrl,
         imageUrl: data.imageUrl,
+        hasOwnVideo: data.hasOwnVideo,
         isActive: data.isActive
       }
     });

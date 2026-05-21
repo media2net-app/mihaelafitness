@@ -805,7 +805,7 @@ export default function NutritionPlanDetailV2Page() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading nutrition plan...</p>
@@ -816,7 +816,7 @@ export default function NutritionPlanDetailV2Page() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-red-600" />
@@ -836,7 +836,7 @@ export default function NutritionPlanDetailV2Page() {
 
   if (!plan) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <ChefHat className="w-8 h-8 text-gray-600" />
@@ -855,7 +855,7 @@ export default function NutritionPlanDetailV2Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-6 sm:py-8">
         <div className="max-w-7xl mx-auto">

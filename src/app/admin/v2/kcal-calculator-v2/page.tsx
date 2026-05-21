@@ -251,7 +251,7 @@ export default function KcalCalculatorV2Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 lg:p-8">
+    <div className="min-h-full p-4 lg:p-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">

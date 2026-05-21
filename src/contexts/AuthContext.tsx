@@ -9,6 +9,7 @@ interface User {
   plan: string;
   status: string;
   role?: string; // 'admin' or 'client'
+  profilePicture?: string | null;
 }
 
 interface AuthContextType {
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('auth_user');
     sessionStorage.removeItem('auth_token');
     sessionStorage.removeItem('auth_user');
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -107,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'same-origin',
         body: JSON.stringify({ email, password }),
       });
 

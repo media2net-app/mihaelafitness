@@ -1,0 +1,33 @@
+node_modules
+.next
+.git
+.DS_Store
+
+# Local environment and config
+.env
+.env.local
+.env.*
+production.env.example
+
+# Backups, scripts & tooling die Vercel niet nodig heeft
+backups
+scripts
+docs
+equans-electroproject
+migration-backup.json
+live-payments.json
+ingredients-export.json
+ingredients-basic-export.json
+
+# Grote media / raw data (staan al extern in blob)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Logs
+*.log

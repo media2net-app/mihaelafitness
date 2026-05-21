@@ -1,5 +1,5 @@
-import MobileExerciseLibraryPage from './MobileExerciseLibraryPage';
+import { redirect } from 'next/navigation';
 
 export default function ExerciseLibraryPage() {
-  return <MobileExerciseLibraryPage />;
+  redirect('/admin/v2/exercise-library');
 }

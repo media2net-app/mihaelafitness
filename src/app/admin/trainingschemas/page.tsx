@@ -110,7 +110,7 @@ export default function TrainingschemasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+    <div className="min-h-full">
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -142,9 +142,9 @@ export default function TrainingschemasPage() {
                 </div>
                 <div className="flex gap-2 ml-4">
                   <button
-                    onClick={() => router.push(`/admin/trainingschemas/${schema.id}`)}
+                    onClick={() => router.push(`/admin/v2/training-schedules/${schema.id}`)}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="View Schedule"
+                    title="Bekijk schema (met video's)"
                   >
                     <Eye className="w-4 h-4" />
                   </button>

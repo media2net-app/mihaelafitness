@@ -456,7 +456,7 @@ export default function GroupsPage() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-full">
         {/* Header */}
         <div className="bg-white border-b border-gray-200">
           <div className="px-4 sm:px-6 py-6 sm:py-8">

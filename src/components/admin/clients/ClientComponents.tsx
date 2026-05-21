@@ -12,9 +12,11 @@ import {
   Trash2,
   Target,
   User as UserIcon,
+  Wifi,
 } from 'lucide-react';
 import { ReactNode } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { isOnlineClient } from '@/lib/clientTypes';
 
 type ClientOverview = {
   id: string;
@@ -64,13 +66,13 @@ const ADMIN_EMAILS = new Set([
 const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
     case 'active':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      return 'border-emerald-400/30 bg-emerald-500/20 text-emerald-200';
     case 'inactive':
-      return 'bg-gray-100 text-gray-800 border-gray-200';
+      return 'border-white/10 bg-white/[0.06] text-white/55';
     case 'intake':
-      return 'bg-amber-100 text-amber-800 border-amber-200';
+      return 'border-amber-400/30 bg-amber-500/20 text-amber-200';
     default:
-      return 'bg-blue-100 text-blue-800 border-blue-200';
+      return 'border-rose-400/30 bg-rose-500/20 text-rose-200';
   }
 };
 
@@ -120,6 +122,7 @@ export function ClientCard({
   const clientsText = t.admin.clientsPage;
   const status = (client.status || '').toLowerCase();
   const isAdmin = ADMIN_EMAILS.has(client.email?.toLowerCase?.() ?? '');
+  const isOnline = isOnlineClient(client);
   const initials =
     client.name
       ?.split(' ')
@@ -265,6 +268,19 @@ export function ClientCard({
                 {!isAdmin && status && (
                   <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(status)}`}>
                     {client.status.replace(/\s+\d+$/, '')}
+                  </span>
+                )}
+                {isOnline && (
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                      isAdmin
+                        ? 'bg-sky-400/30 text-white border border-sky-200/40'
+                        : 'bg-sky-100 text-sky-800 border border-sky-200'
+                    }`}
+                    title={clientsText.onlineLabel}
+                  >
+                    <Wifi className="w-3 h-3 flex-shrink-0" />
+                    {clientsText.onlineLabel}
                   </span>
                 )}
                 {client.groupName && (

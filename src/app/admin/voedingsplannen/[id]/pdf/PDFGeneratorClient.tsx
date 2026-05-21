@@ -781,7 +781,7 @@ export default function PDFGeneratorClient({ params }: { params: { id: string } 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-rose-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading plan data...</p>
@@ -792,7 +792,7 @@ export default function PDFGeneratorClient({ params }: { params: { id: string } 
 
   if (error || !planData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="min-h-full">
         <div className="container mx-auto px-4 py-8">
           <button
             onClick={() => router.back()}
@@ -855,7 +855,7 @@ export default function PDFGeneratorClient({ params }: { params: { id: string } 
   return (
     <>
       <PreviewModal />
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="min-h-full">
         <div className="container mx-auto px-4 py-8 max-w-6xl">
           {/* Header */}
           <div className="mb-8">

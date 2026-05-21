@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+const AUTO_GROUP_ELIGIBLE_TYPES = new Set(['1:1', 'group', 'Intake Consultation']);
+
+const hasTimeOverlap = (
+  requestedStartTime: string,
+  requestedEndTime: string,
+  existingStartTime: string,
+  existingEndTime: string
+) => requestedStartTime < existingEndTime && requestedEndTime > existingStartTime;
+
+const isExactSameSlot = (
+  requestedStartTime: string,
+  requestedEndTime: string,
+  existingStartTime: string,
+  existingEndTime: string
+) => requestedStartTime === existingStartTime && requestedEndTime === existingEndTime;
+
+const canAutoGroupType = (type?: string) => AUTO_GROUP_ELIGIBLE_TYPES.has(type || '1:1');
+
 export async function GET(request: NextRequest) {
   try {
     // Ensure Prisma is connected
@@ -132,23 +150,40 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             startTime: true,
-            endTime: true
+            endTime: true,
+            type: true,
+            customerId: true
           }
         });
-        
-        // Check for overlaps using string time comparison
-        const conflictingSession = scheduledSessions.find(session => {
-          return sessionData.startTime < session.endTime && sessionData.endTime > session.startTime;
-        });
 
-        if (!conflictingSession) {
+        const requestedType = sessionData.type || '1:1';
+        const exactSlotSessions = scheduledSessions.filter(session =>
+          isExactSameSlot(sessionData.startTime, sessionData.endTime, session.startTime, session.endTime)
+        );
+        const hasExactSlotBlockingSession = exactSlotSessions.some(session =>
+          !canAutoGroupType(requestedType) || !canAutoGroupType(session.type)
+        );
+        const hasDuplicateCustomerInSameSlot = exactSlotSessions.some(
+          session => session.customerId === sessionData.customerId
+        );
+        const overlappingSessionsOutsideExactSlot = scheduledSessions.find(session => (
+          hasTimeOverlap(sessionData.startTime, sessionData.endTime, session.startTime, session.endTime) &&
+          !isExactSameSlot(sessionData.startTime, sessionData.endTime, session.startTime, session.endTime)
+        ));
+
+        if (!hasExactSlotBlockingSession && !hasDuplicateCustomerInSameSlot && !overlappingSessionsOutsideExactSlot) {
+          const shouldCreateAsGroup = (
+            canAutoGroupType(requestedType) &&
+            exactSlotSessions.some(session => canAutoGroupType(session.type))
+          );
+
           const trainingSession = await prisma.trainingSession.create({
             data: {
               customerId: sessionData.customerId,
               date: new Date(sessionData.date),
               startTime: sessionData.startTime,
               endTime: sessionData.endTime,
-              type: sessionData.type || '1:1',
+              type: shouldCreateAsGroup ? 'group' : requestedType,
               status: sessionData.status || 'scheduled',
               notes: sessionData.notes
             },
@@ -158,6 +193,16 @@ export async function POST(request: NextRequest) {
               }
             }
           });
+
+          if (shouldCreateAsGroup) {
+            await prisma.trainingSession.updateMany({
+              where: {
+                id: { in: exactSlotSessions.map(session => session.id) }
+              },
+              data: { type: 'group' }
+            });
+          }
+
           createdSessions.push(trainingSession);
         }
       }
@@ -224,29 +269,42 @@ export async function POST(request: NextRequest) {
     console.log(`🔍 DEBUG: Attempting to book ${data.date} ${data.startTime}-${data.endTime}`);
     console.log(`📋 ALL sessions (any status) for ${data.date}:`, JSON.stringify(allSessionsForDate, null, 2));
     console.log(`📋 Scheduled sessions for ${data.date}:`, JSON.stringify(scheduledSessionsForDate, null, 2));
-    
-    // Check for overlaps using string time comparison
-    const conflictingSession = scheduledSessionsForDate.find(session => {
-      // Two time ranges overlap if: startTime < otherEndTime AND endTime > otherStartTime
-      const hasOverlap = data.startTime < session.endTime && data.endTime > session.startTime;
-      if (hasOverlap) {
-        console.log(`⚠️ Overlap detected: ${data.startTime}-${data.endTime} overlaps with ${session.startTime}-${session.endTime} (${session.status})`);
-      }
-      return hasOverlap;
-    });
 
-    if (conflictingSession) {
-      console.log(`❌ CONFLICT FOUND:`, JSON.stringify(conflictingSession, null, 2));
+    const requestedType = data.type || '1:1';
+    const exactSlotSessions = scheduledSessionsForDate.filter(session =>
+      isExactSameSlot(data.startTime, data.endTime, session.startTime, session.endTime)
+    );
+    const hasExactSlotBlockingSession = exactSlotSessions.some(session =>
+      !canAutoGroupType(requestedType) || !canAutoGroupType(session.type)
+    );
+    const duplicateCustomerInExactSlot = exactSlotSessions.find(
+      session => session.customerId === data.customerId
+    );
+    const conflictingSession = scheduledSessionsForDate.find(session => (
+      hasTimeOverlap(data.startTime, data.endTime, session.startTime, session.endTime) &&
+      !isExactSameSlot(data.startTime, data.endTime, session.startTime, session.endTime)
+    ));
+
+    if (duplicateCustomerInExactSlot) {
+      return NextResponse.json(
+        { error: 'This customer is already scheduled for the selected day and time.' },
+        { status: 400 }
+      );
+    }
+
+    if (hasExactSlotBlockingSession || conflictingSession) {
+      const blockingSession = conflictingSession || exactSlotSessions[0];
+      console.log(`❌ CONFLICT FOUND:`, JSON.stringify(blockingSession, null, 2));
       return NextResponse.json(
         { 
-          error: `Time slot conflict: Another scheduled session exists (${conflictingSession.startTime}-${conflictingSession.endTime}, ID: ${conflictingSession.id})`,
-          conflictingSession: {
-            id: conflictingSession.id,
-            startTime: conflictingSession.startTime,
-            endTime: conflictingSession.endTime,
-            status: conflictingSession.status,
-            type: conflictingSession.type
-          },
+          error: `Time slot conflict: Another scheduled session exists (${blockingSession.startTime}-${blockingSession.endTime}, ID: ${blockingSession.id})`,
+          conflictingSession: blockingSession ? {
+            id: blockingSession.id,
+            startTime: blockingSession.startTime,
+            endTime: blockingSession.endTime,
+            status: blockingSession.status,
+            type: blockingSession.type
+          } : null,
           debug: {
             requestedTime: `${data.startTime}-${data.endTime}`,
             allSessionsOnDate: allSessionsForDate.length,
@@ -258,6 +316,10 @@ export async function POST(request: NextRequest) {
     }
     
     console.log(`✅ No conflicts found for ${data.date} ${data.startTime}-${data.endTime}, proceeding with booking`);
+    const shouldCreateAsGroup = (
+      canAutoGroupType(requestedType) &&
+      exactSlotSessions.some(session => canAutoGroupType(session.type))
+    );
 
     const trainingSession = await prisma.trainingSession.create({
       data: {
@@ -265,7 +327,7 @@ export async function POST(request: NextRequest) {
         date: new Date(data.date),
         startTime: data.startTime,
         endTime: data.endTime,
-        type: data.type || '1:1',
+        type: shouldCreateAsGroup ? 'group' : requestedType,
         status: data.status || 'scheduled',
         notes: data.notes
       },
@@ -275,6 +337,15 @@ export async function POST(request: NextRequest) {
         }
       }
     });
+
+    if (shouldCreateAsGroup) {
+      await prisma.trainingSession.updateMany({
+        where: {
+          id: { in: exactSlotSessions.map(session => session.id) }
+        },
+        data: { type: 'group' }
+      });
+    }
 
     return NextResponse.json(trainingSession, { status: 201 });
   } catch (error) {

@@ -1467,7 +1467,7 @@ export default function MobileCustomerDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="min-h-full">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -1482,7 +1482,7 @@ export default function MobileCustomerDetailPage() {
 
   if (!customer) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="min-h-full">
         <div className="container mx-auto px-4 py-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-800 mb-4">Customer Not Found</h1>
@@ -1499,7 +1499,7 @@ export default function MobileCustomerDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+    <div className="min-h-full">
       <div className="container mx-auto px-4 py-8">
         {/* Header - Consistent with klanten page */}
         <div className="mb-8">

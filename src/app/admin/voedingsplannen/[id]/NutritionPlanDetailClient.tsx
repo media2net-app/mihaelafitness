@@ -82,12 +82,16 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
     }
   }, [pdfProgress]);
 
-  // Function to fetch plan data
+  // Function to fetch plan data (with timeout so page doesn't hang)
+  const FETCH_TIMEOUT_MS = 20000;
   const fetchPlanData = async (id: string) => {
     try {
       setLoading(true);
       const url = `/api/nutrition-plans/${id}`;
-      const response = await fetch(url);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (!response.ok) {
         let bodyText = '';
         try { bodyText = await response.text(); } catch {}
@@ -108,9 +112,13 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
           }
         }
       } catch {}
-    } catch (error) {
-      console.error('[NutritionPlanDetailClient] exception while fetching plan:', error);
-      setError('Failed to load nutrition plan');
+    } catch (err: any) {
+      console.error('[NutritionPlanDetailClient] exception while fetching plan:', err);
+      if (err?.name === 'AbortError') {
+        setError('Het laden duurde te lang. Vernieuw de pagina of probeer het later opnieuw.');
+      } else {
+        setError('Failed to load nutrition plan');
+      }
     } finally {
       setLoading(false);
     }
@@ -3564,7 +3572,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="min-h-full">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -3580,7 +3588,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   // Error state
   if (error || !planData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="min-h-full">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -4099,7 +4107,7 @@ export default function NutritionPlanDetailClient({ params }: NutritionPlanDetai
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full">
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-8">

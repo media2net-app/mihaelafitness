@@ -886,7 +886,7 @@ export default function PDFTemplateEditorPage() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-full">
         {/* Top Bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-full flex items-center justify-between">

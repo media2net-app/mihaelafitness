@@ -56,6 +56,14 @@ export default function TrainingSchemaDetailPage() {
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('');
   const [databaseExercises, setDatabaseExercises] = useState<any[]>([]);
 
+  // Redirect naar v2-pagina waar video's wel getoond worden
+  useEffect(() => {
+    if (schemaId) {
+      router.replace(`/admin/v2/training-schedules/${schemaId}`);
+      return;
+    }
+  }, [schemaId, router]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -578,7 +586,7 @@ export default function TrainingSchemaDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="min-h-full">
         <main className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
@@ -590,7 +598,7 @@ export default function TrainingSchemaDetailPage() {
 
   if (!schema) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+      <div className="min-h-full">
         <main className="container mx-auto px-4 py-8">
           <div className="text-center py-12">
             <Target className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -609,7 +617,7 @@ export default function TrainingSchemaDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+    <div className="min-h-full">
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <button

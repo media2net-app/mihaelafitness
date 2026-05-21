@@ -12,11 +12,13 @@ model User {
   email                       String                       @unique
   name                        String
   password                    String? // Hashed password for client login
+  loginPassword               String? @map("login_password") // Plaintext for admin reference only
   phone                       String?
   goal                        String?
   profilePicture              String? // URL to profile picture
   joinDate                    DateTime                     @default(now())
   status                      String                       @default("active")
+  role                        String                       @default("client")
   plan                        String                       @default("Basic")
   trainingFrequency           Int                          @default(1)
   lastWorkout                 DateTime?
@@ -45,8 +47,27 @@ model User {
   dailyNutritionTracking      DailyNutritionTracking[]
   dailyMealCompletions         DailyMealCompletion[]
   dailyWaterTracking          DailyWaterTracking[]
+  dailyFoodPhotos             DailyFoodPhoto[]
+  onlineClientProfile         OnlineClientProfile?
+  onlineWorkoutSessions       OnlineWorkoutSession[]
+  onlineClientHabits          OnlineClientHabit[]
+  onlineHabitDailyLogs        OnlineHabitDailyLog[]
 
   @@map("users")
+}
+
+model OnlineClientProfile {
+  id                    String    @id @default(cuid())
+  customerId            String    @unique
+  onboardingCompletedAt DateTime?
+  gender                String?
+  heightCm              Float?
+  fitnessGoals          Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  customer              User      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("online_client_profiles")
 }
 
 model Workout {
@@ -311,6 +332,7 @@ model Exercise {
   tips             String?
   videoUrl         String?
   imageUrl         String?
+  hasOwnVideo     Boolean           @default(false)
   isActive         Boolean           @default(true)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -325,6 +347,8 @@ model WorkoutExercise {
   exerciseId String
   day        Int
   order      Int
+  /// Optional block: e.g. "warmup" — shown first in schedule UIs; null = main workout
+  section    String?
   sets       Int      @default(3)
   reps       String
   weight     String?
@@ -598,6 +622,22 @@ model DailyMealItem {
   @@map("daily_meal_items")
 }
 
+// Daily food photos for online coaching clients (6 meals per day)
+model DailyFoodPhoto {
+  id         String   @id @default(cuid())
+  customerId String
+  date       DateTime @db.Date
+  mealSlot   Int // 1–6 (breakfast through evening snack)
+  imageUrl   String
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, date, mealSlot])
+  @@map("daily_food_photos")
+}
+
 // Daily Water Tracking - Track daily water intake
 model DailyWaterTracking {
   id         String   @id @default(cuid())
@@ -611,4 +651,72 @@ model DailyWaterTracking {
 
   @@unique([customerId, date])
   @@map("daily_water_tracking")
+}
+
+/// Self-guided workout session for online (Training-Only) clients
+model OnlineWorkoutSession {
+  id          String    @id @default(cuid())
+  customerId  String
+  workoutId   String
+  trainingDay Int
+  date        DateTime  @db.Date
+  status      String    @default("in_progress")
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  durationSec Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  customer    User      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, date, trainingDay])
+  @@map("online_workout_sessions")
+}
+
+/// Per-set weight/rep logs (gym sessions + online workout sessions)
+model ExerciseSetLog {
+  id          String   @id @default(cuid())
+  sessionId   String   @map("session_id")
+  customerId  String   @map("customer_id")
+  trainingDay Int      @map("training_day")
+  workoutId   String   @map("workout_id")
+  exerciseId  String   @map("exercise_id")
+  setNumber   Int      @map("set_number")
+  weightKg    Float    @map("weight_kg")
+  repsDone    Int?     @map("reps_done")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([sessionId, exerciseId, setNumber], map: "exercise_set_logs_sid_exid_set_uq")
+  @@index([customerId, trainingDay, exerciseId, createdAt], map: "exercise_set_logs_prog_idx")
+  @@map("exercise_set_logs")
+}
+
+/// Active lifestyle habits chosen by online clients (max 3 at a time)
+model OnlineClientHabit {
+  id         String   @id @default(cuid())
+  customerId String
+  habitKey   String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, habitKey])
+  @@index([customerId, isActive])
+  @@map("online_client_habits")
+}
+
+/// Daily completion log per habit (resets each calendar day)
+model OnlineHabitDailyLog {
+  id         String   @id @default(cuid())
+  customerId String
+  habitKey   String
+  date       DateTime @db.Date
+  completed  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, habitKey, date])
+  @@index([customerId, date])
+  @@map("online_habit_daily_logs")
 }

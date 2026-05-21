@@ -36,8 +36,15 @@ import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { getAdminNavItems } from '@/lib/adminNavItems';
+import { onlineTheme } from '@/lib/onlineTheme';
+import LanguageSwitch from '@/components/LanguageSwitch';
 
-export default function Sidebar() {
+type SidebarProps = {
+  dark?: boolean;
+};
+
+export default function Sidebar({ dark = false }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { language, setLanguage, t } = useLanguage();
@@ -64,31 +71,7 @@ export default function Sidebar() {
     { path: '/coaching', icon: Users, label: t.dashboard.coaching }
   ];
 
-  const adminItems = [
-    { path: '/admin/plan-2026', icon: Sparkles, label: 'Plan 2026', highlighted: true },
-    { path: '/admin', icon: Shield, label: t.admin.dashboard.title },
-    { path: '/admin/clients', icon: Users, label: t.admin.dashboard.clients },
-    { path: '/admin/groups', icon: Users2, label: 'Groups' },
-    { path: '/admin/intakes', icon: UserPlus, label: 'Intakes' },
-    { path: '/admin/online-coaching', icon: Users, label: 'Online Coaching' },
-    { path: '/admin/schedule', icon: Calendar, label: t.admin.dashboard.schedule },
-    { path: '/admin/to-do', icon: CheckSquare, label: 'To-Do List' },
-    { path: '/admin/trainingschemas', icon: Target, label: t.admin.dashboard.trainingSchedules },
-    { path: '/admin/exercise-library', icon: Dumbbell, label: t.admin.dashboard.exerciseLibrary },
-    { path: '/admin/voedingsplannen', icon: BookOpen, label: t.admin.dashboard.nutritionPlans },
-    { path: '/admin/ingredienten', icon: BookOpen, label: t.admin.dashboard.ingredients },
-    { path: '/admin/ingredienten-v2', icon: Scale, label: 'Ingredienten V2' },
-    { path: '/admin/mealplan-mapping', icon: MapPin, label: 'Mealplan Mapping' },
-    { path: '/admin/recepten', icon: ChefHat, label: 'Rețete' },
-    { path: '/admin/voedingsplannen-api', icon: Database, label: 'API Planuri Nutriționale' },
-    { path: '/admin/kcal-calculator-v2', icon: Calculator, label: 'KCAL Calculator V2' },
-    { path: '/admin/nutrition-calculations', icon: FileText, label: 'Nutrition Calculations' },
-    { path: '/admin/measurements', icon: Ruler, label: t.admin.dashboard.measurements },
-    { path: '/admin/pdf-template-builder', icon: FileEdit, label: 'PDF Template Builder' },
-    { path: '/admin/tarieven', icon: Settings, label: t.admin.dashboard.pricingCalculator },
-    { path: '/admin/payments', icon: DollarSign, label: 'Payments' },
-    { path: '/admin/invoices', icon: FileText, label: 'Facturi' }
-  ];
+  const adminItems = getAdminNavItems(t);
 
   const isAdmin = pathname.startsWith('/admin');
   const currentItems = isAdmin ? adminItems : navigationItems;
@@ -99,18 +82,42 @@ export default function Sidebar() {
     ? 'w-24 min-w-[6rem]'
     : 'w-80 min-w-[20rem]';
 
-  const navButtonClasses = (active: boolean) => [
-     'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200',
-     isCollapsed ? 'justify-center px-0' : '',
-     active
-       ? 'bg-[#E11C48] text-white shadow-lg shadow-[#E11C48]/40'
-      : 'text-white/70 hover:text-white hover:bg-[#E11C48] hover:shadow-lg hover:shadow-[#E11C48]/30'
-   ].join(' ');
+  const navButtonClasses = (active: boolean) => {
+    const base =
+      'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200';
+    const collapsed = isCollapsed ? 'justify-center px-0' : '';
+    if (dark) {
+      return [
+        base,
+        collapsed,
+        active
+          ? 'text-white'
+          : 'text-white/65 hover:bg-white/5 hover:text-white',
+      ].join(' ');
+    }
+    return [
+      base,
+      collapsed,
+      active
+        ? 'bg-[#E11C48] text-white shadow-lg shadow-[#E11C48]/40'
+        : 'text-white/70 hover:text-white hover:bg-[#E11C48] hover:shadow-lg hover:shadow-[#E11C48]/30',
+    ].join(' ');
+  };
+
+  const navButtonStyle = (active: boolean) =>
+    dark && active
+      ? {
+          background: 'rgba(225, 28, 72, 0.35)',
+          border: '1px solid rgba(249, 168, 217, 0.2)',
+        }
+      : undefined;
 
   const actionButtonClasses = [
     'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200',
     isCollapsed ? 'justify-center px-0' : '',
-    'text-white/70 hover:text-white hover:bg-white/20'
+    dark
+      ? 'text-white/65 hover:bg-white/5 hover:text-white'
+      : 'text-white/70 hover:text-white hover:bg-white/20',
   ].join(' ');
 
   const CollapseIcon = isCollapsed ? ChevronRight : ChevronLeft;
@@ -122,9 +129,22 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`hidden lg:flex flex-col bg-gradient-to-b from-[#E11C48] via-[#F36088] to-[#F9A8D9] text-white shadow-xl transition-all duration-300 ${sidebarWidthClasses}`}
+      className={`hidden lg:flex flex-col text-white shadow-xl transition-all duration-300 ${sidebarWidthClasses} ${
+        dark ? '' : 'bg-gradient-to-b from-[#E11C48] via-[#F36088] to-[#F9A8D9]'
+      }`}
+      style={
+        dark
+          ? {
+              background: `linear-gradient(180deg, ${onlineTheme.bg} 0%, ${onlineTheme.bgElevated} 100%)`,
+              borderRight: `1px solid ${onlineTheme.cardBorder}`,
+            }
+          : undefined
+      }
     >
-      <div className="border-b border-white/20 p-6">
+      <div
+        className={`border-b p-6 ${dark ? '' : 'border-white/20'}`}
+        style={dark ? { borderColor: onlineTheme.cardBorder } : undefined}
+      >
         <button
           type="button"
           onClick={() => router.push('/admin')}
@@ -141,10 +161,12 @@ export default function Sidebar() {
                   src="/logo/Middel 4.svg"
                   alt="Mihaela Fitness Logo"
                   fill
-                  className="object-contain"
+                  className={`object-contain ${dark ? 'brightness-0 invert' : ''}`}
                 />
               </div>
-              <p className="text-xs text-white/80">Fitness Management</p>
+              <p className="text-xs" style={{ color: dark ? onlineTheme.textMuted : 'rgba(255,255,255,0.8)' }}>
+                {dark ? 'Admin' : 'Fitness Management'}
+              </p>
             </>
           )}
         </button>
@@ -159,8 +181,12 @@ export default function Sidebar() {
                 'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200',
                 isCollapsed ? 'justify-center px-0' : '',
                 active
-                  ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/40'
-                  : 'text-yellow-200 hover:text-white hover:bg-yellow-500/30 hover:shadow-lg hover:shadow-yellow-500/30'
+                  ? dark
+                    ? 'text-white'
+                    : 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/40'
+                  : dark
+                    ? 'text-amber-300/90 hover:bg-white/5 hover:text-white'
+                    : 'text-yellow-200 hover:text-white hover:bg-yellow-500/30 hover:shadow-lg hover:shadow-yellow-500/30',
               ].join(' ')
             : navButtonClasses(active);
           return (
@@ -168,6 +194,16 @@ export default function Sidebar() {
               key={item.path}
               onClick={() => router.push(item.path)}
               className={highlightedClasses}
+              style={
+                isHighlighted && active && dark
+                  ? {
+                      background: 'rgba(245, 158, 11, 0.25)',
+                      border: '1px solid rgba(245, 158, 11, 0.35)',
+                    }
+                  : !isHighlighted
+                    ? navButtonStyle(active)
+                    : undefined
+              }
             >
               <item.icon className={`h-5 w-5 flex-shrink-0 ${isHighlighted ? (active ? 'text-white' : 'text-yellow-200') : active ? 'text-white' : 'text-white/70'}`} />
               {!isCollapsed && <span className={isHighlighted ? (active ? 'text-white' : 'text-yellow-200') : active ? 'text-white' : 'text-white/80'}>{item.label}</span>}
@@ -176,11 +212,20 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="space-y-2 border-t border-white/20 p-4">
-        <button onClick={toggleLanguage} className={actionButtonClasses}>
-          <Globe className="h-5 w-5 flex-shrink-0 text-white/80" />
-          {!isCollapsed && <span className="text-white/80">{language === 'en' ? 'Română' : 'English'}</span>}
-        </button>
+      <div
+        className={`space-y-2 border-t p-4 ${dark ? '' : 'border-white/20'}`}
+        style={dark ? { borderColor: onlineTheme.cardBorder } : undefined}
+      >
+        {dark && !isCollapsed ? (
+          <div className="mb-2 flex justify-center">
+            <LanguageSwitch />
+          </div>
+        ) : dark && isCollapsed ? null : (
+          <button onClick={toggleLanguage} className={actionButtonClasses}>
+            <Globe className="h-5 w-5 flex-shrink-0 text-white/80" />
+            {!isCollapsed && <span className="text-white/80">{language === 'en' ? 'Română' : 'English'}</span>}
+          </button>
+        )}
         <button onClick={handleLogout} className={actionButtonClasses}>
           <LogOut className="h-5 w-5 flex-shrink-0 text-white/80" />
           {!isCollapsed && <span className="text-white/80">{t.dashboard.logout}</span>}

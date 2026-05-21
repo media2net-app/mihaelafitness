@@ -1,204 +1,368 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Calendar, Clock, Check } from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { Suspense, useState, useEffect } from 'react';
+import { Dumbbell, Flame } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useLanguage } from '@/contexts/LanguageContext';
+import YouTubeVideoEmbed from '@/components/YouTubeVideoEmbed';
+import { isOnlineClient } from '@/lib/clientTypes';
+import OnlineScheduleView from '@/components/online/OnlineScheduleView';
 
-interface Workout {
+interface WorkoutExercise {
   id: string;
-  title: string;
-  type: string;
-  date: string;
-  time: string;
-  endTime: string;
-  duration: number;
-  description: string;
-  completed: boolean;
-  status: string;
-  customerName?: string;
-  workout?: {
+  exerciseId: string;
+  day: number;
+  order: number;
+  section?: string | null;
+  sets: number;
+  reps: string;
+  restTime?: string | null;
+  notes?: string | null;
+  exercise?: {
     id: string;
     name: string;
-    category: string;
-    difficulty: string;
-    duration: number;
-    trainingType: string;
+    muscleGroup?: string;
+    equipment?: string;
+    difficulty?: string;
+    videoUrl?: string | null;
   };
 }
 
-export default function SchedulePage() {
+function SchedulePageContent() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useLanguage();
-  const { user, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const searchParams = useSearchParams();
+  const [workout, setWorkout] = useState<{ id: string; name: string; description?: string; difficulty?: string } | null>(null);
+  const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeDay, setActiveDay] = useState<number>(1);
 
-  // Redirect if not authenticated
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
-  }, [isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router]);
 
-  // Fetch workouts from API
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) return;
+    if (authLoading || !isAuthenticated || !user?.id) return;
 
-    const fetchWorkouts = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const customerId = user.id;
-        
-        // Get broader date range to show more sessions (last 30 days and next 60 days)
-        const today = new Date();
-        const startDate = new Date(today);
-        startDate.setDate(today.getDate() - 30); // 30 days ago
-        startDate.setHours(0, 0, 0, 0);
-        
-        const endDate = new Date(today);
-        endDate.setDate(today.getDate() + 60); // 60 days ahead
-        endDate.setHours(23, 59, 59, 999);
-        
-        const response = await fetch(
-          `/api/schedule?customerId=${customerId}&startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          setWorkouts(data);
-        } else {
-          console.error('Failed to fetch workouts');
+        const resAssign = await fetch(`/api/customer-schedule-assignments?customerId=${user.id}`);
+        if (!resAssign.ok) throw new Error('Geen schema gevonden');
+        const assignments = await resAssign.json();
+        const workoutId = assignments[0]?.workout?.id;
+        if (!workoutId) {
+          setLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error('Error fetching workouts:', error);
+
+        const resWorkout = await fetch(`/api/workouts/${workoutId}`);
+        if (resWorkout.ok) setWorkout(await resWorkout.json());
+
+        const resEx = await fetch(`/api/workout-exercises?workoutId=${workoutId}`);
+        if (resEx.ok) {
+          const data = await resEx.json();
+          setExercises(data);
+          const days = [...new Set(data.map((e: WorkoutExercise) => e.day))].sort((a, b) => a - b);
+          const dayParam = parseInt(searchParams.get('day') || '', 10);
+          if (days.length > 0) {
+            setActiveDay(days.includes(dayParam) ? dayParam : days[0]);
+          }
+        }
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchWorkouts();
-  }, [isAuthenticated, user?.id]);
+    loadData();
+  }, [authLoading, isAuthenticated, user?.id, searchParams]);
 
-  // Sort workouts by date and time
-  const sortedWorkouts = [...workouts].sort((a, b) => {
-    const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
-    if (dateCompare !== 0) return dateCompare;
-    return a.time.localeCompare(b.time);
-  });
+  const getDifficultyColor = (d?: string) => {
+    switch (d?.toLowerCase()) {
+      case 'beginner': return 'bg-green-100 text-green-800 border-green-200';
+      case 'intermediate': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'advanced': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
 
-  if (loading) {
+  const daysWithExercises = [...new Set(exercises.map((e) => e.day))].sort((a, b) => a - b);
+  const sortExercisesForDay = (list: WorkoutExercise[]) =>
+    [...list].sort((a, b) => {
+      const aw = a.section === 'warmup' ? 0 : 1;
+      const bw = b.section === 'warmup' ? 0 : 1;
+      if (aw !== bw) return aw - bw;
+      return a.order - b.order;
+    });
+  const dayExercisesSorted = sortExercisesForDay(
+    exercises.filter((e) => e.day === activeDay)
+  );
+  const warmupDayExercises = dayExercisesSorted.filter((e) => e.section === 'warmup');
+  const mainDayExercises = dayExercisesSorted.filter((e) => e.section !== 'warmup');
+  const dayExercises = dayExercisesSorted;
+  const priorityExerciseIds = new Set(dayExercises.slice(0, 2).map((ex) => ex.id));
+
+  if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
-        <Header />
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading schedule...</p>
-            </div>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">{t.dashboard.schedulePage.loading}</p>
           </div>
-        </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (!workout || daysWithExercises.length === 0) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-12 text-center">
+          <Dumbbell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-600 mb-2">{t.dashboard.schedulePage.noPlan}</h3>
+          <p className="text-gray-500">{t.dashboard.schedulePage.noPlanDesc}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
-      <Header />
-
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Mijn Trainingen</h1>
-          <p className="text-gray-600">Hieronder zie je alle trainingen die door je coach zijn ingepland.</p>
-        </div>
-
-        {/* Schedule Table */}
-        {sortedWorkouts.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-12 text-center">
-            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">Geen trainingen ingepland</h3>
-            <p className="text-gray-500">Je coach heeft nog geen trainingen voor je ingepland.</p>
+    <div className="mx-auto max-w-6xl px-4 py-8 pt-16 sm:px-6 lg:px-8 md:pt-8">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{workout.name}</h1>
+            {workout.description && (
+              <p className="text-gray-600 mt-2">{workout.description}</p>
+            )}
+            {workout.difficulty && (
+              <span className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium border ${getDifficultyColor(workout.difficulty)}`}>
+                {workout.difficulty}
+              </span>
+            )}
           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-rose-500 to-pink-500 text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Datum</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Tijd</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Type</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Duur</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">Opmerkingen</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {sortedWorkouts.map((workout) => (
-                    <tr 
-                      key={workout.id}
-                      className={`hover:bg-gray-50 transition-colors ${
-                        workout.completed ? 'bg-green-50/50' : ''
-                      }`}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {new Date(workout.date).toLocaleDateString('nl-NL', { 
-                            weekday: 'long',
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric'
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-700">
-                          <Clock className="w-4 h-4 mr-2 text-gray-400" />
-                          {workout.time} - {workout.endTime}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 font-medium">{workout.title}</div>
-                        <div className="text-sm text-gray-500">{workout.type}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {workout.duration} min
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                          workout.status === 'completed' 
-                            ? 'bg-green-100 text-green-800'
-                            : workout.status === 'scheduled' || workout.status === 'confirmed'
-                            ? 'bg-blue-100 text-blue-800'
-                            : workout.status === 'cancelled'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {workout.status === 'completed' && <Check className="w-3 h-3 mr-1" />}
-                          {workout.status === 'completed' ? 'Afgerond' : 
-                           workout.status === 'scheduled' || workout.status === 'confirmed' ? 'Gepland' :
-                           workout.status === 'cancelled' ? 'Geannuleerd' : workout.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-600 max-w-xs">
-                          {workout.description || '-'}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+          {/* Day Tabs */}
+          <div className="border-b border-gray-200 overflow-x-auto">
+            <div className="flex min-w-0">
+              {daysWithExercises.map((day) => (
+                <button
+                  key={day}
+                  onClick={() => setActiveDay(day)}
+                  className={`px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex-shrink-0 ${
+                    activeDay === day
+                      ? 'border-rose-500 text-rose-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {t.dashboard.schedulePage.day} {day}
+                </button>
+              ))}
             </div>
           </div>
-        )}
-      </main>
+
+          {/* Exercises */}
+          <div className="p-6">
+            {dayExercises.length > 0 ? (
+              <div className="space-y-6">
+                {warmupDayExercises.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-amber-200/90 via-orange-100 to-amber-100 border-2 border-amber-300/80 px-4 py-3 shadow-sm">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-600 text-white shadow-md ring-2 ring-white/40">
+                        <Flame className="w-5 h-5" aria-hidden />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-wider text-orange-950/80">
+                          {t.dashboard.schedulePage.warmupHeading ?? 'Warming up'}
+                        </p>
+                        <p className="text-sm text-orange-950/70">
+                          {t.dashboard.schedulePage.warmupSubtitle ?? 'Voorbereiden op je training'}
+                        </p>
+                      </div>
+                    </div>
+                    {warmupDayExercises.map((ex, idx) => (
+                  <div
+                    key={ex.id}
+                    className="border-2 border-amber-400 rounded-xl p-4 bg-gradient-to-br from-amber-100 via-orange-50 to-amber-50 ring-2 ring-amber-200/80 shadow-sm hover:shadow-md transition-all grid grid-cols-1 md:grid-cols-3 gap-4"
+                  >
+                    <div className="md:col-span-2 flex flex-col gap-2">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0 shadow-md ring-2 ring-white/30">
+                          {idx + 1}
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              {ex.exercise?.name || t.dashboard.schedulePage.exercise}
+                            </h3>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide bg-orange-600 text-white shadow-sm border border-orange-800/15">
+                              <Flame className="w-3.5 h-3.5" aria-hidden />
+                              {t.dashboard.schedulePage.warmupBadge ?? 'Warming up'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-1 text-sm text-gray-600">
+                            {ex.exercise?.muscleGroup && (
+                              <span className="px-2 py-0.5 bg-gray-100 rounded">{ex.exercise.muscleGroup}</span>
+                            )}
+                            {ex.exercise?.equipment && (
+                              <span className="px-2 py-0.5 bg-gray-100 rounded">{ex.exercise.equipment}</span>
+                            )}
+                            {ex.exercise?.difficulty && (
+                              <span className={`px-2 py-0.5 rounded ${getDifficultyColor(ex.exercise.difficulty)}`}>
+                                {ex.exercise.difficulty}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-2">
+                            {ex.sets} {t.dashboard.schedulePage.sets} × {ex.reps} {t.dashboard.schedulePage.reps}
+                            {ex.restTime && ` • ${ex.restTime} ${t.dashboard.schedulePage.rest}`}
+                          </div>
+                          {ex.notes && (
+                            <p className="text-sm text-gray-500 italic mt-1">{ex.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col">
+                      {ex.exercise?.videoUrl ? (
+                        <YouTubeVideoEmbed
+                          videoUrl={ex.exercise.videoUrl}
+                          title={ex.exercise.name || t.dashboard.schedulePage.exercise}
+                          className="w-full"
+                          lazyLoad
+                          priority={priorityExerciseIds.has(ex.id)}
+                        />
+                      ) : (
+                        <div className="aspect-video flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-sm">
+                          {t.dashboard.schedulePage.noVideo}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                  </div>
+                )}
+                {mainDayExercises.length > 0 && (
+                  <div className="space-y-4">
+                    {warmupDayExercises.length > 0 && (
+                      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+                        <Dumbbell className="w-5 h-5 text-rose-600 flex-shrink-0" aria-hidden />
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+                          {t.dashboard.schedulePage.workoutHeading ?? 'Workout'}
+                        </h3>
+                      </div>
+                    )}
+                    {mainDayExercises.map((ex, idx) => (
+                  <div
+                    key={ex.id}
+                    className="border-2 border-gray-200 rounded-lg p-4 bg-white hover:shadow-md transition-all grid grid-cols-1 md:grid-cols-3 gap-4"
+                  >
+                    <div className="md:col-span-2 flex flex-col gap-2">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                          {idx + 1}
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {ex.exercise?.name || t.dashboard.schedulePage.exercise}
+                          </h3>
+                          <div className="flex flex-wrap gap-2 mt-1 text-sm text-gray-600">
+                            {ex.exercise?.muscleGroup && (
+                              <span className="px-2 py-0.5 bg-gray-100 rounded">{ex.exercise.muscleGroup}</span>
+                            )}
+                            {ex.exercise?.equipment && (
+                              <span className="px-2 py-0.5 bg-gray-100 rounded">{ex.exercise.equipment}</span>
+                            )}
+                            {ex.exercise?.difficulty && (
+                              <span className={`px-2 py-0.5 rounded ${getDifficultyColor(ex.exercise.difficulty)}`}>
+                                {ex.exercise.difficulty}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-2">
+                            {ex.sets} {t.dashboard.schedulePage.sets} × {ex.reps} {t.dashboard.schedulePage.reps}
+                            {ex.restTime && ` • ${ex.restTime} ${t.dashboard.schedulePage.rest}`}
+                          </div>
+                          {ex.notes && (
+                            <p className="text-sm text-gray-500 italic mt-1">{ex.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col">
+                      {ex.exercise?.videoUrl ? (
+                        <YouTubeVideoEmbed
+                          videoUrl={ex.exercise.videoUrl}
+                          title={ex.exercise.name || t.dashboard.schedulePage.exercise}
+                          className="w-full"
+                          lazyLoad
+                          priority={priorityExerciseIds.has(ex.id)}
+                        />
+                      ) : (
+                        <div className="aspect-video flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-sm">
+                          {t.dashboard.schedulePage.noVideo}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Dumbbell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">{t.dashboard.schedulePage.noExercises}</p>
+              </div>
+            )}
+          </div>
+        </div>
     </div>
   );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-rose-500" />
+        </div>
+      }
+    >
+      <ScheduleGate />
+    </Suspense>
+  );
+}
+
+function ScheduleGate() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) router.push('/login');
+  }, [authLoading, isAuthenticated, router]);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-rose-500" />
+      </div>
+    );
+  }
+
+  if (isOnlineClient(user ?? undefined)) {
+    return <OnlineScheduleView />;
+  }
+
+  return <SchedulePageContent />;
 }

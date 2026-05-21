@@ -98,7 +98,7 @@ export default function MobilePaymentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading payments overview...</p>
@@ -109,7 +109,7 @@ export default function MobilePaymentsPage() {
 
   if (!overview) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Data</h2>
@@ -122,7 +122,7 @@ export default function MobilePaymentsPage() {
   const { summary, customerOverview, distributions, recentPayments, recentPricing } = overview;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full">
       {/* Mobile Header */}
       <div className="bg-rose-500 text-white p-4">
         <div className="flex items-center justify-between">

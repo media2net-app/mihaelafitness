@@ -137,6 +137,12 @@ export default function ScheduleClient({
     return hours * 60 + minutes;
   };
 
+  const canAutoGroupFromCreateType = (createType: 'client' | 'intake' | 'own-training') =>
+    createType === 'client' || createType === 'intake';
+
+  const canAutoGroupExistingSessionType = (existingType: string) =>
+    existingType === '1:1' || existingType === 'group' || existingType === 'Intake Consultation';
+
   // Check if time slot is during break time
   const isBreakTime = (timeSlot: string, date: string) => {
     const timeInMinutes = timeToMinutes(timeSlot);
@@ -177,7 +183,8 @@ export default function ScheduleClient({
     const startTimeInMinutes = startHours * 60 + startMinutes;
     const endTimeInMinutes = startTimeInMinutes + (duration * 60);
     
-    // Check for conflicts with existing scheduled sessions only
+    // Check for conflicts with existing scheduled sessions only.
+    // We allow exact same slot for client/intake sessions so they can auto-form a group.
     return !sessions.some(session => {
       if (session.date !== date) return false;
       // Only consider scheduled sessions for conflicts (ignore cancelled/completed)
@@ -192,8 +199,19 @@ export default function ScheduleClient({
       // and ends after the other starts
       const hasOverlap = startTimeInMinutes < sessionEndTimeInMinutes && 
                         endTimeInMinutes > sessionStartTimeInMinutes;
-      
-      return hasOverlap;
+
+      if (!hasOverlap) return false;
+
+      const isExactSameSlot =
+        startTimeInMinutes === sessionStartTimeInMinutes &&
+        endTimeInMinutes === sessionEndTimeInMinutes;
+
+      const canShareExactSlot =
+        isExactSameSlot &&
+        canAutoGroupFromCreateType(sessionType) &&
+        canAutoGroupExistingSessionType(session.type);
+
+      return !canShareExactSlot;
     });
   };
 
@@ -797,7 +815,7 @@ export default function ScheduleClient({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+    <div className="min-h-full">
       <main className="container mx-auto px-4 py-8">
         <div
           className="bg-white rounded-2xl shadow-xl p-6 md:p-8"

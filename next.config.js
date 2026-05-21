@@ -1,3 +1,5 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
@@ -9,11 +11,20 @@ const nextConfig = {
   trailingSlash: false,
   skipTrailingSlashRedirect: true,
   serverExternalPackages: ['@prisma/client'],
+  // Fix workspace root / client manifest issues when multiple lockfiles exist
+  outputFileTracingRoot: path.join(__dirname),
   // For Vercel deployment - don't use static export
-  output: undefined, // Let Vercel handle the build
-  // Exclude problematic pages from static generation
+  output: undefined,
   generateBuildId: async () => {
     return 'build-' + Date.now();
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.public.blob.vercel-storage.com',
+      },
+    ],
   },
 };
 

@@ -6,8 +6,15 @@ import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { isOnlineClient } from '@/lib/clientTypes';
+import { onlineTheme } from '@/lib/onlineTheme';
+import LanguageSwitch from '@/components/LanguageSwitch';
 
-export default function Header() {
+type HeaderProps = {
+  darkAdmin?: boolean;
+};
+
+export default function Header({ darkAdmin = false }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { language, setLanguage, t } = useLanguage();
@@ -44,7 +51,7 @@ export default function Header() {
     { path: '/admin/schedule', icon: Calendar, label: t.admin.dashboard.schedule },
     { path: '/admin/to-do', icon: CheckSquare, label: 'To-Do List' },
     { path: '/admin/trainingschemas', icon: Target, label: t.admin.dashboard.trainingSchedules },
-    { path: '/admin/exercise-library', icon: Dumbbell, label: t.admin.dashboard.exerciseLibrary },
+    { path: '/admin/v2/exercise-library', icon: Dumbbell, label: t.admin.dashboard.exerciseLibrary },
     { path: '/admin/voedingsplannen', icon: BookOpen, label: t.admin.dashboard.nutritionPlans },
     { path: '/admin/ingredienten', icon: BookOpen, label: t.admin.dashboard.ingredients },
     { path: '/admin/recepten', icon: ChefHat, label: 'Rețete' },
@@ -55,7 +62,8 @@ export default function Header() {
     { path: '/admin/pdf-template-builder', icon: FileEdit, label: 'PDF Template Builder' },
     { path: '/admin/tarieven', icon: Settings, label: t.admin.dashboard.pricingCalculator },
     { path: '/admin/payments', icon: DollarSign, label: 'Payments' },
-    { path: '/admin/invoices', icon: FileText, label: 'Facturi' }
+    { path: '/admin/invoices', icon: FileText, label: 'Facturi' },
+    { path: '/admin/ig-winner', icon: Trophy, label: 'IG Winner' }
   ];
 
   const isAdmin = pathname.startsWith('/admin');
@@ -86,7 +94,14 @@ export default function Header() {
     return (
       <>
         {/* Mobile Header - Only for admin on mobile */}
-        <header className="border-b border-[#F5D2E0] bg-gradient-to-r from-[#E11C48] via-[#F36088] to-[#F9A8D9] shadow-sm lg:hidden">
+        <header
+          className={`border-b shadow-sm lg:hidden ${darkAdmin ? '' : 'border-[#F5D2E0] bg-gradient-to-r from-[#E11C48] via-[#F36088] to-[#F9A8D9]'}`}
+          style={
+            darkAdmin
+              ? { borderColor: onlineTheme.cardBorder, backgroundColor: onlineTheme.bg }
+              : undefined
+          }
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-10 xs:h-12 sm:h-14 md:h-16 py-1 xs:py-1.5 sm:py-2">
               {/* Logo */}
@@ -100,20 +115,37 @@ export default function Header() {
                     src="/logo/Middel 4.svg"
                     alt="Mihaela Fitness Logo"
                     fill
-                    className="object-contain"
+                    className={`object-contain object-left ${darkAdmin ? 'brightness-0 invert' : ''}`}
                     priority
                   />
                 </div>
               </button>
 
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="flex items-center gap-1.5 xs:gap-2 rounded-lg p-1.5 xs:p-2 text-white transition-colors duration-200 hover:bg-white/20"
-              >
-                <Menu className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
-                <span className="text-xs font-medium text-white xs:text-sm">{t.admin.dashboard.menu}</span>
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                {darkAdmin && <LanguageSwitch />}
+                <button
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className={`flex items-center justify-center text-white transition-colors ${
+                    darkAdmin
+                      ? 'h-9 w-9 rounded-full border'
+                      : 'gap-1.5 rounded-lg p-1.5 xs:gap-2 xs:p-2 hover:bg-white/20'
+                  }`}
+                  style={
+                    darkAdmin
+                      ? {
+                          borderColor: onlineTheme.cardBorder,
+                          background: onlineTheme.pillInactive,
+                        }
+                      : undefined
+                  }
+                  aria-label={t.admin.dashboard.menu}
+                >
+                  <Menu className="h-5 w-5" />
+                  {!darkAdmin && (
+                    <span className="text-xs font-medium text-white xs:text-sm">{t.admin.dashboard.menu}</span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -129,11 +161,24 @@ export default function Header() {
 
             {/* Sidebar */}
             <aside
-              className="fixed inset-y-0 left-0 z-50 w-80 bg-gradient-to-b from-[#E11C48] via-[#F36088] to-[#F9A8D9] text-white shadow-xl lg:hidden"
+              className={`fixed inset-y-0 left-0 z-50 w-80 text-white shadow-xl lg:hidden ${
+                darkAdmin ? '' : 'bg-gradient-to-b from-[#E11C48] via-[#F36088] to-[#F9A8D9]'
+              }`}
+              style={
+                darkAdmin
+                  ? {
+                      background: `linear-gradient(180deg, ${onlineTheme.bg} 0%, ${onlineTheme.bgElevated} 100%)`,
+                      borderRight: `1px solid ${onlineTheme.cardBorder}`,
+                    }
+                  : undefined
+              }
             >
               <div className="flex flex-col h-full">
                 {/* Sidebar Header */}
-                <div className="p-6 border-b border-white/20">
+                <div
+                  className={`p-6 border-b ${darkAdmin ? '' : 'border-white/20'}`}
+                  style={darkAdmin ? { borderColor: onlineTheme.cardBorder } : undefined}
+                >
                   <div className="flex items-center justify-between">
                     {/* Logo */}
                     <button
@@ -149,12 +194,12 @@ export default function Header() {
                           src="/logo/Middel 4.svg"
                           alt="Mihaela Fitness Logo"
                           fill
-                          className="object-contain"
+                          className={`object-contain ${darkAdmin ? 'brightness-0 invert' : ''}`}
                           priority
                         />
                       </div>
                     </button>
-                    
+
                     {/* Close Button */}
                     <button
                       onClick={() => setIsMenuOpen(false)}
@@ -236,14 +281,17 @@ export default function Header() {
     );
   }
 
-  // Non-admin routes - show regular header
+  const isTrainingOnly = isOnlineClient(user ?? undefined);
+
+  if (isTrainingOnly) {
+    return null;
+  }
+
   return (
     <>
-      {/* Mobile Header */}
-      <header className="border-b border-[#F5D2E0] bg-gradient-to-r from-[#E11C48] via-[#F36088] to-[#F9A8D9] shadow-sm lg:hidden">
+      <header className="border-b border-[#F5D2E0] bg-gradient-to-r from-[#E11C48] via-[#F36088] to-[#F9A8D9] shadow-sm">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-10 xs:h-12 sm:h-14 md:h-16 py-1 xs:py-1.5 sm:py-2">
-            {/* Logo */}
             <button
               type="button"
               onClick={() => router.push('/dashboard')}

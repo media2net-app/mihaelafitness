@@ -101,7 +101,8 @@ export async function GET(request: NextRequest) {
       
       // Get the workout based on session number (not weekday)
       // Session 1 = Day 1, Session 2 = Day 2, Session 3 = Day 3
-      const assignedWorkout = scheduleAssignments.find(a => a.trainingDay === sessionNumber)?.workout;
+      const assignment = scheduleAssignments.find(a => a.trainingDay === sessionNumber);
+      const assignedWorkout = assignment?.workout;
       
       return {
         id: session.id,
@@ -115,7 +116,8 @@ export async function GET(request: NextRequest) {
         completed: session.status === 'completed',
         status: session.status,
         customerName: session.customer?.name || null,
-        workout: assignedWorkout
+        workout: assignedWorkout,
+        trainingDay: sessionNumber
       };
     });
 

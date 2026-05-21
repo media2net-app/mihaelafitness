@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, type MouseEvent } from 'react';
 import { 
   Calendar, 
   Clock, 
@@ -23,6 +23,37 @@ import {
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getWeekDates } from '@/lib/utils';
+import { onlineTheme } from '@/lib/onlineTheme';
+import {
+  ADMIN_PRIMARY_GRADIENT,
+  adminCardStyle as cardStyle,
+  adminInnerCardStyle as innerCardStyle,
+  adminInputClassName as inputClassName,
+  adminGhostBtnClassName as ghostBtnClassName,
+  adminPrimaryBtnClassName as primaryBtnClassName,
+} from '@/lib/adminStyles';
+
+const PRIMARY_GRADIENT = ADMIN_PRIMARY_GRADIENT;
+
+const statusButtonClass = (status: string, active: boolean) => {
+  const base =
+    'rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors border';
+  if (!active) {
+    return `${base} border-white/10 bg-white/[0.04] text-white/70 hover:border-white/20 hover:bg-white/[0.08]`;
+  }
+  switch (status) {
+    case 'completed':
+      return `${base} border-emerald-400/40 bg-emerald-500 text-white shadow-md shadow-emerald-500/30`;
+    case 'cancelled':
+      return `${base} border-red-400/40 bg-red-500 text-white`;
+    case 'scheduled':
+      return `${base} border-rose-400/40 bg-gradient-to-r ${PRIMARY_GRADIENT} text-white`;
+    case 'no-show':
+      return `${base} border-orange-400/40 bg-orange-500 text-white`;
+    default:
+      return `${base} border-white/20 bg-white/10 text-white`;
+  }
+};
 
 interface TrainingSession {
   id: string;
@@ -259,7 +290,14 @@ export default function MobileScheduleClient({
       console.log(`📊 Scheduled sessions for ${normalizedDate}:`, sessionsForDate.length, sessionsForDate.map(s => `${s.startTime}-${s.endTime}`));
     }
     
-    // Check for conflicts with existing sessions for this specific date
+    const canAutoGroupFromCreateType = (createType: string) =>
+      createType === 'client' || createType === 'group' || createType === 'intake';
+
+    const canAutoGroupExistingSessionType = (existingType: string) =>
+      existingType === '1:1' || existingType === 'group' || existingType === 'Intake Consultation';
+
+    // Check for conflicts with existing sessions for this specific date.
+    // We allow exact same slot for client/group/intake so bookings can auto-form groups.
     const hasConflict = sessionsForDate.some(session => {
       const [sessionStartHours, sessionStartMinutes] = session.startTime.split(':').map(Number);
       const [sessionEndHours, sessionEndMinutes] = session.endTime.split(':').map(Number);
@@ -274,8 +312,19 @@ export default function MobileScheduleClient({
       if (normalizedDate === '2025-11-08' && hasOverlap) {
         console.log(`⚠️ CONFLICT: ${timeSlot} overlaps with ${session.startTime}-${session.endTime}`);
       }
-      
-      return hasOverlap;
+
+      if (!hasOverlap) return false;
+
+      const isExactSameSlot =
+        startTimeInMinutes === sessionStartTimeInMinutes &&
+        endTimeInMinutes === sessionEndTimeInMinutes;
+
+      const canShareExactSlot =
+        isExactSameSlot &&
+        canAutoGroupFromCreateType(checkSessionType) &&
+        canAutoGroupExistingSessionType(session.type);
+
+      return !canShareExactSlot;
     });
     
     return !hasConflict;
@@ -1318,24 +1367,30 @@ export default function MobileScheduleClient({
   }, [sessions, timeToMinutes]);
 
   const getSessionTypeColor = (type: string, status: string) => {
-    // Override colors based on status first
     if (status === 'completed') {
-      return 'bg-green-100 text-green-800 border-green-200';
-    } else if (status === 'cancelled') {
-      return 'bg-red-100 text-red-800 border-red-200';
-    } else if (status === 'no-show') {
-      return 'bg-orange-100 text-orange-800 border-orange-200';
+      return 'border border-emerald-400/30 bg-emerald-500/25 text-emerald-100';
     }
-    
-    // Default colors based on type
+    if (status === 'cancelled') {
+      return 'border border-red-400/30 bg-red-500/20 text-red-100';
+    }
+    if (status === 'no-show') {
+      return 'border border-orange-400/30 bg-orange-500/20 text-orange-100';
+    }
+
     switch (type) {
-      case '1:1': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'group': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'own-training': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'workout-plan': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'Intake Consultation': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'block-time': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case '1:1':
+      case 'group':
+        return 'border border-blue-400/30 bg-blue-500/25 text-blue-100';
+      case 'own-training':
+        return 'border border-purple-400/30 bg-purple-500/25 text-purple-100';
+      case 'workout-plan':
+        return 'border border-orange-400/30 bg-orange-500/25 text-orange-100';
+      case 'Intake Consultation':
+        return 'border border-amber-400/30 bg-amber-500/25 text-amber-100';
+      case 'block-time':
+        return 'border border-red-400/40 bg-red-500/30 text-red-100';
+      default:
+        return 'border border-white/15 bg-white/10 text-white/80';
     }
   };
 
@@ -1362,10 +1417,14 @@ export default function MobileScheduleClient({
 
   const getSessionStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'scheduled':
+        return 'bg-rose-500/30 text-rose-100';
+      case 'completed':
+        return 'bg-emerald-500/30 text-emerald-100';
+      case 'cancelled':
+        return 'bg-red-500/30 text-red-100';
+      default:
+        return 'bg-white/15 text-white/60';
     }
   };
 
@@ -1607,16 +1666,41 @@ export default function MobileScheduleClient({
     return sessionCounts[customerId] || { scheduled: 0, total: 0, remaining: 0 };
   };
 
-  // Handle clicking on time slots
+  // Handle clicking on time slots (empty area only — session cards stop propagation)
   const handleTimeSlotClick = (date: Date, time: string) => {
     setClickedTimeSlot({ date, time });
-    setModalSelectedDate(date); // Set the selected date for the modal
-    setNewSessionData(prev => ({
+    setModalSelectedDate(date);
+    setNewSessionData((prev) => ({
       ...prev,
       startTime: time,
-      endTime: calculateEndTime(time)
+      endTime: calculateEndTime(time),
     }));
+    setShowSessionDetailsModal(false);
+    setSelectedSession(null);
     setShowNewSessionModal(true);
+  };
+
+  const openSessionDetails = (session: TrainingSession, event: MouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
+    setShowNewSessionModal(false);
+    setSelectedSession(session);
+    setShowSessionDetailsModal(true);
+  };
+
+  const closeNewSessionModal = useCallback(() => {
+    setShowNewSessionModal(false);
+    setClickedTimeSlot(null);
+    setModalSelectedDate(null);
+  }, []);
+
+  const handleSessionStatusChange = async (newStatus: string) => {
+    if (!selectedSession) return;
+    await handleUpdateSessionStatus(selectedSession.id, newStatus);
+    if (newStatus === 'completed') {
+      setShowSessionDetailsModal(false);
+      setSelectedSession(null);
+    }
   };
 
 
@@ -1624,55 +1708,64 @@ export default function MobileScheduleClient({
   const daySessions = getSessionsForDayAndTime(currentDay, '08:30'); // Get all sessions for the day
 
   return (
-    <div className="container mx-auto px-4 py-8">
-        <div
-          className="bg-white rounded-2xl shadow-xl p-4 md:p-8"
-        >
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+    <div className="min-h-screen pb-8" style={{ backgroundColor: onlineTheme.bg }}>
+      <div className="mx-auto max-w-lg px-3 py-4 sm:max-w-xl sm:px-4 lg:max-w-none lg:px-6 lg:py-6">
+        <div className="rounded-3xl p-4 shadow-xl md:p-6 lg:p-8" style={cardStyle}>
+          <div className="mb-6 hidden flex-col lg:flex lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
-                <Calendar className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3 text-rose-500" />
-                Coaching Schedule
+              <h1
+                className="flex items-center text-2xl font-bold md:text-3xl"
+                style={{ color: onlineTheme.accentLight }}
+              >
+                <Calendar className="mr-2 h-6 w-6 md:mr-3 md:h-8 md:w-8" style={{ color: onlineTheme.accentMid }} />
+                {t.admin.dashboard.coachingSchedule}
               </h1>
-              <p className="text-gray-600 mt-2 text-sm md:text-base">
-                Manage your training sessions and client schedules
-              </p>
+              <p className="mt-2 text-sm text-white/55 md:text-base">{t.admin.dashboard.coachingScheduleDesc}</p>
             </div>
-            
-            <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
-              <button
-                onClick={() => setShowDebugModal(true)}
-                className="flex items-center justify-center px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition-colors duration-200"
-              >
-                <Clock className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                <span className="text-sm md:text-base">Debug Logs</span>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row lg:mt-0">
+              <button type="button" onClick={() => setShowDebugModal(true)} className={ghostBtnClassName}>
+                <Clock className="mr-2 h-4 w-4" />
+                <span className="text-sm">Debug</span>
+              </button>
+              <button type="button" onClick={handleAutoCompleteSessions} className={ghostBtnClassName}>
+                <Check className="mr-2 h-4 w-4" />
+                <span className="text-sm">Auto Complete</span>
               </button>
               <button
-                onClick={handleAutoCompleteSessions}
-                className="flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition-colors duration-200"
-              >
-                <Clock className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                <span className="text-sm md:text-base">Auto Complete</span>
-              </button>
-              <button
+                type="button"
                 onClick={() => {
-                  setModalSelectedDate(currentDay); // Set the selected date to current day
+                  setModalSelectedDate(currentDay);
                   setShowNewSessionModal(true);
                 }}
-                className="flex items-center justify-center px-4 py-2 bg-rose-500 text-white rounded-lg shadow hover:bg-rose-600 transition-colors duration-200"
+                className={primaryBtnClassName}
               >
-                <Plus className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                <span className="text-sm md:text-base">New Session</span>
+                <Plus className="mr-2 h-4 w-4" />
+                <span className="text-sm">New Session</span>
               </button>
             </div>
+          </div>
+          <div className="mb-4 flex flex-wrap gap-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setModalSelectedDate(currentDay);
+                setShowNewSessionModal(true);
+              }}
+              className={`${primaryBtnClassName} flex-1`}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Session
+            </button>
+            <button type="button" onClick={handleAutoCompleteSessions} className={ghostBtnClassName}>
+              <Check className="h-4 w-4" />
+            </button>
           </div>
 
           {/* Week Navigation */}
           <div className="flex items-center justify-between mb-6">
             <button
               onClick={() => navigateWeek('prev')}
-              className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-sm"
+              className={ghostBtnClassName}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
               <span className="hidden sm:inline">Previous Week</span>
@@ -1680,7 +1773,7 @@ export default function MobileScheduleClient({
             </button>
             
             <div className="text-center">
-              <h2 className="text-lg md:text-xl font-semibold text-gray-800">
+              <h2 className="text-lg font-semibold text-white md:text-xl">
                 {currentWeekDates[0].toLocaleDateString('en-US', { 
                   month: 'long', 
                   day: 'numeric' 
@@ -1694,7 +1787,7 @@ export default function MobileScheduleClient({
             
             <button
               onClick={() => navigateWeek('next')}
-              className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-sm"
+              className={ghostBtnClassName}
             >
               <span className="hidden sm:inline">Next Week</span>
               <span className="sm:hidden">Next</span>
@@ -1704,14 +1797,14 @@ export default function MobileScheduleClient({
 
           {/* Mobile Day Navigation */}
           <div className="mb-6 lg:hidden">
-            <div className="bg-white rounded-2xl shadow-lg border border-white/20 p-4">
+            <div className="rounded-2xl border p-4 shadow-lg" style={innerCardStyle}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Select Day</h3>
+                <h3 className="text-lg font-semibold text-white">Select Day</h3>
                 <div className="flex gap-2">
                   <button
                     onClick={() => navigateDay('prev')}
                     disabled={currentDayIndex === 0}
-                    className="p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`${ghostBtnClassName} p-2 disabled:opacity-50 disabled:cursor-not-allowed`}
                     title="Previous Day"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -1719,7 +1812,7 @@ export default function MobileScheduleClient({
                   <button
                     onClick={() => navigateDay('next')}
                     disabled={currentDayIndex === 5}
-                    className="p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`${ghostBtnClassName} p-2 disabled:opacity-50 disabled:cursor-not-allowed`}
                     title="Next Day"
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -1729,7 +1822,7 @@ export default function MobileScheduleClient({
               
               {/* Day Dropdown */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Available Days</label>
+                <label className="mb-2 block text-sm font-medium text-white/70">Available Days</label>
                 <select
                   value={currentDayIndex}
                   onChange={(e) => {
@@ -1738,7 +1831,7 @@ export default function MobileScheduleClient({
                     const selectedDate = currentWeekDates[newDayIndex].toLocaleDateString('en-CA');
                     setSelectedDay(selectedDate);
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  className={inputClassName}
                 >
                   {currentWeekDates.map((date, index) => {
                     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
@@ -1756,7 +1849,7 @@ export default function MobileScheduleClient({
               </div>
               
               <div className="mt-3 text-center">
-                <h4 className="text-lg font-semibold text-gray-800">
+                <h4 className="text-lg font-semibold text-white">
                   {formatDate(currentDay)}
                 </h4>
               </div>
@@ -1776,18 +1869,18 @@ export default function MobileScheduleClient({
                     onClick={() => isAvailable && handleTimeSlotClick(currentDay, timeSlot)}
                     className={`p-3 rounded-lg border-2 border-dashed transition-colors duration-200 ${
                       isAvailable 
-                        ? 'border-gray-200 bg-gray-50 hover:bg-gray-100 cursor-pointer hover:border-rose-300 hover:bg-rose-50' 
-                        : 'border-gray-300 bg-gray-100 cursor-not-allowed'
+                        ? 'cursor-pointer border-white/15 bg-white/[0.03] hover:border-rose-400/40 hover:bg-white/[0.06]' 
+                        : 'cursor-not-allowed border-white/5 bg-white/[0.02] opacity-60'
                     }`}
                     title={isAvailable ? `Click to schedule session at ${formatTime(timeSlot)}` : 'Time slot unavailable'}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2 text-gray-500" />
-                        <span className="font-medium text-gray-800">{formatTime(timeSlot)}</span>
+                        <Clock className="mr-2 h-4 w-4 text-white/45" />
+                        <span className="font-medium text-white">{formatTime(timeSlot)}</span>
                       </div>
                       {isBreakTime(timeSlot, currentDay.toLocaleDateString('en-CA')) && (
-                        <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">Break</span>
+                        <span className="rounded bg-white/10 px-2 py-1 text-xs text-white/45">Break</span>
                       )}
                     </div>
                     
@@ -1805,10 +1898,7 @@ export default function MobileScheduleClient({
                             isMergedWithPrevious ? 'rounded-b-lg rounded-t-none' : 
                             'rounded-lg'
                           }`}
-                          onClick={() => {
-                            setSelectedSession(session);
-                            setShowSessionDetailsModal(true);
-                          }}
+                          onClick={(event) => openSessionDetails(session, event)}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center">
@@ -1835,12 +1925,12 @@ export default function MobileScheduleClient({
                           const displayText = trainingDay || session.trainingType || 'Training';
                           
                           return (
-                            <div className="text-xs text-gray-600 mt-1 truncate font-medium">
+                            <div className="mt-1 truncate text-xs font-medium text-white/55">
                               {displayText}
                             </div>
                           );
                         })()}
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="mt-1 text-xs text-white/45">
                           {formatTime(session.startTime)} - {formatTime(session.endTime)}
                         </div>
                         </div>
@@ -1857,13 +1947,13 @@ export default function MobileScheduleClient({
             <div className="min-w-full">
               {/* Header Row */}
               <div className="grid grid-cols-7 gap-1 mb-4">
-                <div className="p-3 text-center font-semibold text-gray-600 bg-gray-50 rounded-lg">
+                <div className="rounded-lg bg-white/[0.04] p-3 text-center text-sm font-semibold text-white/55">
                   Time
                 </div>
                 {days.map((day, index) => (
-                  <div key={day} className="p-3 text-center font-semibold text-gray-600 bg-gray-50 rounded-lg">
+                  <div key={day} className="rounded-lg bg-white/[0.04] p-3 text-center text-sm font-semibold text-white/55">
                     <div className="text-sm">{dayAbbr[index]}</div>
-                    <div className="text-xs text-gray-500">{formatDate(currentWeekDates[index])}</div>
+                    <div className="text-xs text-white/45">{formatDate(currentWeekDates[index])}</div>
                   </div>
                 ))}
               </div>
@@ -1872,7 +1962,7 @@ export default function MobileScheduleClient({
               {timeSlots.map((timeSlot) => (
                 <div key={timeSlot} className="grid grid-cols-7 gap-1 mb-1">
                   {/* Time Column */}
-                  <div className="p-2 text-sm text-gray-600 bg-gray-50 rounded-lg flex items-center justify-center">
+                  <div className="flex items-center justify-center rounded-lg bg-white/[0.04] p-2 text-sm text-white/55">
                     {formatTime(timeSlot)}
                   </div>
                   
@@ -1888,8 +1978,8 @@ export default function MobileScheduleClient({
                         onClick={() => isAvailable && handleTimeSlotClick(date, timeSlot)}
                         className={`min-h-[60px] p-2 rounded-lg border-2 border-dashed transition-colors duration-200 ${
                           isAvailable 
-                            ? 'border-gray-200 bg-gray-50 hover:bg-gray-100 cursor-pointer hover:border-rose-300 hover:bg-rose-50' 
-                            : 'border-gray-300 bg-gray-100 cursor-not-allowed'
+                            ? 'cursor-pointer border-white/15 bg-white/[0.03] hover:border-rose-400/40 hover:bg-white/[0.06]' 
+                            : 'cursor-not-allowed border-white/5 bg-white/[0.02] opacity-60'
                         }`}
                         title={isAvailable ? `Click to schedule session at ${formatTime(timeSlot)}` : 'Time slot unavailable'}
                       >
@@ -1925,18 +2015,18 @@ export default function MobileScheduleClient({
                             <div key={session.id}>
                               {showPaymentReminder && (
                                 <div className={`mb-1 p-2 rounded-lg border-2 text-xs ${
-                                  'bg-yellow-50 border-yellow-300'
+                                  'border border-amber-400/30 bg-amber-500/15'
                                 }`}>
                                   <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-1">
-                                      <Clock className="w-3 h-3 text-yellow-600" />
-                                      <span className="font-semibold text-yellow-800">Payment Due</span>
+                                      <Clock className="h-3 w-3 text-amber-300" />
+                                      <span className="font-semibold text-amber-200">Payment Due</span>
                                     </div>
-                                    <span className="font-bold text-yellow-700">
+                                    <span className="font-bold text-amber-200">
                                       {paymentInfo.amount} RON
                                     </span>
                                   </div>
-                                  <div className="text-gray-700">
+                                  <div className="text-white/70">
                                     <div className="truncate font-medium">{paymentInfo.customerName}</div>
                                     {paymentInfo.nextPaymentDate && (
                                       <div className="mt-0.5 text-xs">
@@ -1944,7 +2034,7 @@ export default function MobileScheduleClient({
                                       </div>
                                     )}
                                     {!paymentInfo.nextPaymentDate && customer && (
-                                      <div className="mt-0.5 text-xs text-yellow-700">
+                                      <div className="mt-0.5 text-xs text-amber-200/80">
                                         New period starting
                                       </div>
                                     )}
@@ -1957,10 +2047,7 @@ export default function MobileScheduleClient({
                                   isMergedWithPrevious ? 'rounded-b-lg rounded-t-none' : 
                                   'rounded-lg'
                                 }`}
-                                onClick={() => {
-                                  setSelectedSession(session);
-                                  setShowSessionDetailsModal(true);
-                                }}
+                                onClick={(event) => openSessionDetails(session, event)}
                               >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center">
@@ -1987,12 +2074,12 @@ export default function MobileScheduleClient({
                               const displayText = trainingDay || session.trainingType || 'Training';
                               
                               return (
-                                <div className="text-xs text-gray-600 mt-1 truncate font-medium">
+                                <div className="mt-1 truncate text-xs font-medium text-white/55">
                                   {displayText}
                                 </div>
                               );
                             })()}
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="mt-1 text-xs text-white/45">
                               {formatTime(session.startTime)} - {formatTime(session.endTime)}
                             </div>
                               </div>
@@ -2011,111 +2098,114 @@ export default function MobileScheduleClient({
 
         {/* Session Details Modal */}
         {showSessionDetailsModal && selectedSession && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div
-              className="bg-white rounded-2xl p-6 w-full max-w-md"
+              className="w-full max-w-md rounded-2xl p-6" style={cardStyle}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-800">Session Details</h3>
+                <h3 className="text-xl font-bold text-white">Session Details</h3>
                 <button
                   onClick={() => setShowSessionDetailsModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600"
+                  className="rounded-lg p-2 text-white/45 hover:bg-white/10 hover:text-white"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {selectedSession.type === 'block-time' ? 'Block Reason' : 'Customer'}
-                  </label>
-                  <p className="text-gray-800">
-                    {selectedSession.type === 'block-time' 
-                      ? selectedSession.notes || 'No reason provided'
-                      : selectedSession.customerName
-                    }
+                <div className="rounded-2xl border p-4" style={innerCardStyle}>
+                  <p className="text-lg font-semibold leading-tight text-white">
+                    {selectedSession.type === 'block-time'
+                      ? selectedSession.notes || 'Block time'
+                      : selectedSession.customerName.replace(/ completed?/gi, '').trim()}
                   </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date & Time
-                  </label>
-                  <p className="text-gray-800">
-                    {new Date(selectedSession.date).toLocaleDateString()} at {formatTime(selectedSession.startTime)} - {formatTime(selectedSession.endTime)}
+                  <p className="mt-1 text-sm text-white/55">
+                    {new Date(selectedSession.date).toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short',
+                    })}{' '}
+                    · {formatTime(selectedSession.startTime)} – {formatTime(selectedSession.endTime)}
                   </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type
-                  </label>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSessionTypeColor(selectedSession.type, selectedSession.status)}`}>
+                  <span
+                    className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getSessionTypeColor(selectedSession.type, selectedSession.status)}`}
+                  >
                     {selectedSession.type}
                   </span>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status
-                  </label>
-                  <select
-                    value={selectedSession.status || 'scheduled'}
-                    onChange={async (e) => {
-                      const newStatus = e.target.value;
-                      if (selectedSession) {
-                        await handleUpdateSessionStatus(selectedSession.id, newStatus);
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500"
-                  >
-                    <option value="scheduled">Scheduled</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                    <option value="no-show">No Show</option>
-                  </select>
+                  <label className="mb-2 block text-sm font-medium text-white/70">Status</label>
+                  {selectedSession.status !== 'completed' && (
+                    <button
+                      type="button"
+                      onClick={() => handleSessionStatusChange('completed')}
+                      className={`mb-3 flex w-full items-center justify-center gap-2 py-3.5 text-base font-semibold ${statusButtonClass('completed', true)}`}
+                    >
+                      <Check className="h-5 w-5" />
+                      {t.admin.dashboard.sessionStatusCompleted}
+                    </button>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSessionStatusChange('scheduled')}
+                      className={statusButtonClass('scheduled', selectedSession.status === 'scheduled')}
+                    >
+                      {t.admin.dashboard.sessionStatusScheduled}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSessionStatusChange('completed')}
+                      className={statusButtonClass('completed', selectedSession.status === 'completed')}
+                    >
+                      {t.admin.dashboard.sessionStatusCompleted}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSessionStatusChange('cancelled')}
+                      className={statusButtonClass('cancelled', selectedSession.status === 'cancelled')}
+                    >
+                      {t.admin.dashboard.sessionStatusCancelled}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSessionStatusChange('no-show')}
+                      className={statusButtonClass('no-show', selectedSession.status === 'no-show')}
+                    >
+                      {t.admin.dashboard.sessionStatusNoShow}
+                    </button>
+                  </div>
                 </div>
 
-                {selectedSession.notes && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Notes
-                    </label>
-                    <p className="text-gray-800">{selectedSession.notes}</p>
+                {selectedSession.notes && selectedSession.type !== 'block-time' && (
+                  <div className="rounded-2xl border p-3" style={innerCardStyle}>
+                    <label className="mb-1 block text-xs font-medium text-white/55">Notes</label>
+                    <p className="text-sm text-white/80">{selectedSession.notes}</p>
                   </div>
                 )}
 
-                <div className="flex gap-3 pt-4">
+                <div
+                  className="flex gap-3 border-t pt-4"
+                  style={{ borderColor: onlineTheme.cardBorder }}
+                >
                   <button
-                    onClick={() => setShowSessionDetailsModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!selectedSession) return;
-                      setShowSessionDetailsModal(false);
-                      router.push(`/admin/workouts/start?sessionId=${selectedSession.id}&customerId=${selectedSession.customerId}&date=${selectedSession.date}`);
-                    }}
-                    className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                  >
-                    Start workout
-                  </button>
-                  <button
+                    type="button"
                     onClick={() => {
                       setShowSessionDetailsModal(false);
                       setShowEditModal(true);
                     }}
-                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-blue-400/45 bg-transparent py-2.5 text-sm font-medium text-blue-300/90 transition-colors hover:border-blue-400 hover:bg-blue-500/5 hover:text-blue-200"
                   >
+                    <Edit className="h-4 w-4" strokeWidth={1.75} />
                     Edit
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDeleteSession(selectedSession.id)}
-                    className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-400/45 bg-transparent py-2.5 text-sm font-medium text-red-300/90 transition-colors hover:border-red-400 hover:bg-red-500/5 hover:text-red-200"
                   >
+                    <Trash2 className="h-4 w-4" strokeWidth={1.75} />
                     Delete
                   </button>
                 </div>
@@ -2126,41 +2216,60 @@ export default function MobileScheduleClient({
 
         {/* New Session Modal */}
         {showNewSessionModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm"
+            onClick={closeNewSessionModal}
+          >
             <div
-              className="bg-white rounded-2xl p-3 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="flex max-h-[min(90vh,640px)] w-full max-w-md flex-col overflow-hidden rounded-2xl shadow-2xl"
+              style={cardStyle}
+              onClick={(e) => e.stopPropagation()}
             >
-            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6">
+              <div className="flex shrink-0 items-start justify-between gap-2 border-b border-white/10 px-4 py-3">
+                <h3 className="pr-2 text-base font-bold leading-tight text-white">
               {sessionType === 'own-training' ? 'Schedule Own Training' : 
                sessionType === 'intake' ? 'Create Intake Session' : 
                sessionType === 'group' ? 'Create Group Session' : 
                sessionType === 'block-time' ? 'Block Time' : 'Create New Session'}
-            </h3>
-            
-            {(clickedTimeSlot || modalSelectedDate) && (
-              <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-xs sm:text-sm text-blue-800">
-                  <strong>Selected:</strong> {(clickedTimeSlot?.date || modalSelectedDate)?.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })} {clickedTimeSlot ? `at ${formatTime(clickedTimeSlot.time)}` : ''}
-                </p>
+                </h3>
+                <button
+                  type="button"
+                  onClick={closeNewSessionModal}
+                  className="shrink-0 rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-            )}
-              
-              <div className="space-y-3 sm:space-y-4">
+
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                {(clickedTimeSlot || modalSelectedDate) && (
+                  <div
+                    className="mb-3 rounded-lg border px-2.5 py-2 text-xs text-white/80"
+                    style={innerCardStyle}
+                  >
+                    <span className="text-white/50">Selected: </span>
+                    {(clickedTimeSlot?.date || modalSelectedDate)?.toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                    {clickedTimeSlot ? ` · ${formatTime(clickedTimeSlot.time)}` : ''}
+                  </div>
+                )}
+
+                <div className="space-y-3">
                 {/* Session Type Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Session Type</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+                  <label className="mb-1.5 block text-xs font-medium text-white/70">Session Type</label>
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                     <button
                       onClick={() => setSessionType('client')}
-                      className={`p-2 sm:p-3 rounded-lg border-2 transition-colors duration-200 ${
+                      className={`rounded-lg border p-2 transition-colors ${
                         sessionType === 'client'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                          ? 'border-rose-500/60 bg-rose-500/20 text-rose-100'
+                          : 'border-white/10 bg-white/[0.04] text-white/70 hover:border-white/20 hover:bg-white/[0.06]'
                       }`}
                     >
                       <div className="flex items-center justify-center">
@@ -2170,10 +2279,10 @@ export default function MobileScheduleClient({
                     </button>
                     <button
                       onClick={() => setSessionType('intake')}
-                      className={`p-2 sm:p-3 rounded-lg border-2 transition-colors duration-200 ${
+                      className={`rounded-lg border p-2 transition-colors ${
                         sessionType === 'intake'
-                          ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                          ? 'border-yellow-500/60 bg-yellow-500/20 text-yellow-100'
+                          : 'border-white/10 bg-white/[0.04] text-white/70 hover:border-white/20 hover:bg-white/[0.06]'
                       }`}
                     >
                       <div className="flex items-center justify-center">
@@ -2183,10 +2292,10 @@ export default function MobileScheduleClient({
                     </button>
                     <button
                       onClick={() => setSessionType('own-training')}
-                      className={`p-2 sm:p-3 rounded-lg border-2 transition-colors duration-200 ${
+                      className={`rounded-lg border p-2 transition-colors ${
                         sessionType === 'own-training'
-                          ? 'border-purple-500 bg-purple-50 text-purple-700'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                          ? 'border-purple-500/60 bg-purple-500/20 text-purple-100'
+                          : 'border-white/10 bg-white/[0.04] text-white/70 hover:border-white/20 hover:bg-white/[0.06]'
                       }`}
                     >
                       <div className="flex items-center justify-center">
@@ -2196,10 +2305,10 @@ export default function MobileScheduleClient({
                     </button>
                     <button
                       onClick={() => setSessionType('group')}
-                      className={`p-2 sm:p-3 rounded-lg border-2 transition-colors duration-200 ${
+                      className={`rounded-lg border p-2 transition-colors ${
                         sessionType === 'group'
-                          ? 'border-green-500 bg-green-50 text-green-700'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                          ? 'border-green-500/60 bg-green-500/20 text-green-100'
+                          : 'border-white/10 bg-white/[0.04] text-white/70 hover:border-white/20 hover:bg-white/[0.06]'
                       }`}
                     >
                       <div className="flex items-center justify-center">
@@ -2210,10 +2319,10 @@ export default function MobileScheduleClient({
                     
                     <button
                       onClick={() => setSessionType('block-time')}
-                      className={`p-2 sm:p-3 rounded-lg border-2 transition-colors duration-200 ${
+                      className={`rounded-lg border p-2 transition-colors ${
                         sessionType === 'block-time'
-                          ? 'border-orange-500 bg-orange-50 text-orange-700'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                          ? 'border-orange-500/60 bg-orange-500/20 text-orange-100'
+                          : 'border-white/10 bg-white/[0.04] text-white/70 hover:border-white/20 hover:bg-white/[0.06]'
                       }`}
                     >
                       <div className="flex items-center justify-center">
@@ -2227,10 +2336,10 @@ export default function MobileScheduleClient({
                 {/* Customer Selection - Show for client sessions */}
                 {sessionType === 'client' && (
                   <div className="relative customer-search-container">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
+                    <label className="mb-2 block text-sm font-medium text-white/70">Customer</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-4 w-4 text-gray-400" />
+                        <Search className="h-4 w-4 text-white/40" />
                       </div>
                       <input
                         type="text"
@@ -2247,12 +2356,12 @@ export default function MobileScheduleClient({
                           }
                         }}
                         placeholder="Type at least 3 characters to search..."
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                        className={`${inputClassName} pl-10`}
                       />
                       
                       {/* Dropdown with search results */}
                       {showCustomerDropdown && filteredCustomers.length > 0 && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-white/10 bg-[#2a1220] shadow-lg">
                           {/* Show all customers option */}
                           <button
                             type="button"
@@ -2272,20 +2381,20 @@ export default function MobileScheduleClient({
                                 key={customer.id}
                                 type="button"
                                 onClick={() => handleCustomerSelect(customer.id)}
-                                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-center justify-between ${
+                                className={`w-full px-4 py-2 text-left text-sm border-b border-white/10 hover:bg-white/[0.06] last:border-b-0 flex items-center justify-between ${
                                   isSelected ? 'bg-rose-50' : ''
                                 }`}
                               >
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     {isSelected && <Check className="w-4 h-4 text-rose-600 flex-shrink-0" />}
-                                    <span className={`font-medium ${isSelected ? 'text-rose-600' : 'text-gray-900'}`}>
+                                    <span className={`font-medium ${isSelected ? 'text-rose-300' : 'text-white'}`}>
                                       {customer.name}
                                     </span>
                                   </div>
-                                  <div className="text-xs text-gray-500 mt-0.5">{customer.email}</div>
+                                  <div className="mt-0.5 text-xs text-white/45">{customer.email}</div>
                                 </div>
-                                <div className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                                <div className="ml-2 text-xs text-white/45 flex-shrink-0">
                                   {sessionInfo.scheduled}/{sessionInfo.total}
                                 </div>
                               </button>
@@ -2312,11 +2421,11 @@ export default function MobileScheduleClient({
                 {/* Group Selection - Show for group sessions */}
                 {sessionType === 'group' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Groep</label>
+                    <label className="mb-2 block text-sm font-medium text-white/70">Groep</label>
                     <select
                       value={newSessionData.customerId}
                       onChange={(e) => setNewSessionData(prev => ({ ...prev, customerId: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className={inputClassName}
                     >
                       <option value="">Selecteer een groep</option>
                       {groups.map(group => (
@@ -2354,33 +2463,33 @@ export default function MobileScheduleClient({
                 {sessionType === 'intake' && (
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Client Name</label>
+                      <label className="mb-2 block text-sm font-medium text-white/70">Client Name</label>
                       <input
                         type="text"
                         value={newSessionData.clientName || ''}
                         onChange={(e) => setNewSessionData(prev => ({ ...prev, clientName: e.target.value }))}
                         placeholder="Enter client name"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                        className={inputClassName}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <label className="mb-2 block text-sm font-medium text-white/70">Email</label>
                       <input
                         type="email"
                         value={newSessionData.clientEmail || ''}
                         onChange={(e) => setNewSessionData(prev => ({ ...prev, clientEmail: e.target.value }))}
                         placeholder="Enter client email"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                        className={inputClassName}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                      <label className="mb-2 block text-sm font-medium text-white/70">Phone</label>
                       <input
                         type="tel"
                         value={newSessionData.clientPhone || ''}
                         onChange={(e) => setNewSessionData(prev => ({ ...prev, clientPhone: e.target.value }))}
                         placeholder="Enter client phone"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                        className={inputClassName}
                       />
                     </div>
                   </div>
@@ -2389,23 +2498,23 @@ export default function MobileScheduleClient({
                 {/* Block Time Description - Show for block time sessions */}
                 {sessionType === 'block-time' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Block Reason *</label>
+                    <label className="mb-2 block text-sm font-medium text-white/70">Block Reason *</label>
                     <textarea
                       value={newSessionData.notes}
                       onChange={(e) => setNewSessionData(prev => ({ ...prev, notes: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      className={inputClassName}
                       placeholder="Enter reason for blocking this time (e.g., Doctor appointment, Personal meeting, etc.)"
                       rows={3}
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">This description will be visible in the schedule</p>
+                    <p className="mt-1 text-xs text-white/45">This description will be visible in the schedule</p>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                  <label className="mb-2 block text-sm font-medium text-white/70">Start Time</label>
                   {/* V2 Time Selection - Simple List */}
-                  <div className="space-y-2 max-h-48 overflow-y-auto rose-scrollbar">
+                  <div className="max-h-32 space-y-1.5 overflow-y-auto rose-scrollbar">
                     {timeSlots.map(time => {
                       const selectedDate = modalSelectedDate || currentDay;
                       const durationHours = sessionType === 'intake' ? 0.5 : 1;
@@ -2427,12 +2536,12 @@ export default function MobileScheduleClient({
                             }
                           }}
                           disabled={!isAvailable || isBreak}
-                          className={`w-full p-3 rounded-lg border-2 text-left transition-colors duration-200 ${
+                          className={`w-full rounded-lg border p-2 text-left text-sm transition-colors ${
                             isSelected 
-                              ? 'border-rose-500 bg-rose-50 text-rose-700' 
+                              ? 'border-rose-500/60 bg-rose-500/20 text-rose-100' 
                               : isAvailable && !isBreak
-                                ? 'border-gray-200 bg-white hover:border-rose-300 hover:bg-rose-50 text-gray-700'
-                                : 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed'
+                                ? 'border-white/10 bg-white/[0.04] text-white/70 hover:border-rose-400/40 hover:bg-white/[0.06]'
+                                : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-white/30'
                           }`}
                         >
                           <div className="flex items-center justify-between">
@@ -2448,19 +2557,19 @@ export default function MobileScheduleClient({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Time (Auto-calculated)</label>
-                  <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600">
+                  <label className="mb-2 block text-sm font-medium text-white/70">End Time (Auto-calculated)</label>
+                  <div className={inputClassName}>
                     {newSessionData.startTime ? formatTime(calculateEndTime(newSessionData.startTime)) : 'Select start time first'}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                  <label className="mb-2 block text-sm font-medium text-white/70">Notes (Optional)</label>
                   <textarea
                     value={newSessionData.notes}
                     onChange={(e) => setNewSessionData(prev => ({ ...prev, notes: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                    rows={3}
+                    className={inputClassName}
+                    rows={2}
                     placeholder="Add any notes for this session..."
                   />
                 </div>
@@ -2476,7 +2585,7 @@ export default function MobileScheduleClient({
                         onChange={(e) => setIsRecurring(e.target.checked)}
                         className="w-4 h-4 text-rose-600 border-gray-300 rounded focus:ring-rose-500"
                       />
-                      <label htmlFor="recurring" className="text-xs sm:text-sm font-medium text-gray-700">
+                      <label htmlFor="recurring" className="text-xs font-medium text-white/70 sm:text-sm">
                         Schedule for all {recurringWeeks} weeks (recurring sessions)
                       </label>
                     </div>
@@ -2484,19 +2593,19 @@ export default function MobileScheduleClient({
                     {isRecurring && (
                       <>
                         <div className="flex items-center gap-3 mb-2">
-          <label className="text-xs sm:text-sm text-gray-700">Duration:</label>
+          <label className="text-xs text-white/70 sm:text-sm">Duration:</label>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setRecurringWeeks(4)}
-              className={`px-2 py-1 text-xs rounded border ${recurringWeeks === 4 ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-700 border-gray-300'}`}
+              className={`px-2 py-1 text-xs rounded border ${recurringWeeks === 4 ? 'border-rose-500 bg-gradient-to-r from-[#E11C48] to-[#F36088] text-white' : 'border-white/10 bg-white/[0.04] text-white/70'}`}
             >
               4 weeks
             </button>
             <button
               type="button"
               onClick={() => setRecurringWeeks(12)}
-              className={`px-2 py-1 text-xs rounded border ${recurringWeeks === 12 ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-700 border-gray-300'}`}
+              className={`px-2 py-1 text-xs rounded border ${recurringWeeks === 12 ? 'border-rose-500 bg-gradient-to-r from-[#E11C48] to-[#F36088] text-white' : 'border-white/10 bg-white/[0.04] text-white/70'}`}
             >
               12 weeks
             </button>
@@ -2510,7 +2619,7 @@ export default function MobileScheduleClient({
                           const baseIndex = jsDay === 0 ? 5 : jsDay - 1;
                           return (
                             <div className="mb-2">
-                              <div className="text-xs sm:text-sm text-gray-700 mb-1">Also repeat on:</div>
+                              <div className="mb-1 text-xs text-white/70 sm:text-sm">Also repeat on:</div>
                               <div className="flex flex-wrap gap-2">
                                 {days.map((d, idx) => {
                                   const disabled = idx === 4 || idx === baseIndex; // Friday or base
@@ -2526,7 +2635,7 @@ export default function MobileScheduleClient({
                                           return [...prev, idx];
                                         });
                                       }}
-                                      className={`px-2 py-1 text-xs rounded border ${disabled ? 'opacity-40 cursor-not-allowed' : active ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-700 border-gray-300'}`}
+                                      className={`px-2 py-1 text-xs rounded border ${disabled ? 'opacity-40 cursor-not-allowed' : active ? 'border-rose-500 bg-gradient-to-r from-[#E11C48] to-[#F36088] text-white' : 'border-white/10 bg-white/[0.04] text-white/70'}`}
                                     >
                                       {d.slice(0, 3)}
                                     </button>
@@ -2551,21 +2660,21 @@ export default function MobileScheduleClient({
                 )}
               </div>
 
-              <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
+              </div>
+
+              <div className="flex shrink-0 gap-2 border-t border-white/10 px-4 py-3">
                 <button
-                  onClick={() => {
-                    setShowNewSessionModal(false);
-                    setClickedTimeSlot(null);
-                    setModalSelectedDate(null);
-                  }}
-                  className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm sm:text-base"
+                  type="button"
+                  onClick={closeNewSessionModal}
+                  className={`${ghostBtnClassName} flex-1 justify-center text-sm`}
                 >
                   Cancel
                 </button>
-            <button
-              onClick={handleCreateSession}
-              className="flex-1 px-3 sm:px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors text-sm sm:text-base"
-            >
+                <button
+                  type="button"
+                  onClick={handleCreateSession}
+                  className={`${primaryBtnClassName} flex-1 justify-center text-sm`}
+                >
               {sessionType === 'own-training' 
                 ? 'Schedule Training' 
                 : sessionType === 'intake'
@@ -2586,13 +2695,13 @@ export default function MobileScheduleClient({
 
         {/* Edit Session Modal */}
         {showEditModal && selectedSession && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="w-full max-w-md rounded-2xl p-6" style={cardStyle}>
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-800">Edit Session</h3>
+                <h3 className="text-xl font-bold text-white">Edit Session</h3>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600"
+                  className="rounded-lg p-2 text-white/45 hover:bg-white/10 hover:text-white"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2600,10 +2709,10 @@ export default function MobileScheduleClient({
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="mb-1 block text-sm font-medium text-white/70">
                     {selectedSession.type === 'block-time' ? 'Block Reason' : 'Customer'}
                   </label>
-                  <p className="text-gray-800">
+                  <p className="text-white">
                     {selectedSession.type === 'block-time' 
                       ? selectedSession.notes || 'No reason provided'
                       : selectedSession.customerName
@@ -2612,16 +2721,16 @@ export default function MobileScheduleClient({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="mb-1 block text-sm font-medium text-white/70">
                     Date & Time
                   </label>
-                  <p className="text-gray-800">
+                  <p className="text-white">
                     {new Date(selectedSession.date).toLocaleDateString()} at {formatTime(selectedSession.startTime)} - {formatTime(selectedSession.endTime)}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-white/70">
                     Update Status
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -2660,7 +2769,7 @@ export default function MobileScheduleClient({
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         selectedSession.status === 'no-show'
                           ? 'bg-orange-500 text-white'
-                          : 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+                          : 'bg-orange-500/30 text-orange-100 hover:bg-orange-500/40'
                       }`}
                     >
                       🚫 No Show
@@ -2671,7 +2780,7 @@ export default function MobileScheduleClient({
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={() => setShowEditModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className={`${ghostBtnClassName} flex-1 justify-center`}
                   >
                     Close
                   </button>
@@ -2683,25 +2792,25 @@ export default function MobileScheduleClient({
 
         {/* Debug Modal */}
         {showDebugModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="mx-4 max-h-[80vh] w-full max-w-4xl overflow-hidden rounded-2xl p-6" style={cardStyle}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">Debug Logs</h2>
+                <h2 className="text-2xl font-bold text-white">Debug Logs</h2>
                 <button
                   onClick={() => setShowDebugModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-white/45 hover:text-white"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
               
-              <div className="bg-gray-100 rounded-lg p-4 h-96 overflow-y-auto">
+              <div className="h-96 overflow-y-auto rounded-lg bg-black/30 p-4">
                 {debugLogs.length === 0 ? (
-                  <p className="text-gray-500">No debug logs yet. Navigate to the schedule to see logs.</p>
+                  <p className="text-white/45">No debug logs yet. Navigate to the schedule to see logs.</p>
                 ) : (
                   <div className="space-y-2">
                     {debugLogs.map((log, index) => (
-                      <div key={index} className="text-sm font-mono bg-white p-2 rounded border">
+                      <div key={index} className="rounded border border-white/10 bg-white/[0.04] p-2 font-mono text-sm text-white/80">
                         {log}
                       </div>
                     ))}
@@ -2718,7 +2827,7 @@ export default function MobileScheduleClient({
                 </button>
                 <button
                   onClick={() => setShowDebugModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className={`${ghostBtnClassName} flex-1 justify-center`}
                 >
                   Close
                 </button>
@@ -2727,6 +2836,7 @@ export default function MobileScheduleClient({
           </div>
         )}
 
+      </div>
     </div>
   );
 }

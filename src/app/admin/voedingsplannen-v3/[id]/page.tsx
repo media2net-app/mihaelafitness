@@ -17,7 +17,7 @@ export default async function NutritionPlanV3Page({ params }: PageProps) {
   const { id } = await params;
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full">
       <NutritionPlanV3Client planId={id} />
     </div>
   );
