@@ -1,10 +1,10 @@
-import AdminPageShell from '@/components/admin/AdminPageShell';
+import AdminPageContent from '@/components/admin/AdminPageContent';
 import AdminUserTableClient from './AdminUserTableClient';
 
 export default function AdminUserTablePage() {
   return (
-    <AdminPageShell>
+    <AdminPageContent>
       <AdminUserTableClient />
-    </AdminPageShell>
+    </AdminPageContent>
   );
 }

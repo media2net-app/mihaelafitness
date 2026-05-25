@@ -1177,9 +1177,21 @@ aside.sidebar-admin button[data-active="true"] {
 
 .admin-theme .min-h-screen.bg-gradient-to-br,
 .admin-theme .min-h-screen.bg-gray-50,
+.admin-theme .min-h-screen.bg-gradient-to-b,
 .admin-theme .bg-\[\#FDF7FB\] {
   min-height: auto !important;
   background: transparent !important;
+}
+
+.admin-theme .from-gray-50,
+.admin-theme .via-pink-50,
+.admin-theme .from-rose-50,
+.admin-theme .to-gray-100,
+.admin-theme .to-purple-50,
+.admin-theme .to-rose-100 {
+  --tw-gradient-from: transparent var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: transparent var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
 .admin-theme .bg-white,
@@ -1187,9 +1199,16 @@ aside.sidebar-admin button[data-active="true"] {
 .admin-theme .bg-white\/95,
 .admin-theme .bg-gray-50,
 .admin-theme .bg-gray-100 {
-  background: linear-gradient(160deg, #351828 0%, #2a1220 100%) !important;
-  border-color: rgba(245, 210, 224, 0.12) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+}
+
+.admin-theme .rounded-2xl.bg-white,
+.admin-theme .rounded-3xl.bg-white,
+.admin-theme .rounded-xl.bg-white {
+  border-radius: 1rem !important;
 }
 
 .admin-theme .border-gray-200,
@@ -1244,4 +1263,183 @@ aside.sidebar-admin button[data-active="true"] {
 
 .admin-theme .rose-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #e11c48;
+}
+
+/* Bright legacy gradients → dark admin palette */
+.admin-theme .bg-gradient-to-r.from-pink-500,
+.admin-theme .bg-gradient-to-br.from-pink-500,
+.admin-theme .bg-gradient-to-r.from-blue-500,
+.admin-theme .bg-gradient-to-br.from-blue-500,
+.admin-theme .from-pink-500,
+.admin-theme .from-blue-500 {
+  --tw-gradient-from: #4a2035 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: #351828 var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.admin-theme .to-rose-600,
+.admin-theme .to-cyan-600,
+.admin-theme .to-purple-600 {
+  --tw-gradient-to: #2a1220 var(--tw-gradient-to-position) !important;
+}
+
+.admin-theme .border-pink-300,
+.admin-theme .border-blue-300 {
+  border-color: rgba(245, 210, 224, 0.2) !important;
+}
+
+.admin-theme .bg-yellow-50,
+.admin-theme .bg-yellow-100,
+.admin-theme .bg-amber-50,
+.admin-theme .bg-amber-100 {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+.admin-theme .border-yellow-200,
+.admin-theme .border-yellow-300,
+.admin-theme .border-yellow-400,
+.admin-theme .border-amber-200 {
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+.admin-theme .text-yellow-700,
+.admin-theme .text-yellow-800,
+.admin-theme .text-amber-800 {
+  color: rgba(253, 230, 138, 0.95) !important;
+}
+
+.admin-theme .text-yellow-600 {
+  color: rgba(251, 191, 36, 0.9) !important;
+}
+
+.admin-theme .bg-yellow-600,
+.admin-theme .bg-yellow-500,
+.admin-theme .hover\:bg-yellow-700:hover {
+  background: linear-gradient(to right, #e11c48, #f36088) !important;
+  color: #fff !important;
+}
+
+.admin-theme .bg-blue-50,
+.admin-theme .bg-blue-100,
+.admin-theme .from-blue-50,
+.admin-theme .to-blue-100,
+.admin-theme .to-indigo-50 {
+  background: rgba(56, 189, 248, 0.1) !important;
+  border-color: rgba(56, 189, 248, 0.25) !important;
+}
+
+.admin-theme .text-blue-600,
+.admin-theme .text-blue-800 {
+  color: rgba(186, 230, 253, 0.95) !important;
+}
+
+.admin-theme .bg-blue-500,
+.admin-theme .hover\:bg-blue-600:hover,
+.admin-theme .bg-rose-500,
+.admin-theme .hover\:bg-rose-600:hover {
+  background: linear-gradient(to right, #e11c48, #f36088) !important;
+  color: #fff !important;
+}
+
+.admin-theme .border-gray-100 {
+  border-color: rgba(245, 210, 224, 0.12) !important;
+}
+
+.admin-theme .hover\:bg-rose-50:hover,
+.admin-theme .hover\:bg-red-50:hover,
+.admin-theme .hover\:bg-blue-50:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-theme .text-rose-600,
+.admin-theme .text-rose-700,
+.admin-theme .hover\:text-rose-700:hover {
+  color: #f9a8d9 !important;
+}
+
+.admin-theme .text-red-600,
+.admin-theme .text-red-700 {
+  color: #fca5a5 !important;
+}
+
+.admin-theme .bg-purple-100,
+.admin-theme .bg-sky-100,
+.admin-theme .bg-emerald-100,
+.admin-theme .bg-green-50 {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-theme .text-purple-800,
+.admin-theme .text-sky-800,
+.admin-theme .text-emerald-800 {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.admin-theme .border-purple-200,
+.admin-theme .border-sky-200,
+.admin-theme .border-emerald-200,
+.admin-theme .border-green-200,
+.admin-theme .border-green-300,
+.admin-theme .border-rose-200 {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.admin-theme .bg-rose-100,
+.admin-theme .text-rose-700 {
+  background: rgba(225, 28, 72, 0.2) !important;
+  color: #f9a8d9 !important;
+}
+
+.admin-theme .rounded-3xl.bg-white,
+.admin-theme .max-w-md.rounded-3xl.bg-white {
+  background: linear-gradient(160deg, #351828 0%, #2a1220 100%) !important;
+  border: 1px solid rgba(245, 210, 224, 0.12) !important;
+}
+
+/* Opaque admin modals (avoid transparent .bg-white override) */
+.admin-theme .admin-modal-panel {
+  background: linear-gradient(160deg, #351828 0%, #2a1220 100%) !important;
+  border: 1px solid rgba(245, 210, 224, 0.12) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55) !important;
+}
+
+.admin-theme .border-dashed.border-\[\#F5D2E0\] {
+  border-color: rgba(245, 210, 224, 0.2) !important;
+}
+
+.admin-theme .border-b.border-gray-200 {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.admin-theme .text-green-600,
+.admin-theme .text-green-800 {
+  color: #6ee7b7 !important;
+}
+
+.admin-theme .text-red-600,
+.admin-theme .text-red-800 {
+  color: #fca5a5 !important;
+}
+
+.admin-theme .bg-green-100,
+.admin-theme .bg-red-100 {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-theme .bg-red-50,
+.admin-theme .bg-red-100.border-red-200,
+.admin-theme .bg-blue-50.border-blue-200 {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.admin-theme .border-blue-400,
+.admin-theme .border-red-400 {
+  border-color: rgba(243, 96, 136, 0.45) !important;
+}
+
+.admin-theme .bg-blue-50.border-blue-400 {
+  background: rgba(56, 189, 248, 0.12) !important;
 }

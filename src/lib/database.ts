@@ -757,10 +757,16 @@ export const nutritionCalculationService = {
 
 // Statistics
 export const statsService = {
-  async getDashboardStats(retryCount = 0) {
+  async getDashboardStats(
+    period: import('@/lib/statsPeriod').StatsPeriod = 'all',
+    retryCount = 0,
+    type: 'revenue' | 'counts' = 'revenue',
+  ) {
     try {
-      console.log(`Fetching stats (attempt ${retryCount + 1})...`);
-      const response = await fetch(`/api/stats?ts=${Date.now()}`, {
+      console.log(`Fetching stats (attempt ${retryCount + 1})...`, { period, type });
+      const response = await fetch(
+        `/api/stats?period=${period}&type=${type}&ts=${Date.now()}`,
+        {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache'
@@ -780,17 +786,17 @@ export const statsService = {
         const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
         console.log(`Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return this.getDashboardStats(retryCount + 1);
+        return this.getDashboardStats(period, retryCount + 1, type);
       }
       
       // After 3 retries, return fallback data
       console.warn('All retry attempts failed, returning fallback stats');
       return {
-        totalUsers: 0,
-        activeUsers: 0,
-        totalWorkouts: 0,
-        totalNutritionPlans: 0,
-        totalServices: 0
+        revenue: 0,
+        paymentCount: 0,
+        averagePayment: 0,
+        maxPayment: 0,
+        period: 'all' as const,
       };
     }
   }

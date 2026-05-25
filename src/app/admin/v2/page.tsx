@@ -176,7 +176,7 @@ export default function AdminV2Page() {
     const loadDashboardData = async () => {
       try {
         console.log('🔄 Loading dashboard data...');
-        const data = await statsService.getDashboardStats();
+        const data = await statsService.getDashboardStats('all', 0, 'counts');
         console.log('📊 Dashboard data received:', data);
         setDashboardStats(data);
       } catch (error) {

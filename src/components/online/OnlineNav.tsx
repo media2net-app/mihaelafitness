@@ -227,13 +227,19 @@ export default function OnlineNav({ menuOpen, setMenuOpen, dark }: OnlineNavProp
   );
 }
 
-export function OnlineMenuButton({ onClick }: { onClick: () => void }) {
+export function OnlineMenuButton({
+  onClick,
+  className = '',
+}: {
+  onClick: () => void;
+  className?: string;
+}) {
   const { t } = useLanguage();
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-11 w-11 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95 md:hidden"
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95 ${className}`.trim()}
       style={{
         background: `linear-gradient(135deg, ${onlineTheme.accent}, ${onlineTheme.accentMid})`,
         boxShadow: '0 4px 14px rgba(225, 28, 72, 0.45)',

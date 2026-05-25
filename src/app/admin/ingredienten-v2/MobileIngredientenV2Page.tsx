@@ -303,7 +303,7 @@ export default function MobileIngredientenV2Page() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <Scale className="w-6 h-6 text-orange-500" />
-            <h1 className="text-xl font-bold">Ingredienten V2 - 100g Basis</h1>
+            <p className="text-sm text-white/55">100g basis — normalisatie en calculator</p>
           </div>
           <div className="text-sm text-gray-400">
             {filteredIngredients.length} ingredienten

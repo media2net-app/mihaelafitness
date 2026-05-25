@@ -3,6 +3,13 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Calculator, User, Scale, Target, Activity, Dumbbell, TrendingUp, TrendingDown, Minus, Save, Users } from 'lucide-react';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import {
+  adminCardStyle,
+  adminInputClassName,
+  adminLabelClassName,
+  adminPrimaryBtnClassName,
+} from '@/lib/adminStyles';
 
 interface CalculationResult {
   step1_mb: number;
@@ -410,22 +417,9 @@ function KcalCalculatorV2Content() {
   };
 
   return (
-    <div className="min-h-full p-4 lg:p-8">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center">
-              <Calculator className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">KCAL Calculator V2</h1>
-              <p className="text-gray-600 text-sm">Calculează pas cu pas caloriile corecte pentru clienți</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-6">
+    <AdminPageContent>
+      <div className="mx-auto max-w-5xl">
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Form Section */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Informații Client</h2>
@@ -927,24 +921,21 @@ function KcalCalculatorV2Content() {
           )}
         </div>
       </div>
-    </div>
+    </AdminPageContent>
   );
 }
 
 export default function KcalCalculatorV2Page() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
+    <Suspense
+      fallback={
+        <AdminPageContent>
           <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Calculator className="w-12 h-12 animate-pulse text-rose-500 mx-auto mb-4" />
-              <p className="text-gray-600">Loading calculator...</p>
-            </div>
+            <Calculator className="mx-auto mb-4 h-12 w-12 animate-pulse text-[#F36088]" />
           </div>
-        </div>
-      </div>
-    }>
+        </AdminPageContent>
+      }
+    >
       <KcalCalculatorV2Content />
     </Suspense>
   );

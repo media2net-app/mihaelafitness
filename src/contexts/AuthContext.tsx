@@ -8,7 +8,7 @@ interface User {
   email: string;
   plan: string;
   status: string;
-  role?: string; // 'admin' or 'client'
+  role?: string;
   profilePicture?: string | null;
 }
 
@@ -23,69 +23,102 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function persistAuth(token: string, user: User) {
+  localStorage.setItem('auth_token', token);
+  localStorage.setItem('auth_user', JSON.stringify(user));
+  sessionStorage.setItem('auth_token', token);
+  sessionStorage.setItem('auth_user', JSON.stringify(user));
+}
+
+function clearPersistedAuth() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
+  sessionStorage.removeItem('auth_token');
+  sessionStorage.removeItem('auth_user');
+}
+
+function readStoredAuth(): { token: string; user: User } | null {
+  let storedToken = localStorage.getItem('auth_token');
+  let storedUser = localStorage.getItem('auth_user');
+
+  if (!storedToken || !storedUser) {
+    storedToken = sessionStorage.getItem('auth_token');
+    storedUser = sessionStorage.getItem('auth_user');
+  }
+
+  if (!storedToken || !storedUser) return null;
+
+  try {
+    const tokenPayload = JSON.parse(atob(storedToken.split('.')[1]));
+    if (tokenPayload.exp < Date.now() / 1000) {
+      clearPersistedAuth();
+      return null;
+    }
+    return { token: storedToken, user: JSON.parse(storedUser) as User };
+  } catch {
+    clearPersistedAuth();
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const applyAuth = useCallback((nextToken: string, nextUser: User) => {
+    setToken(nextToken);
+    setUser(nextUser);
+    persistAuth(nextToken, nextUser);
+  }, []);
+
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
-    sessionStorage.removeItem('auth_token');
-    sessionStorage.removeItem('auth_user');
+    clearPersistedAuth();
     fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    // Check for existing token in localStorage and sessionStorage
-    const getStoredData = () => {
-      // Try localStorage first
-      let storedToken = localStorage.getItem('auth_token');
-      let storedUser = localStorage.getItem('auth_user');
-      
-      // If not in localStorage, try sessionStorage
-      if (!storedToken || !storedUser) {
-        storedToken = sessionStorage.getItem('auth_token');
-        storedUser = sessionStorage.getItem('auth_user');
+    let cancelled = false;
+
+    const initAuth = async () => {
+      const stored = readStoredAuth();
+      if (stored) {
+        if (!cancelled) {
+          setToken(stored.token);
+          setUser(stored.user);
+          setIsLoading(false);
+        }
+        return;
       }
-      
-      return { storedToken, storedUser };
-    };
-    
-    const { storedToken, storedUser } = getStoredData();
-    
-    if (storedToken && storedUser) {
+
       try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-        
-        // Verify token is still valid
-        const tokenPayload = JSON.parse(atob(storedToken.split('.')[1]));
-        const currentTime = Date.now() / 1000;
-        
-        if (tokenPayload.exp < currentTime) {
-          // Token expired, clear storage
-          logout();
+        const res = await fetch('/api/auth/session', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.token && data.user && !cancelled) {
+            applyAuth(data.token, data.user);
+          }
         }
       } catch (error) {
-        console.error('Error parsing stored auth data:', error);
-        logout();
+        console.error('Error restoring session from cookie:', error);
       }
-    }
-    
-    setIsLoading(false);
-    
-    // Listen for storage changes to sync auth state between tabs
+
+      if (!cancelled) setIsLoading(false);
+    };
+
+    initAuth();
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'auth_token' || e.key === 'auth_user') {
         if (e.newValue === null) {
-          // Auth was cleared in another tab
           setUser(null);
           setToken(null);
         } else if (e.key === 'auth_token' && e.newValue) {
-          // Token was updated in another tab
           const newUser = localStorage.getItem('auth_user');
           if (newUser) {
             setToken(e.newValue);
@@ -94,13 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
+      cancelled = true;
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [logout]);
+  }, [applyAuth]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -118,20 +152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
-        setToken(data.token);
-        setUser(data.user);
-        
-        // Store in both localStorage and sessionStorage for better persistence
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('auth_user', JSON.stringify(data.user));
-        sessionStorage.setItem('auth_token', data.token);
-        sessionStorage.setItem('auth_user', JSON.stringify(data.user));
-        
+        applyAuth(data.token, data.user);
         return true;
       }
-      
+
       return false;
     } catch (error) {
       console.error('Login error:', error);
@@ -142,14 +168,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!user && !!token;
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      token,
-      login,
-      logout,
-      isAuthenticated,
-      isLoading
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        isAuthenticated,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { FileText, Download, Search, Filter, Eye, Calendar, Euro, User, Calculator, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import jsPDF from 'jspdf';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import AdminStatsCard from '@/components/admin/AdminStatsCard';
 
 interface PricingCalculation {
   id: string;
@@ -269,61 +271,16 @@ export default function InvoicesPage() {
   }
 
   return (
-    <div className="min-h-full">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-rose-500 rounded-xl">
-              <FileText className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">Facturi</h1>
-              <p className="text-gray-600">Gestionează și generează facturi pentru clienți</p>
-            </div>
+    <AdminPageContent>
+          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
+            <AdminStatsCard title="Total Facturi" value={totalCalculations} icon={FileText} />
+            <AdminStatsCard title="Venit Total" value={formatPrice(totalRevenue)} icon={Euro} />
+            <AdminStatsCard
+              title="Factură Medie"
+              value={totalCalculations > 0 ? formatPrice(totalRevenue / totalCalculations) : '€0'}
+              icon={Calculator}
+            />
           </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-white/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Facturi</p>
-                  <p className="text-2xl font-bold text-gray-800">{totalCalculations}</p>
-                </div>
-                <div className="p-3 bg-pink-100 rounded-lg">
-                  <FileText className="w-6 h-6 text-pink-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-white/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Venit Total</p>
-                  <p className="text-2xl font-bold text-green-600">{formatPrice(totalRevenue)}</p>
-                </div>
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <Euro className="w-6 h-6 text-green-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-lg border border-white/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Factură Medie</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {totalCalculations > 0 ? formatPrice(totalRevenue / totalCalculations) : '€0'}
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <Calculator className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-lg border border-white/20 p-6 mb-8">
@@ -652,7 +609,6 @@ export default function InvoicesPage() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </AdminPageContent>
   );
 }

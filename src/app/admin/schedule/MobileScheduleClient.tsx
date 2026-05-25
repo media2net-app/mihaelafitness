@@ -1709,20 +1709,10 @@ export default function MobileScheduleClient({
 
   return (
     <div className="min-h-screen pb-8" style={{ backgroundColor: onlineTheme.bg }}>
-      <div className="mx-auto max-w-lg px-3 py-4 sm:max-w-xl sm:px-4 lg:max-w-none lg:px-6 lg:py-6">
+      <div className="mx-auto w-full max-w-lg px-3 py-4 sm:max-w-xl sm:px-6 lg:max-w-4xl lg:py-6 xl:max-w-6xl">
         <div className="rounded-3xl p-4 shadow-xl md:p-6 lg:p-8" style={cardStyle}>
-          <div className="mb-6 hidden flex-col lg:flex lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h1
-                className="flex items-center text-2xl font-bold md:text-3xl"
-                style={{ color: onlineTheme.accentLight }}
-              >
-                <Calendar className="mr-2 h-6 w-6 md:mr-3 md:h-8 md:w-8" style={{ color: onlineTheme.accentMid }} />
-                {t.admin.dashboard.coachingSchedule}
-              </h1>
-              <p className="mt-2 text-sm text-white/55 md:text-base">{t.admin.dashboard.coachingScheduleDesc}</p>
-            </div>
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row lg:mt-0">
+          <div className="mb-4 hidden flex-wrap justify-end gap-2 lg:flex">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button type="button" onClick={() => setShowDebugModal(true)} className={ghostBtnClassName}>
                 <Clock className="mr-2 h-4 w-4" />
                 <span className="text-sm">Debug</span>

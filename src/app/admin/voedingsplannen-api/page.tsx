@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import { adminCardStyle, adminInputClassName, adminPrimaryBtnClassName } from '@/lib/adminStyles';
 
 interface ApiIngredient {
   id: string;
@@ -165,15 +167,10 @@ export default function VoedingsplannenApiPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-orange-500 mb-2">Voedingsplannen API</h1>
-          <p className="text-gray-300">Zoek en importeer ingredienten via de Open Food Facts API</p>
-        </div>
+    <AdminPageContent>
+        <p className="mb-6 text-sm text-white/55">Zoek en importeer ingredienten via de Open Food Facts API</p>
 
-        {/* API Configuration */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-6">
+        <div className="mb-6 rounded-lg p-6" style={adminCardStyle}>
           <h2 className="text-xl font-semibold mb-4 text-orange-500">API Configuratie</h2>
           
           <div className="flex items-center gap-4">
@@ -322,7 +319,6 @@ export default function VoedingsplannenApiPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AdminPageContent>
   );
 }

@@ -3,6 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calculator, Plus, Trash2, Search, Calendar, User, FileText } from 'lucide-react';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import AdminStatsCard from '@/components/admin/AdminStatsCard';
+import {
+  adminCardStyle,
+  adminGhostBtnClassName,
+  adminInputClassName,
+  adminInnerCardStyle,
+  adminPrimaryBtnClassName,
+} from '@/lib/adminStyles';
 
 interface NutritionCalculation {
   id: string;
@@ -36,9 +45,10 @@ export default function NutritionCalculationsPage() {
     if (searchTerm.trim() === '') {
       setFilteredCalculations(calculations);
     } else {
-      const filtered = calculations.filter(calc =>
-        calc.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        calc.customerId.toLowerCase().includes(searchTerm.toLowerCase())
+      const filtered = calculations.filter(
+        (calc) =>
+          calc.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          calc.customerId.toLowerCase().includes(searchTerm.toLowerCase()),
       );
       setFilteredCalculations(filtered);
     }
@@ -67,11 +77,11 @@ export default function NutritionCalculationsPage() {
     setDeletingId(id);
     try {
       const response = await fetch(`/api/nutrition-calculations-v2?id=${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
       if (response.ok) {
-        setCalculations(prev => prev.filter(calc => calc.id !== id));
-        setFilteredCalculations(prev => prev.filter(calc => calc.id !== id));
+        setCalculations((prev) => prev.filter((calc) => calc.id !== id));
+        setFilteredCalculations((prev) => prev.filter((calc) => calc.id !== id));
       } else {
         alert('Failed to delete calculation');
       }
@@ -84,7 +94,6 @@ export default function NutritionCalculationsPage() {
   };
 
   const handleCreatePlan = (calculation: NutritionCalculation) => {
-    // Navigate to create nutrition plan with calculation data in query params
     router.push(`/admin/voedingsplannen/new?calculationId=${calculation.id}`);
   };
 
@@ -95,155 +104,142 @@ export default function NutritionCalculationsPage() {
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
-      </div>
+      <AdminPageContent>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#F36088]" />
+        </div>
+      </AdminPageContent>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <Calculator className="w-6 h-6 sm:w-8 sm:h-8 text-rose-500" />
-              Nutrition Calculations
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {filteredCalculations.length} {filteredCalculations.length === 1 ? 'calculation' : 'calculations'}
-            </p>
-          </div>
-          <button
-            onClick={() => router.push('/admin/kcal-calculator-v2')}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            New Calculation
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Search by customer name or ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-          />
-        </div>
+    <AdminPageContent>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <AdminStatsCard
+          title="Calculations"
+          value={filteredCalculations.length}
+          icon={Calculator}
+        />
+        <button
+          type="button"
+          onClick={() => router.push('/admin/kcal-calculator-v2')}
+          className={adminPrimaryBtnClassName}
+        >
+          <Plus className="h-5 w-5" />
+          New Calculation
+        </button>
       </div>
 
-      {/* Calculations Grid */}
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40" />
+        <input
+          type="text"
+          placeholder="Search by customer name or ID..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className={`${adminInputClassName} pl-10`}
+        />
+      </div>
+
       {filteredCalculations.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <Calculator className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-600 mb-2">No calculations found</h3>
-          <p className="text-gray-500 mb-4">
+        <div className="rounded-xl p-12 text-center" style={adminCardStyle}>
+          <Calculator className="mx-auto mb-4 h-16 w-16 text-white/30" />
+          <h3 className="mb-2 text-lg font-semibold text-white">No calculations found</h3>
+          <p className="mb-4 text-white/55">
             {searchTerm ? 'Try adjusting your search' : 'Create your first nutrition calculation to get started'}
           </p>
           {!searchTerm && (
             <button
+              type="button"
               onClick={() => router.push('/admin/kcal-calculator-v2')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
+              className={adminPrimaryBtnClassName}
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="h-5 w-5" />
               New Calculation
             </button>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredCalculations.map((calculation) => (
-            <div
-              key={calculation.id}
-              className="bg-white rounded-xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-shadow"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
+            <div key={calculation.id} className="rounded-xl p-4 sm:p-6" style={adminCardStyle}>
+              <div className="mb-4 flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                    <User className="w-5 h-5 text-rose-500" />
+                  <h3 className="mb-1 flex items-center gap-2 text-lg font-semibold text-white">
+                    <User className="h-5 w-5 text-[#F36088]" />
                     {calculation.customerName}
                   </h3>
-                  <p className="text-sm text-gray-500 flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
+                  <p className="flex items-center gap-1 text-sm text-white/55">
+                    <Calendar className="h-4 w-4" />
                     {formatDate(calculation.createdAt)}
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => handleDelete(calculation.id)}
                   disabled={deletingId === calculation.id}
-                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  className="rounded-lg p-2 text-red-300 transition-colors hover:bg-red-500/15 disabled:opacity-50"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Calculation Details */}
-              <div className="space-y-3 mb-4">
+              <div className="mb-4 space-y-3">
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <span className="text-gray-500">Weight:</span>
-                    <span className="ml-2 font-medium text-gray-900">{calculation.weight} kg</span>
+                    <span className="text-white/55">Weight:</span>
+                    <span className="ml-2 font-medium text-white">{calculation.weight} kg</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Age:</span>
-                    <span className="ml-2 font-medium text-gray-900">{calculation.age} years</span>
+                    <span className="text-white/55">Age:</span>
+                    <span className="ml-2 font-medium text-white">{calculation.age} years</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Gender:</span>
-                    <span className="ml-2 font-medium text-gray-900 capitalize">{calculation.gender}</span>
+                    <span className="text-white/55">Gender:</span>
+                    <span className="ml-2 font-medium capitalize text-white">{calculation.gender}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Objective:</span>
-                    <span className="ml-2 font-medium text-gray-900 capitalize">{calculation.objective}</span>
+                    <span className="text-white/55">Objective:</span>
+                    <span className="ml-2 font-medium capitalize text-white">{calculation.objective}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Macros Summary */}
-              <div className="grid grid-cols-4 gap-2 mb-4">
-                <div className="text-center p-2 bg-orange-50 rounded-lg">
-                  <div className="text-sm font-semibold text-orange-600">{calculation.finalCalories}</div>
-                  <div className="text-xs text-gray-500">kcal</div>
-                </div>
-                <div className="text-center p-2 bg-blue-50 rounded-lg">
-                  <div className="text-sm font-semibold text-blue-600">{calculation.protein}g</div>
-                  <div className="text-xs text-gray-500">protein</div>
-                </div>
-                <div className="text-center p-2 bg-green-50 rounded-lg">
-                  <div className="text-sm font-semibold text-green-600">{calculation.carbs}g</div>
-                  <div className="text-xs text-gray-500">carbs</div>
-                </div>
-                <div className="text-center p-2 bg-purple-50 rounded-lg">
-                  <div className="text-sm font-semibold text-purple-600">{calculation.fat}g</div>
-                  <div className="text-xs text-gray-500">fat</div>
-                </div>
+              <div className="mb-4 grid grid-cols-4 gap-2">
+                {[
+                  { label: 'kcal', value: calculation.finalCalories },
+                  { label: 'protein', value: `${calculation.protein}g` },
+                  { label: 'carbs', value: `${calculation.carbs}g` },
+                  { label: 'fat', value: `${calculation.fat}g` },
+                ].map((m) => (
+                  <div key={m.label} className="rounded-lg p-2 text-center" style={adminInnerCardStyle}>
+                    <div className="text-sm font-semibold text-white">{m.value}</div>
+                    <div className="text-xs text-white/55">{m.label}</div>
+                  </div>
+                ))}
               </div>
 
-              {/* Actions */}
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => router.push(`/admin/kcal-calculator-v2?calculationId=${calculation.id}`)}
-                  className="flex-1 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                  className={`${adminGhostBtnClassName} flex-1 text-sm`}
                 >
-                  <Calculator className="w-4 h-4" />
+                  <Calculator className="h-4 w-4" />
                   View
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleCreatePlan(calculation)}
-                  className="flex-1 px-3 py-2 text-sm bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors flex items-center justify-center gap-2"
+                  className={`${adminPrimaryBtnClassName} flex-1 text-sm`}
                 >
-                  <FileText className="w-4 h-4" />
+                  <FileText className="h-4 w-4" />
                   Create Plan
                 </button>
               </div>
@@ -251,7 +247,6 @@ export default function NutritionCalculationsPage() {
           ))}
         </div>
       )}
-    </div>
+    </AdminPageContent>
   );
 }
-

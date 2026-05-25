@@ -5,6 +5,8 @@ import { Target, Plus, Eye, Trash2, Dumbbell, Clock, Users, Calendar } from 'luc
 import { useLanguage } from '@/contexts/LanguageContext';
 import { workoutService } from '@/lib/database';
 import { useRouter } from 'next/navigation';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import { adminCardStyle, adminPrimaryBtnClassName } from '@/lib/adminStyles';
 
 export default function TrainingschemasPage() {
   const { t } = useLanguage();
@@ -110,22 +112,16 @@ export default function TrainingschemasPage() {
   };
 
   return (
-    <div className="min-h-full">
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2">Training Schedules</h1>
-              <p className="text-gray-600">Create and manage training schedules for your customers</p>
-            </div>
+    <AdminPageContent>
+        <div className="mb-8 flex justify-end">
             <button
+              type="button"
               onClick={() => setShowNewSchemaModal(true)}
-              className="mt-4 md:mt-0 bg-rose-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-medium hover:bg-rose-600 transition-colors duration-200 flex items-center gap-2 text-sm sm:text-base"
+              className={adminPrimaryBtnClassName}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="h-4 w-4" />
               New Training Schedule
             </button>
-          </div>
         </div>
 
         {/* Training Schedules Grid */}
@@ -255,8 +251,6 @@ export default function TrainingschemasPage() {
             </div>
           </div>
         )}
-      </main>
-
       {/* New Schema Modal */}
       {showNewSchemaModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -359,6 +353,6 @@ export default function TrainingschemasPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPageContent>
   );
 }

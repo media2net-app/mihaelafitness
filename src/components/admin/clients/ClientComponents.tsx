@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ReactNode } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { adminClientCardClassName, getAdminBarClassName } from '@/lib/adminStyles';
 import { isOnlineClient } from '@/lib/clientTypes';
 
 type ClientOverview = {
@@ -87,17 +88,6 @@ const getStatusIcon = (status: string) => {
     default:
       return <UserIcon className="w-3 h-3" />;
   }
-};
-
-const getAdminCardColors = (client: ClientOverview) => {
-  const email = client.email?.toLowerCase() ?? '';
-  if (email === 'info@mihaelafitness.com' || email === 'mihaela@mihaelafitness.com') {
-    return 'bg-gradient-to-br from-pink-500 to-rose-600 border-pink-300';
-  }
-  if (email === 'chiel@media2net.nl') {
-    return 'bg-gradient-to-br from-blue-500 to-cyan-600 border-blue-300';
-  }
-  return 'bg-gradient-to-br from-blue-500 to-purple-600';
 };
 
 const formatJoinDate = (value?: string | Date | null) => {
@@ -192,45 +182,29 @@ export function ClientCard({
   const isDueSoon = paymentDays !== null && paymentDays !== undefined && paymentDays <= 7;
 
   const amountColorClass = isOverdue
-    ? isAdmin
-      ? 'text-white'
-      : 'text-red-700'
+    ? 'text-red-300'
     : isDueSoon
-    ? isAdmin
-      ? 'text-white'
-      : 'text-orange-700'
-    : isAdmin
-    ? 'text-white'
-    : 'text-rose-700';
+      ? 'text-amber-200'
+      : 'text-[#F9A8D9]';
 
   const supportingColorClass = isOverdue
-    ? isAdmin
-      ? 'text-white/90'
-      : 'text-red-600'
+    ? 'text-red-300/90'
     : isDueSoon
-    ? isAdmin
-      ? 'text-white/90'
-      : 'text-orange-600'
-    : isAdmin
-    ? 'text-white/80'
-    : 'text-rose-600';
+      ? 'text-amber-200/90'
+      : 'text-white/70';
 
   return (
     <div
-      className={`group rounded-2xl shadow-sm border-2 ${
-        isAdmin ? getAdminCardColors(client) : 'bg-white border-gray-100'
-      } hover:shadow-lg hover:border-gray-200 transition-all duration-300 overflow-hidden`}
+      className={`${
+        isAdmin ? `${getAdminBarClassName(client.email ?? '')} border-2` : adminClientCardClassName
+      } overflow-hidden`}
     >
-      <div className={`p-6 pb-4 ${isAdmin ? 'text-white' : ''}`}>
+      <div className="p-6 pb-4 text-white">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-4">
             <div className="relative">
               <div
-                className={`w-14 h-14 ${
-                  isAdmin
-                    ? 'bg-white/20 backdrop-blur-sm border-2 border-white/30'
-                    : 'bg-gradient-to-br from-rose-500 to-pink-500 text-white'
-                } rounded-2xl flex items-center justify-center font-bold text-lg shadow-lg`}
+                className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-white/30 bg-white/20 text-lg font-bold text-white shadow-lg backdrop-blur-sm"
               >
                 {initials}
               </div>
@@ -252,18 +226,14 @@ export function ClientCard({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h3 className={`text-lg font-semibold ${isAdmin ? 'text-white' : 'text-gray-900'} truncate`}>
-                  {client.name}
-                </h3>
+                <h3 className="truncate text-lg font-semibold text-white">{client.name}</h3>
                 {isAdmin && (
                   <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white border border-white/30">
                     {clientsText.adminLabel}
                   </span>
                 )}
               </div>
-              <p className={`text-sm ${isAdmin ? 'text-white/80' : 'text-gray-500'} truncate`}>
-                {client.email}
-              </p>
+              <p className="truncate text-sm text-white/80">{client.email}</p>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {!isAdmin && status && (
                   <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(status)}`}>
@@ -272,11 +242,7 @@ export function ClientCard({
                 )}
                 {isOnline && (
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-                      isAdmin
-                        ? 'bg-sky-400/30 text-white border border-sky-200/40'
-                        : 'bg-sky-100 text-sky-800 border border-sky-200'
-                    }`}
+                    className="inline-flex items-center gap-1 rounded-full border border-sky-400/30 bg-sky-500/20 px-2 py-1 text-xs font-semibold text-sky-100"
                     title={clientsText.onlineLabel}
                   >
                     <Wifi className="w-3 h-3 flex-shrink-0" />
@@ -285,11 +251,7 @@ export function ClientCard({
                 )}
                 {client.groupName && (
                   <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      isAdmin
-                        ? 'bg-white/20 text-white border border-white/30'
-                        : 'bg-purple-100 text-purple-800 border border-purple-200'
-                    }`}
+                    className="rounded-full border border-purple-400/30 bg-purple-500/20 px-2 py-1 text-xs font-medium text-purple-100"
                   >
                     {client.groupName}
                   </span>
@@ -323,11 +285,7 @@ export function ClientCard({
               if (client.trainingFrequency && periodNumber) {
                 return (
                   <span 
-                    className={`px-2.5 py-1 text-xs font-medium rounded-full border flex items-center gap-1 flex-shrink-0 ${
-                      isAdmin 
-                        ? 'bg-white/20 text-white border-white/30' 
-                        : 'bg-rose-100 text-rose-700 border-rose-200'
-                    }`}
+                    className="flex shrink-0 items-center gap-1 rounded-full border border-[#F36088]/35 bg-[#E11C48]/25 px-2.5 py-1 text-xs font-medium text-[#F9A8D9]"
                     title={`Current Period ${periodNumber}: ${sessionsInPeriod !== undefined ? sessionsInPeriod : completedSessions % (client.trainingFrequency * 4)}/${client.trainingFrequency * 4} completed sessions`}
                   >
                     <Clock className="w-3 h-3 flex-shrink-0" />
@@ -340,9 +298,7 @@ export function ClientCard({
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => onView(client.id)}
-                className={`p-2 ${
-                  isAdmin ? 'text-white/80 hover:text-white hover:bg-white/20' : 'text-gray-400 hover:text-rose-600 hover:bg-rose-50'
-                } rounded-xl transition-colors`}
+                className="rounded-xl p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
                 title={clientsText.actions.viewClient}
               >
                 <Eye className="w-4 h-4" />
@@ -350,7 +306,7 @@ export function ClientCard({
               {!isAdmin && onDelete && (
                 <button
                   onClick={() => onDelete({ id: client.id, name: client.name })}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                  className="rounded-xl p-2 text-white/50 transition-colors hover:bg-red-500/15 hover:text-red-300"
                   title={clientsText.actions.deleteClient}
                 >
                   <Trash2 className="w-4 h-4" />
@@ -360,57 +316,57 @@ export function ClientCard({
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-3 mb-4">
-          <div className={`text-center ${isAdmin ? 'text-white' : ''}`}>
-            <div className={`text-xl font-bold ${isAdmin ? 'text-white' : 'text-gray-900'}`}>
+        <div className="mb-4 grid grid-cols-4 gap-3">
+          <div className="text-center">
+            <div className="text-xl font-bold text-white">
               {`${completed}/${expectedTotal}`}
             </div>
-            <div className={`text-xs ${isAdmin ? 'text-white/80' : 'text-gray-500'} mb-1`}>{clientsText.statsSessions}</div>
+            <div className="mb-1 text-xs text-white/65">{clientsText.statsSessions}</div>
             {expectedTotal > 0 && (
               <>
-                <div className={`w-full ${isAdmin ? 'bg-white/20' : 'bg-gray-200'} rounded-full h-1.5 mb-1`}>
+                <div className="mb-1 h-1.5 w-full rounded-full bg-white/15">
                   <div
-                    className={`${isAdmin ? 'bg-white' : 'bg-rose-500'} h-1.5 rounded-full transition-all duration-300`}
+                    className="h-1.5 rounded-full bg-gradient-to-r from-[#E11C48] to-[#F36088] transition-all duration-300"
                     style={{ width: `${Math.min(percentage, 100)}%` }}
                   />
                 </div>
-                <div className={`text-xs ${isAdmin ? 'text-white/80' : 'text-gray-500'}`}>
+                <div className="text-xs text-white/65">
                   {percentage}% • {weeksRemaining}
                   {clientsText.weeksShort}
                 </div>
               </>
             )}
           </div>
-          <div className={`text-center ${isAdmin ? 'text-white' : ''}`}>
-            <div className={`text-xl font-bold ${isAdmin ? 'text-white' : 'text-gray-900'}`}>
+          <div className="text-center">
+            <div className="text-xl font-bold text-white">
               {client.trainingFrequency || 0}
             </div>
-            <div className={`text-xs ${isAdmin ? 'text-white/80' : 'text-gray-500'}`}>{clientsText.statsPerWeek}</div>
+            <div className="text-xs text-white/65">{clientsText.statsPerWeek}</div>
           </div>
-          <div className={`text-center ${isAdmin ? 'text-white' : ''}`}>
-            <div className={`text-xl font-bold ${isAdmin ? 'text-white' : 'text-gray-900'}`}>
+          <div className="text-center">
+            <div className="text-xl font-bold text-white">
               {client.measurementsCount || 0}
             </div>
-            <div className={`text-xs ${isAdmin ? 'text-white/80' : 'text-gray-500'}`}>{clientsText.statsMeasurements}</div>
+            <div className="text-xs text-white/65">{clientsText.statsMeasurements}</div>
           </div>
-          <div className={`text-center ${isAdmin ? 'text-white' : ''}`}>
+          <div className="text-center">
             <div
               className={`text-xl font-bold ${
-                isMissingPhotos ? 'text-red-500' : isAdmin ? 'text-white' : 'text-gray-900'
+                isMissingPhotos ? 'text-red-400' : 'text-white'
               }`}
             >
               {photosCount}
             </div>
-            <div className={`text-xs ${isAdmin ? 'text-white/80' : 'text-gray-500'}`}>{clientsText.statsPhotos}</div>
+            <div className="text-xs text-white/65">{clientsText.statsPhotos}</div>
             {isMissingPhotos && expectedPhotos > 0 && (
-              <div className={`text-xs ${isAdmin ? 'text-white/90' : 'text-red-500'} mt-1`}>
+              <div className="mt-1 text-xs text-red-300">
                 {missingPhotosText}
               </div>
             )}
           </div>
         </div>
 
-        <div className={`space-y-2 text-sm ${isAdmin ? 'text-white/80' : 'text-gray-500'}`}>
+        <div className="space-y-2 text-sm text-white/70">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
@@ -428,57 +384,19 @@ export function ClientCard({
 
           {paymentInfo.nextPaymentDate && !paymentInfo.isPaid && (
             <div
-              className={`flex items-center justify-between p-2 rounded-lg ${
+              className={`flex items-center justify-between rounded-lg p-2 ${
                 paymentInfo.daysUntil !== null && paymentInfo.daysUntil !== undefined && paymentInfo.daysUntil < 0
-                  ? isAdmin
-                    ? 'bg-red-500/30'
-                    : 'bg-red-50 border border-red-200'
+                  ? 'border border-red-400/30 bg-red-500/20'
                   : paymentInfo.daysUntil !== null &&
-                    paymentInfo.daysUntil !== undefined &&
-                    paymentInfo.daysUntil <= 7
-                  ? isAdmin
-                    ? 'bg-orange-500/30'
-                    : 'bg-orange-50 border border-orange-200'
-                  : isAdmin
-                  ? 'bg-white/10'
-                  : 'bg-rose-50 border border-rose-200'
+                      paymentInfo.daysUntil !== undefined &&
+                      paymentInfo.daysUntil <= 7
+                    ? 'border border-amber-400/30 bg-amber-500/15'
+                    : 'border border-white/10 bg-white/[0.06]'
               }`}
             >
               <div className="flex items-center gap-2">
-                <Euro
-                  className={`w-4 h-4 ${
-                    paymentInfo.daysUntil !== null && paymentInfo.daysUntil !== undefined && paymentInfo.daysUntil < 0
-                      ? isAdmin
-                        ? 'text-white'
-                        : 'text-red-600'
-                      : paymentInfo.daysUntil !== null &&
-                        paymentInfo.daysUntil !== undefined &&
-                        paymentInfo.daysUntil <= 7
-                      ? isAdmin
-                        ? 'text-white'
-                        : 'text-orange-600'
-                      : isAdmin
-                      ? 'text-white/80'
-                      : 'text-rose-600'
-                  }`}
-                />
-                <span
-                  className={`text-xs font-medium ${
-                    paymentInfo.daysUntil !== null && paymentInfo.daysUntil !== undefined && paymentInfo.daysUntil < 0
-                      ? isAdmin
-                        ? 'text-white'
-                        : 'text-red-800'
-                      : paymentInfo.daysUntil !== null &&
-                        paymentInfo.daysUntil !== undefined &&
-                        paymentInfo.daysUntil <= 7
-                      ? isAdmin
-                        ? 'text-white'
-                        : 'text-orange-800'
-                      : isAdmin
-                      ? 'text-white/90'
-                      : 'text-rose-800'
-                  }`}
-                >
+                <Euro className="h-4 w-4 text-white/80" />
+                <span className="text-xs font-medium text-white/90">
                   {clientsText.payment.nextPayment}
                 </span>
               </div>
@@ -504,13 +422,9 @@ export function ClientCard({
         </div>
       </div>
 
-      <div
-        className={`px-6 py-3 ${
-          isAdmin ? 'bg-white/10 border-t border-white/20' : 'bg-rose-50/60 border-t border-gray-100'
-        }`}
-      >
+      <div className="border-t border-white/10 bg-white/[0.04] px-6 py-3">
         <div className="flex items-center justify-between">
-          <div className={`text-xs ${isAdmin ? 'text-white/80' : 'text-gray-500'}`}>
+          <div className="text-xs text-white/65">
             {client.goal && (
               <div className="flex items-center gap-1">
                 <Target className="w-3 h-3" />
@@ -528,7 +442,7 @@ export function ClientCard({
               </button>
               <button
                 onClick={() => onView(client.id)}
-                className={`text-sm font-medium ${isAdmin ? 'text-white hover:text-white/80' : 'text-rose-600 hover:text-rose-700'} transition-colors`}
+                className="text-sm font-medium text-[#F9A8D9] transition-colors hover:text-white"
               >
                 {clientsText.actions.viewDetails}
               </button>
@@ -536,7 +450,7 @@ export function ClientCard({
           ) : (
             <button
               onClick={() => onView(client.id)}
-              className={`text-sm font-medium ${isAdmin ? 'text-white hover:text-white/80' : 'text-rose-600 hover:text-rose-700'} transition-colors`}
+              className="text-sm font-medium text-[#F9A8D9] transition-colors hover:text-white"
             >
               {actionLabel || clientsText.actions.viewDetails}
             </button>
@@ -551,12 +465,7 @@ export function AdminBar({ client, onView }: AdminBarProps) {
   const { t } = useLanguage();
   const clientsText = t.admin.clientsPage;
   const email = client.email?.toLowerCase() ?? '';
-  const adminBarColors =
-    email === 'info@mihaelafitness.com' || email === 'mihaela@mihaelafitness.com'
-      ? 'bg-gradient-to-r from-pink-500 to-rose-600 border-pink-300'
-      : email === 'chiel@media2net.nl'
-      ? 'bg-gradient-to-r from-blue-500 to-cyan-600 border-blue-300'
-      : 'bg-gradient-to-r from-blue-500 to-purple-600';
+  const adminBarColors = getAdminBarClassName(email);
 
   const completed = client.completedSessions || 0;
   
@@ -581,7 +490,7 @@ export function AdminBar({ client, onView }: AdminBarProps) {
     : null;
 
   return (
-    <div className={`group rounded-xl shadow-sm border-2 ${adminBarColors} hover:shadow-lg transition-all duration-300 overflow-hidden`}>
+    <div className={`group overflow-hidden border-2 ${adminBarColors} shadow-sm transition-all duration-300 hover:shadow-lg`}>
       <div className="flex items-center justify-between p-4 text-white">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="relative flex-shrink-0">

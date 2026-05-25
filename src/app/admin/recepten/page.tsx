@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AdminPageContent from '@/components/admin/AdminPageContent';
 import { ChefHat, Plus, Search, Edit, Trash2, Clock, Users, Utensils, X, Filter, XCircle, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 
@@ -340,14 +341,9 @@ export default function ReceptenPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
+    <AdminPageContent>
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center">
-            <ChefHat className="w-6 h-6 mr-3 text-indigo-500" />
-            Recepten
-          </h1>
           <div className="text-sm text-gray-600 bg-indigo-50 px-4 py-2 rounded-lg">
             <span className="font-semibold text-indigo-700">{recipes.length}</span>
             <span className="ml-1">
@@ -791,6 +787,6 @@ export default function ReceptenPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPageContent>
   );
 }

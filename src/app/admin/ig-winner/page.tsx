@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Trophy, Users } from 'lucide-react';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import { adminInputClassName, adminPrimaryBtnClassName } from '@/lib/adminStyles';
 
 const WINNER_NAME = 'deniinstaaa';
 const SPIN_DURATION_MS = 5000;
@@ -107,16 +109,14 @@ export default function IGWinnerPage() {
   }, [phase, spinList]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#E11C48] via-[#F36088] to-[#F9A8D9] flex flex-col items-center justify-center p-6">
-      <div className="max-w-lg w-full text-center">
+    <AdminPageContent>
+    <div className="flex min-h-[70vh] flex-col items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-b from-[#4a2035] via-[#351828] to-[#2a1220] p-6">
+      <div className="w-full max-w-lg text-center">
         {phase === 'idle' && (
           <>
             <div className="mb-6">
-              <Trophy className="w-20 h-20 mx-auto text-white/90 drop-shadow-lg" />
-              <h1 className="mt-4 text-3xl font-bold text-white drop-shadow-md">
-                Câștigător IG
-              </h1>
-              <p className="mt-2 text-white/80 text-lg">
+              <Trophy className="mx-auto h-20 w-20 text-[#F36088] drop-shadow-lg" />
+              <p className="mt-4 text-lg text-white/70">
                 Alege un câștigător din comentariile de la reel
               </p>
             </div>
@@ -132,7 +132,7 @@ export default function IGWinnerPage() {
                 onBlur={saveEntrants}
                 placeholder="@user1&#10;user2&#10;user3"
                 rows={6}
-                className="w-full rounded-xl border-2 border-white/30 bg-white/10 text-white placeholder-white/50 p-3 text-sm resize-y focus:border-white/60 focus:outline-none"
+                className={`${adminInputClassName} resize-y`}
               />
               {entrants.length > 0 && (
                 <p className="text-white/70 text-xs mt-1">
@@ -141,10 +141,7 @@ export default function IGWinnerPage() {
               )}
             </div>
 
-            <button
-              onClick={pickWinner}
-              className="px-8 py-4 rounded-2xl bg-white text-[#E11C48] font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-105 active:scale-100 transition-all duration-200"
-            >
+            <button type="button" onClick={pickWinner} className={`${adminPrimaryBtnClassName} px-8 py-4 text-lg`}>
               Alege câștigătorul
             </button>
           </>
@@ -173,5 +170,6 @@ export default function IGWinnerPage() {
         )}
       </div>
     </div>
+    </AdminPageContent>
   );
 }

@@ -5,6 +5,15 @@ import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calcula
 import { useRouter, useParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { isOnlineClient } from '@/lib/clientTypes';
+import {
+  adminModalOverlayClassName,
+  adminModalPanelClassName,
+  adminModalPanelStyle,
+  adminInputClassName,
+  adminLabelClassName,
+  adminGhostBtnClassName,
+  adminPrimaryBtnClassName,
+} from '@/lib/adminStyles';
 
 
 // Period Tracking Component
@@ -1147,7 +1156,7 @@ function PhotoUploadForm({
 
   if (uploading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className={adminModalOverlayClassName}>
         <div className="bg-white rounded-2xl p-8 w-full max-w-md mx-4">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
@@ -1428,6 +1437,18 @@ export default function ClientDetailPage() {
   const firstPhotoWeek = photoWeeks[0];
   const lastPhotoWeek = photoWeeks[photoWeeks.length - 1];
   const hasPhotoComparison = typeof firstPhotoWeek === 'number';
+  const photoPositions = ['front', 'side', 'back'] as const;
+
+  const getComparisonPhotosForPosition = (position: string) => {
+    const baseWeek = firstPhotoWeek as number;
+    const endWeek = (lastPhotoWeek ?? firstPhotoWeek) as number;
+    return {
+      startPhoto: customerPhotos.find((p) => p.week === baseWeek && p.position === position) ?? null,
+      endPhoto: customerPhotos.find((p) => p.week === endWeek && p.position === position) ?? null,
+      baseWeek,
+      endWeek,
+    };
+  };
   const comparisonPhotoWeek = typeof lastPhotoWeek === 'number'
     ? lastPhotoWeek
     : typeof firstPhotoWeek === 'number'
@@ -1858,29 +1879,6 @@ export default function ClientDetailPage() {
     }
   };
 
-  // Keyboard navigation for photo viewer
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!selectedPhoto) return;
-      
-      if (event.key === 'Escape') {
-        setSelectedPhoto(null);
-      } else if (event.key === 'ArrowLeft') {
-        const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
-        const prevPhoto = customerPhotos[currentIndex - 1];
-        if (prevPhoto) setSelectedPhoto(prevPhoto);
-      } else if (event.key === 'ArrowRight') {
-        const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
-        const nextPhoto = customerPhotos[currentIndex + 1];
-        if (nextPhoto) setSelectedPhoto(nextPhoto);
-      }
-    };
-
-    if (selectedPhoto) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [selectedPhoto, customerPhotos]);
   const [editFormData, setEditFormData] = useState({
     name: '',
     email: '',
@@ -1987,23 +1985,31 @@ export default function ClientDetailPage() {
     }
   }, [clientId]);
 
-  // Keyboard navigation for photo viewer
+  // Keyboard navigation for photo comparison viewer (cycle positions)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!selectedPhoto) return;
-      
-      const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
-      
+
+      const currentPositionIndex = photoPositions.indexOf(
+        selectedPhoto.position as (typeof photoPositions)[number]
+      );
+
       switch (event.key) {
         case 'ArrowLeft':
           event.preventDefault();
-          const prevPhoto = customerPhotos[currentIndex - 1];
-          if (prevPhoto) setSelectedPhoto(prevPhoto);
+          if (currentPositionIndex > 0) {
+            const prevPosition = photoPositions[currentPositionIndex - 1];
+            const prevPhoto = customerPhotos.find((p) => p.position === prevPosition);
+            if (prevPhoto) setSelectedPhoto(prevPhoto);
+          }
           break;
         case 'ArrowRight':
           event.preventDefault();
-          const nextPhoto = customerPhotos[currentIndex + 1];
-          if (nextPhoto) setSelectedPhoto(nextPhoto);
+          if (currentPositionIndex < photoPositions.length - 1) {
+            const nextPosition = photoPositions[currentPositionIndex + 1];
+            const nextPhoto = customerPhotos.find((p) => p.position === nextPosition);
+            if (nextPhoto) setSelectedPhoto(nextPhoto);
+          }
           break;
         case 'Escape':
           event.preventDefault();
@@ -2016,7 +2022,27 @@ export default function ClientDetailPage() {
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
-  }, [selectedPhoto, customerPhotos]);
+  }, [selectedPhoto, customerPhotos, photoPositions]);
+
+  const isClientModalOpen =
+    showAddMeasurementModal ||
+    showEditMeasurementModal ||
+    showPhotoUploadModal ||
+    showDeletePhotoModal ||
+    showEditClientModal ||
+    showPaymentModal ||
+    showEditPaymentModal ||
+    showDeletePaymentModal ||
+    !!selectedPhoto;
+
+  useEffect(() => {
+    if (!isClientModalOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isClientModalOpen]);
 
   const handleOpenPhotoGallery = (photo?: any) => {
     if (!customerPhotos.length) {
@@ -2178,7 +2204,7 @@ export default function ClientDetailPage() {
 
   return (
     <div className="min-h-full">
-      <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-full overflow-hidden">
+      <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="mb-4 sm:mb-8">
           <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-6">
@@ -3357,8 +3383,8 @@ export default function ClientDetailPage() {
 
         {/* Modals */}
         {showAddMeasurementModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
-            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={`${adminModalPanelClassName} max-w-2xl`} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Add Measurement</h2>
                 <button
@@ -3378,8 +3404,8 @@ export default function ClientDetailPage() {
         )}
 
         {showEditMeasurementModal && editingMeasurement && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
-            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={`${adminModalPanelClassName} max-w-2xl`} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Edit Measurement</h2>
                 <button
@@ -3405,8 +3431,8 @@ export default function ClientDetailPage() {
         )}
 
         {showPhotoUploadModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
-            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={`${adminModalPanelClassName} max-w-2xl`} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">
                   {editingPhoto 
@@ -3444,8 +3470,8 @@ export default function ClientDetailPage() {
 
         {/* Delete Photo Confirmation Modal */}
         {showDeletePhotoModal && photoToDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
-            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md">
+          <div className={adminModalOverlayClassName}>
+            <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Foto verwijderen</h2>
                 <button
@@ -3487,98 +3513,143 @@ export default function ClientDetailPage() {
           </div>
         )}
 
-        {/* Individual Photo Viewer Modal - Full Screen */}
-        {selectedPhoto && (
-          <div className="fixed inset-0 bg-black z-50 flex flex-col">
-            {/* Header */}
-            <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/90 to-transparent p-4 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div className="text-white">
-                  <h3 className="text-xl sm:text-2xl font-bold capitalize flex items-center gap-2 sm:gap-3">
-                    <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${
-                      selectedPhoto.position === 'front' ? 'bg-green-500' :
-                      selectedPhoto.position === 'side' ? 'bg-blue-500' : 'bg-purple-500'
-                    }`}></div>
-                    {selectedPhoto.position} View
-                  </h3>
-                  <p className="text-xs sm:text-sm text-gray-300">
-                    Week {selectedPhoto.week} • {new Date(selectedPhoto.date).toLocaleDateString()}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedPhoto(null)}
-                  className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
-                >
-                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
-                </button>
-              </div>
-            </div>
+        {/* Photo comparison viewer — start vs end week, side by side */}
+        {selectedPhoto && (() => {
+          const { startPhoto, endPhoto, baseWeek, endWeek } = getComparisonPhotosForPosition(selectedPhoto.position);
+          const currentPositionIndex = photoPositions.indexOf(
+            selectedPhoto.position as (typeof photoPositions)[number]
+          );
 
-            {/* Main Photo - Full Screen */}
-            <div className="flex-1 flex items-center justify-center p-2 sm:p-4 pt-16 sm:pt-20">
-              <img
-                src={selectedPhoto.imageUrl}
-                alt={`${selectedPhoto.position} view week ${selectedPhoto.week}`}
-                className="max-w-full max-h-full object-contain"
-                style={{
-                  maxWidth: '100vw',
-                  maxHeight: '100vh',
-                  width: 'auto',
-                  height: 'auto'
-                }}
-              />
-            </div>
-
-            {/* Navigation */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 sm:p-6">
-              <div className="flex items-center justify-between text-white">
-                <div className="flex items-center gap-2 sm:gap-4">
-                  <button
-                    onClick={() => {
-                      const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
-                      const prevPhoto = customerPhotos[currentIndex - 1];
-                      if (prevPhoto) setSelectedPhoto(prevPhoto);
-                    }}
-                    className="p-2 sm:p-3 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
-                    disabled={customerPhotos.findIndex(p => p.id === selectedPhoto.id) === 0}
-                  >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <span className="text-xs sm:text-sm">
-                    {customerPhotos.findIndex(p => p.id === selectedPhoto.id) + 1} of {customerPhotos.length}
+          const renderComparisonPanel = (
+            photo: typeof startPhoto,
+            label: string,
+            week: number
+          ) => (
+            <div className="flex-1 flex flex-col items-center justify-center min-w-0 min-h-0 px-1 sm:px-3">
+              <p className="text-white text-xs sm:text-sm font-medium mb-2 sm:mb-3 text-center shrink-0">
+                {label}
+                {photo && (
+                  <span className="block text-gray-400 font-normal mt-0.5">
+                    Week {week} • {new Date(photo.date).toLocaleDateString()}
                   </span>
+                )}
+              </p>
+              {photo ? (
+                <img
+                  src={photo.imageUrl}
+                  alt={`${selectedPhoto.position} view week ${week}`}
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <div className="flex-1 w-full max-w-sm flex items-center justify-center rounded-lg border border-dashed border-white/30 text-gray-400 text-sm px-4 text-center">
+                  Geen foto voor week {week}
+                </div>
+              )}
+            </div>
+          );
+
+          return (
+            <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+              <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/90 to-transparent p-4 sm:p-6">
+                <div className="flex items-center justify-between">
+                  <div className="text-white">
+                    <h3 className="text-xl sm:text-2xl font-bold capitalize flex items-center gap-2 sm:gap-3">
+                      <div
+                        className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${
+                          selectedPhoto.position === 'front'
+                            ? 'bg-green-500'
+                            : selectedPhoto.position === 'side'
+                              ? 'bg-blue-500'
+                              : 'bg-purple-500'
+                        }`}
+                      />
+                      {selectedPhoto.position} View
+                    </h3>
+                    <p className="text-xs sm:text-sm text-gray-300">
+                      Start vs eind — Week {baseWeek}
+                      {endWeek !== baseWeek ? ` vs Week ${endWeek}` : ''}
+                    </p>
+                  </div>
                   <button
-                    onClick={() => {
-                      const currentIndex = customerPhotos.findIndex(p => p.id === selectedPhoto.id);
-                      const nextPhoto = customerPhotos[currentIndex + 1];
-                      if (nextPhoto) setSelectedPhoto(nextPhoto);
-                    }}
-                    className="p-2 sm:p-3 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
-                    disabled={customerPhotos.findIndex(p => p.id === selectedPhoto.id) === customerPhotos.length - 1}
+                    onClick={() => setSelectedPhoto(null)}
+                    className="p-2 rounded-lg text-white hover:bg-white/20 transition-colors"
                   >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <X className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
                 </div>
-                <div className="text-xs sm:text-sm text-gray-300 max-w-xs">
-                  {selectedPhoto.notes && (
-                    <p className="truncate" title={selectedPhoto.notes}>
-                      {selectedPhoto.notes}
-                    </p>
+              </div>
+
+              <div className="flex-1 flex items-stretch justify-center gap-2 sm:gap-4 p-2 sm:p-4 pt-16 sm:pt-20 pb-20 sm:pb-24 min-h-0">
+                {renderComparisonPanel(startPhoto, 'Start', baseWeek)}
+                <div className="w-px bg-white/20 shrink-0 self-stretch my-8" aria-hidden />
+                {renderComparisonPanel(
+                  endPhoto,
+                  endWeek !== baseWeek ? 'Eind' : 'Start (zelfde week)',
+                  endWeek
+                )}
+              </div>
+
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 sm:p-6">
+                <div className="flex items-center justify-between text-white">
+                  <div className="flex items-center gap-2 sm:gap-4">
+                    <button
+                      onClick={() => {
+                        if (currentPositionIndex > 0) {
+                          const prevPosition = photoPositions[currentPositionIndex - 1];
+                          const prevPhoto = customerPhotos.find((p) => p.position === prevPosition);
+                          if (prevPhoto) setSelectedPhoto(prevPhoto);
+                        }
+                      }}
+                      className="p-2 sm:p-3 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                      disabled={currentPositionIndex <= 0}
+                    >
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <span className="text-xs sm:text-sm capitalize">
+                      {currentPositionIndex + 1} van {photoPositions.length} ({selectedPhoto.position})
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (currentPositionIndex < photoPositions.length - 1) {
+                          const nextPosition = photoPositions[currentPositionIndex + 1];
+                          const nextPhoto = customerPhotos.find((p) => p.position === nextPosition);
+                          if (nextPhoto) setSelectedPhoto(nextPhoto);
+                        }
+                      }}
+                      className="p-2 sm:p-3 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                      disabled={currentPositionIndex >= photoPositions.length - 1}
+                    >
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                  {(startPhoto?.notes || endPhoto?.notes) && (
+                    <div className="text-xs sm:text-sm text-gray-300 max-w-xs hidden sm:block">
+                      {startPhoto?.notes && (
+                        <p className="truncate" title={startPhoto.notes}>
+                          Start: {startPhoto.notes}
+                        </p>
+                      )}
+                      {endPhoto?.notes && endWeek !== baseWeek && (
+                        <p className="truncate" title={endPhoto.notes}>
+                          Eind: {endPhoto.notes}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Edit Client Modal */}
         {showEditClientModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
-            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={`${adminModalPanelClassName} max-w-2xl`} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Edit Client</h2>
                 <button
@@ -3626,22 +3697,22 @@ export default function ClientDetailPage() {
               }} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                    <label className={adminLabelClassName}>Name</label>
                     <input
                       type="text"
                       value={editFormData.name}
                       onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                      className={adminInputClassName}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <label className={adminLabelClassName}>Email</label>
                     <input
                       type="email"
                       value={editFormData.email}
                       onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                      className={adminInputClassName}
                       required
                     />
                   </div>
@@ -3649,32 +3720,32 @@ export default function ClientDetailPage() {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                    <label className={adminLabelClassName}>Phone</label>
                     <input
                       type="tel"
                       value={editFormData.phone}
                       onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                      className={adminInputClassName}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Goal</label>
+                    <label className={adminLabelClassName}>Goal</label>
                     <input
                       type="text"
                       value={editFormData.goal}
                       onChange={(e) => setEditFormData({...editFormData, goal: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                      className={adminInputClassName}
                     />
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <label className={adminLabelClassName}>Status</label>
                     <select
                       value={editFormData.status}
                       onChange={(e) => setEditFormData({...editFormData, status: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                      className={adminInputClassName}
                     >
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
@@ -3682,11 +3753,11 @@ export default function ClientDetailPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Training Frequency</label>
+                    <label className={adminLabelClassName}>Training Frequency</label>
                     <select
                       value={editFormData.trainingFrequency}
                       onChange={(e) => setEditFormData({...editFormData, trainingFrequency: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                      className={adminInputClassName}
                     >
                       <option value={1}>1x per week</option>
                       <option value={2}>2x per week</option>
@@ -3698,12 +3769,12 @@ export default function ClientDetailPage() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Plan</label>
+                  <label className={adminLabelClassName}>Plan</label>
                   <input
                     type="text"
                     value={editFormData.plan}
                     onChange={(e) => setEditFormData({...editFormData, plan: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                    className={adminInputClassName}
                   />
                 </div>
                 
@@ -3711,13 +3782,13 @@ export default function ClientDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowEditClientModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className={`flex-1 ${adminGhostBtnClassName}`}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
+                    className={`flex-1 ${adminPrimaryBtnClassName}`}
                   >
                     Save Changes
                   </button>
@@ -3729,8 +3800,8 @@ export default function ClientDetailPage() {
 
         {/* Payment Modal */}
         {showPaymentModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
-            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={`${adminModalPanelClassName} max-w-2xl`} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Record Payment</h2>
                 <button
@@ -3860,8 +3931,8 @@ export default function ClientDetailPage() {
 
         {/* Edit Payment Modal */}
         {showEditPaymentModal && editingPayment && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
-            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={`${adminModalPanelClassName} max-w-2xl`} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Edit Payment</h2>
                 <button
@@ -4020,8 +4091,8 @@ export default function ClientDetailPage() {
 
         {/* Delete Payment Modal */}
         {showDeletePaymentModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
-            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md">
+          <div className={adminModalOverlayClassName}>
+            <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Delete Payment</h2>
                 <button

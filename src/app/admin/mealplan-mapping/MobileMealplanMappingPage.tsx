@@ -336,7 +336,7 @@ export default function MobileMealplanMappingPage() {
       <div className="bg-gray-800 border-b border-gray-700 p-4">
         <div className="flex items-center space-x-3 mb-4">
           <FileText className="w-6 h-6 text-orange-500" />
-          <h1 className="text-xl font-bold">Mealplan Parser</h1>
+          <p className="text-sm text-white/55">Importeer en map mealplan tekst naar ingredienten</p>
         </div>
         
         {/* Progress Steps */}

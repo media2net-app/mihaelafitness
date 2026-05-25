@@ -353,10 +353,8 @@ export default function MobileNutritionPlansPage() {
         </div>
       )}
       
-      {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Nutrition Plans</h1>
-        <p className="text-gray-600">Manage your nutrition programs and meal plans</p>
+        <p className="text-sm text-white/55">Manage your nutrition programs and meal plans</p>
       </div>
 
       {/* New Plan Button */}

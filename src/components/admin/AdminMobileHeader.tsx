@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getAdminNavItems } from '@/lib/adminNavItems';
+import { adminContentContainerClassName } from '@/lib/adminStyles';
 import OnlinePageHeader from '@/components/online/OnlinePageHeader';
 
 export default function AdminMobileHeader() {
@@ -24,10 +25,11 @@ export default function AdminMobileHeader() {
       : currentPage?.label ?? t.admin.dashboard.subtitle;
 
   return (
-    <div className="mx-auto max-w-lg px-3 pt-3 sm:max-w-xl sm:px-6 lg:hidden">
+    <div className={`${adminContentContainerClassName} pt-3 lg:pt-6`}>
       <OnlinePageHeader
         title={t.dashboard.onlineClient.dashboardTitle.replace('{name}', firstName)}
         subtitle={subtitle}
+        hideMenuOnLargeScreens
       />
     </div>
   );

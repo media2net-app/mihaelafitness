@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react';
 import { UserPlus, Mail, Phone, Calendar, Eye, Edit, Trash2, Search, Filter, Clock } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import AdminStatsCard from '@/components/admin/AdminStatsCard';
+import {
+  adminCardStyle,
+  adminGhostBtnClassName,
+  adminInputClassName,
+  getAdminStatusClassName,
+} from '@/lib/adminStyles';
 
 interface IntakeSession {
   id: string;
@@ -67,16 +75,6 @@ export default function IntakesPage() {
     return matchesSearch && matchesFilter;
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-red-100 text-red-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'intake': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -124,114 +122,50 @@ export default function IntakesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-full p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
-          </div>
+      <AdminPageContent>
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#F36088]" />
         </div>
-      </div>
+      </AdminPageContent>
     );
   }
 
+  const thisMonthCount = intakes.filter((i) => {
+    const intakeDate = new Date(i.createdAt);
+    const now = new Date();
+    return intakeDate.getMonth() === now.getMonth() && intakeDate.getFullYear() === now.getFullYear();
+  }).length;
+
   return (
-    <div className="min-h-full p-4 lg:p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <UserPlus className="w-6 h-6 text-yellow-600" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">Intakes</h1>
-          </div>
-          <p className="text-gray-600">Manage and view all intake clients</p>
+    <AdminPageContent>
+        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
+          <AdminStatsCard title="Total Intakes" value={intakes.length} icon={UserPlus} />
+          <AdminStatsCard title="Active Intakes" value={intakes.filter((i) => i.status.toLowerCase() === 'active').length} icon={UserPlus} />
+          <AdminStatsCard title="Pending" value={intakes.filter((i) => ['pending', 'intake'].includes(i.status.toLowerCase())).length} icon={UserPlus} />
+          <AdminStatsCard title="This Month" value={thisMonthCount} icon={Calendar} />
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-          <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs lg:text-sm font-medium text-gray-600">Total Intakes</p>
-                <p className="text-xl lg:text-2xl font-bold text-gray-900">{intakes.length}</p>
-              </div>
-              <div className="p-2 lg:p-3 bg-yellow-100 rounded-lg">
-                <UserPlus className="w-5 h-5 lg:w-6 lg:h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs lg:text-sm font-medium text-gray-600">Active Intakes</p>
-                <p className="text-xl lg:text-2xl font-bold text-green-600">
-                  {intakes.filter(i => i.status.toLowerCase() === 'active').length}
-                </p>
-              </div>
-              <div className="p-2 lg:p-3 bg-green-100 rounded-lg">
-                <UserPlus className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs lg:text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-xl lg:text-2xl font-bold text-yellow-600">
-                  {intakes.filter(i => i.status.toLowerCase() === 'pending' || i.status.toLowerCase() === 'intake').length}
-                </p>
-              </div>
-              <div className="p-2 lg:p-3 bg-yellow-100 rounded-lg">
-                <UserPlus className="w-5 h-5 lg:w-6 lg:h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs lg:text-sm font-medium text-gray-600">This Month</p>
-                <p className="text-xl lg:text-2xl font-bold text-blue-600">
-                  {intakes.filter(i => {
-                    const intakeDate = new Date(i.createdAt);
-                    const now = new Date();
-                    return intakeDate.getMonth() === now.getMonth() && 
-                           intakeDate.getFullYear() === now.getFullYear();
-                  }).length}
-                </p>
-              </div>
-              <div className="p-2 lg:p-3 bg-blue-100 rounded-lg">
-                <Calendar className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filters and Search */}
-        <div className="bg-white rounded-xl p-4 lg:p-6 shadow-sm border border-gray-200 mb-6">
+        <div className="mb-6 rounded-xl p-4 lg:p-6" style={adminCardStyle}>
           <div className="flex flex-col gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 lg:w-5 lg:h-5" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40 lg:h-5 lg:w-5" />
                 <input
                   type="text"
                   placeholder="Search by name, email, or phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 lg:py-3 text-sm lg:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                  className={`${adminInputClassName} pl-10 text-sm lg:text-base`}
                 />
               </div>
             </div>
             <div className="w-full lg:w-48">
               <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 lg:w-5 lg:h-5" />
+                <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40 lg:h-5 lg:w-5" />
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 lg:py-3 text-sm lg:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 appearance-none"
+                  className={`${adminInputClassName} appearance-none pl-10 text-sm lg:text-base`}
                 >
                   <option value="all">All Status</option>
                   <option value="intake">Intake</option>
@@ -244,13 +178,12 @@ export default function IntakesPage() {
           </div>
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="hidden overflow-hidden rounded-xl lg:block" style={adminCardStyle}>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="border-b border-white/10 bg-white/[0.03]">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-white/55">
                     Client
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -276,7 +209,7 @@ export default function IntakesPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-white/10">
                 {filteredIntakes.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
@@ -287,7 +220,7 @@ export default function IntakesPage() {
                   </tr>
                 ) : (
                   filteredIntakes.map((intake) => (
-                    <tr key={intake.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={intake.id} className="transition-colors hover:bg-white/[0.03]">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
@@ -314,7 +247,7 @@ export default function IntakesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(intake.status)}`}>
+                        <span className={getAdminStatusClassName(intake.status)}>
                           {intake.status}
                         </span>
                       </td>
@@ -407,7 +340,7 @@ export default function IntakesPage() {
                       <div className="text-xs text-gray-500">ID: {intake.id.slice(-8)}</div>
                     </div>
                   </div>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(intake.status)}`}>
+                  <span className={getAdminStatusClassName(intake.status)}>
                     {intake.status}
                   </span>
                 </div>
@@ -490,7 +423,6 @@ export default function IntakesPage() {
             ))
           )}
         </div>
-      </div>
-    </div>
+    </AdminPageContent>
   );
 }

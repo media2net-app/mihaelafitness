@@ -6,7 +6,9 @@ import {
   FOOD_MEALS_PER_DAY,
   isDayComplete,
   startOfDay,
+  startOfDayFromDb,
   toDateKey,
+  toDateKeyFromDb,
 } from '@/lib/foodTracking';
 
 export const runtime = 'nodejs';
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    const trackingStart = startOfDay(user.joinDate || user.createdAt);
+    const trackingStart = startOfDayFromDb(user.joinDate || user.createdAt);
     const rangeStart = new Date(today);
     rangeStart.setDate(rangeStart.getDate() - 13);
 
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     const countByDay = new Map<string, number>();
     for (const p of photos) {
-      const key = toDateKey(new Date(p.date));
+      const key = toDateKeyFromDb(p.date);
       countByDay.set(key, (countByDay.get(key) || 0) + 1);
     }
 

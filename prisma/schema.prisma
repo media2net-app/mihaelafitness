@@ -720,3 +720,15 @@ model OnlineHabitDailyLog {
   @@index([customerId, date])
   @@map("online_habit_daily_logs")
 }
+
+/// Admin top-bar alert dismissed via "Solved" (missing photos per client, overdue session per session)
+model AdminAlertDismissal {
+  id          String   @id @default(cuid())
+  alertType   String
+  targetId    String
+  dismissedAt DateTime @default(now())
+
+  @@unique([alertType, targetId])
+  @@index([alertType])
+  @@map("admin_alert_dismissals")
+}

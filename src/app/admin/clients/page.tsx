@@ -6,6 +6,24 @@ import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { userService } from '@/lib/database';
 import { ClientCard, AdminBar } from '@/components/admin/clients/ClientComponents';
+import {
+  adminGhostBtnClassName,
+  adminHeaderBarClassName,
+  adminInputClassName,
+  adminModalOverlayClassName,
+  adminModalPanelClassName,
+  adminModalPanelStyle,
+  adminNoticeBannerBodyClassName,
+  adminNoticeBannerBtnClassName,
+  adminNoticeBannerClassName,
+  adminNoticeBannerTitleClassName,
+  adminPageShellClassName,
+  adminLabelClassName,
+  adminPageSubtitleClassName,
+  adminPageTitleClassName,
+  adminPrimaryBtnClassName,
+  adminStatsCardClassName,
+} from '@/lib/adminStyles';
 
 function StatsCard({
   title,
@@ -21,20 +39,20 @@ function StatsCard({
   trend?: string;
 }) {
   return (
-    <div className="bg-white/90 backdrop-blur-sm border border-[#F5D2E0] rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm">
+    <div className={adminStatsCardClassName}>
       <div className="flex items-center gap-3 sm:gap-4">
-        <div className={`p-2 sm:p-3 rounded-lg text-white ${gradient} flex-shrink-0`}>
-          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+        <div className={`flex-shrink-0 rounded-lg p-2 text-white sm:p-3 ${gradient}`}>
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <div className="text-xl sm:text-2xl font-bold text-[#3C1E35]">{value}</div>
-            <div className="text-xs sm:text-sm text-[#8D5D7A]">{title}</div>
+            <div className="text-xl font-bold text-white sm:text-2xl">{value}</div>
+            <div className="text-xs text-white/55 sm:text-sm">{title}</div>
           </div>
         </div>
         {trend && (
-          <div className="flex items-center gap-1 text-xs sm:text-sm text-emerald-600 flex-shrink-0">
-            <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
+          <div className="flex flex-shrink-0 items-center gap-1 text-xs text-emerald-300 sm:text-sm">
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>{trend}</span>
           </div>
         )}
@@ -341,19 +359,19 @@ export default function ClientsPage() {
     : clientsText.summary.total.replace('{count}', String(regularClients.length));
 
   return (
-    <div className="min-h-screen bg-[#FDF7FB]">
-      <div className="bg-white/70 backdrop-blur border-b border-[#F5D2E0]">
-        <div className="px-4 sm:px-6 py-6 sm:py-8">
+    <div className={adminPageShellClassName}>
+      <div className={adminHeaderBarClassName}>
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-semibold text-[#3C1E35]">{clientsText.heading}</h1>
-              <p className="text-sm text-[#8D5D7A] mt-1">
+              <h1 className={adminPageTitleClassName}>{clientsText.heading}</h1>
+              <p className={adminPageSubtitleClassName}>
                 {clientsText.subheading}
               </p>
             </div>
             <button
               onClick={() => setShowNewClientModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#E11C48] to-[#F36B8D] px-4 sm:px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#E11C48]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+              className={adminPrimaryBtnClassName}
             >
               <Plus className="w-4 h-4" />
               {clientsText.actions.addClient}
@@ -389,20 +407,20 @@ export default function ClientsPage() {
 
           <div className="mt-6 flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1 max-w-xl">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#C67697] w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#F9A8D9]" />
             <input
               type="text"
                 placeholder={clientsText.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-[#F5D2E0] bg-white py-3 pl-11 pr-4 text-sm text-[#3C1E35] placeholder-[#C67697] shadow-sm focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                className={`${adminInputClassName} py-3 pl-11 pr-4`}
             />
           </div>
             <button
               type="button"
-              className="flex items-center justify-center gap-2 rounded-xl border border-[#F5D2E0] bg-white px-4 py-2.5 text-sm font-medium text-[#8D5D7A] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className={adminGhostBtnClassName}
             >
-              <Filter className="w-4 h-4 text-[#C67697]" />
+              <Filter className="h-4 w-4 text-[#F9A8D9]" />
               {clientsText.filter}
             </button>
           </div>
@@ -413,8 +431,8 @@ export default function ClientsPage() {
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
-              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#E11C48]"></div>
-              <p className="text-sm font-medium text-[#8D5D7A]">{clientsText.loading}</p>
+              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#F36088]"></div>
+              <p className="text-sm font-medium text-white/55">{clientsText.loading}</p>
             </div>
           </div>
         ) : (
@@ -446,23 +464,23 @@ export default function ClientsPage() {
                     return (
                       <div
                         key={client.id}
-                        className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg shadow-sm"
+                        className={adminNoticeBannerClassName}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3 flex-1">
-                            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-1 items-start gap-3">
+                            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
                             <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-yellow-800 mb-1">
+                            <h3 className={adminNoticeBannerTitleClassName}>
                               Period {completedPeriodNumber > 0 ? completedPeriodNumber : 1} completed for {client.name}
                             </h3>
-                            <p className="text-sm text-yellow-700">
+                            <p className={adminNoticeBannerBodyClassName}>
                               Create a new pricing for period {client.currentPeriodNumber || 1}.
                             </p>
                           </div>
                         </div>
                         <button
                           onClick={() => router.push(`/admin/tarieven?customerId=${client.id}`)}
-                          className="ml-4 px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2 flex-shrink-0"
+                          className={`${adminNoticeBannerBtnClassName} ml-0 sm:ml-4`}
                         >
                           New Pricing
                           <ArrowRight className="w-4 h-4" />
@@ -488,15 +506,15 @@ export default function ClientsPage() {
                 )}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
-              <div className="flex items-center gap-2 text-sm font-medium text-[#8D5D7A]">
-                <Users className="w-4 h-4 text-[#E11C48]" />
+              <div className="flex items-center gap-2 text-sm font-medium text-white/55">
+                <Users className="h-4 w-4 text-[#F36088]" />
                 <span>{summaryText}</span>
               </div>
               {searchApplied && (
                     <button
                   type="button"
                   onClick={() => setSearchTerm('')}
-                  className="text-sm font-medium text-[#E11C48] hover:text-[#B01638]"
+                  className="text-sm font-medium text-[#F9A8D9] hover:text-white"
                 >
                   {clientsText.resetSearch}
                   </button>
@@ -518,15 +536,15 @@ export default function ClientsPage() {
         )}
 
         {!loading && filteredClients.length === 0 && (
-          <div className="mt-8 rounded-3xl border border-dashed border-[#F5D2E0] bg-white/70 px-6 py-16 text-center shadow-sm">
-            <Users className="mx-auto mb-6 h-16 w-16 text-[#EFB6CB]" />
-            <h3 className="text-lg font-semibold text-[#3C1E35] mb-2">{clientsText.empty.title}</h3>
-            <p className="text-sm text-[#8D5D7A] mb-6">
+          <div className="mt-8 rounded-3xl border border-dashed border-white/15 bg-white/[0.03] px-6 py-16 text-center">
+            <Users className="mx-auto mb-6 h-16 w-16 text-[#F36088]/60" />
+            <h3 className="mb-2 text-lg font-semibold text-white">{clientsText.empty.title}</h3>
+            <p className="mb-6 text-sm text-white/55">
               {searchApplied ? clientsText.empty.filteredDescription : clientsText.empty.description}
                 </p>
                 <button
                   onClick={() => setShowNewClientModal(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#E11C48] to-[#F36B8D] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#E11C48]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+              className={adminPrimaryBtnClassName}
                 >
               <Plus className="w-4 h-4" />
               {clientsText.actions.addClient}
@@ -536,10 +554,10 @@ export default function ClientsPage() {
       </div>
 
         {showNewClientModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+        <div className={adminModalOverlayClassName}>
+          <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-[#3C1E35]">{clientsText.addModal.title}</h2>
+              <h2 className="text-xl font-semibold text-white">{clientsText.addModal.title}</h2>
                 <button
                   onClick={() => {
                     if (!isCreatingClient) {
@@ -547,7 +565,7 @@ export default function ClientsPage() {
                     }
                   }}
                   disabled={isCreatingClient}
-                  className="rounded-full p-2 text-[#C67697] transition-colors hover:bg-[#FDF1F6] hover:text-[#E11C48] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-full p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -556,55 +574,55 @@ export default function ClientsPage() {
               <form onSubmit={handleCreateClient}>
               <div className="space-y-4">
                 <div>
-                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.nameLabel}</label>
+                <label className={`${adminLabelClassName} font-semibold`}>{clientsText.addModal.nameLabel}</label>
                   <input
                     type="text"
                     value={newClient.name}
                   onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
-                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                  className={adminInputClassName}
                   placeholder={clientsText.addModal.namePlaceholder}
                   />
                 </div>
                 
                 <div>
-                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.emailLabel}</label>
+                <label className={`${adminLabelClassName} font-semibold`}>{clientsText.addModal.emailLabel}</label>
                   <input
                     type="email"
                     value={newClient.email}
                   onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                  className={adminInputClassName}
                   placeholder={clientsText.addModal.emailPlaceholder}
                   />
                 </div>
                 
                 <div>
-                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.phoneLabel}</label>
+                <label className={`${adminLabelClassName} font-semibold`}>{clientsText.addModal.phoneLabel}</label>
                   <input
                     type="tel"
                     value={newClient.phone}
                   onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                  className={adminInputClassName}
                   placeholder={clientsText.addModal.phonePlaceholder}
                   />
                 </div>
                 
                 <div>
-                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.goalLabel}</label>
+                <label className={`${adminLabelClassName} font-semibold`}>{clientsText.addModal.goalLabel}</label>
                   <textarea
                     value={newClient.goal}
                   onChange={(e) => setNewClient({ ...newClient, goal: e.target.value })}
-                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                  className={adminInputClassName}
                   placeholder={clientsText.addModal.goalPlaceholder}
                     rows={3}
                   />
                 </div>
                 
                 <div>
-                <label className="block text-sm font-semibold text-[#3C1E35] mb-2">{clientsText.addModal.trainingFrequencyLabel}</label>
+                <label className={`${adminLabelClassName} font-semibold`}>{clientsText.addModal.trainingFrequencyLabel}</label>
                   <select
                     value={newClient.trainingFrequency}
                   onChange={(e) => setNewClient({ ...newClient, trainingFrequency: parseInt(e.target.value, 10) })}
-                  className="w-full rounded-xl border border-[#F5D2E0] px-3 py-2 text-sm text-[#3C1E35] focus:border-[#E11C48] focus:outline-none focus:ring-2 focus:ring-[#E11C48]/30"
+                  className={adminInputClassName}
                 >
                   <option value={1}>{clientsText.addModal.frequencyOptions.once}</option>
                   <option value={2}>{clientsText.addModal.frequencyOptions.twice}</option>
@@ -624,7 +642,7 @@ export default function ClientsPage() {
                     }
                   }}
                   disabled={isCreatingClient}
-                  className="flex-1 rounded-xl border border-[#F5D2E0] px-4 py-2.5 text-sm font-medium text-[#8D5D7A] transition-all duration-200 hover:bg-[#FDF1F6] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`${adminGhostBtnClassName} flex-1`}
                 >
                 {clientsText.addModal.cancel}
                 </button>
@@ -649,10 +667,10 @@ export default function ClientsPage() {
         )}
 
       {showDeleteModal && clientToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-              <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-[#3C1E35]">{clientsText.deleteModal.title}</h2>
+        <div className={adminModalOverlayClassName}>
+          <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-white">{clientsText.deleteModal.title}</h2>
                 <button
                 onClick={handleDeleteCancel}
                 className="rounded-full p-2 text-[#C67697] transition-colors hover:bg-[#FDF1F6] hover:text-[#E11C48]"
@@ -661,19 +679,19 @@ export default function ClientsPage() {
                 </button>
               </div>
               
-            <div className="mb-6 rounded-2xl border border-[#F5D2E0] bg-[#FFF6FA] p-4 text-left">
+            <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FCE1EB]">
                 <Trash2 className="h-7 w-7 text-[#E11C48]" />
               </div>
-              <h3 className="text-base font-semibold text-[#3C1E35] text-center mb-2">
+              <h3 className="mb-2 text-center text-base font-semibold text-white">
                 {clientsText.deleteModal.subtitle}
                 </h3>
-              <p className="text-sm text-[#8D5D7A] text-center">
+              <p className="text-center text-sm text-white/55">
                 {clientsText.deleteModal.warningPrefix}
                 <strong>{clientToDelete.name}</strong>
                 {clientsText.deleteModal.warningSuffix}
               </p>
-              <p className="mt-4 text-sm font-medium text-[#3C1E35]">{clientsText.deleteModal.description}</p>
+              <p className="mt-4 text-sm font-medium text-white/80">{clientsText.deleteModal.description}</p>
               <ul className="mt-2 space-y-1 text-sm text-[#C67697] pl-5 list-disc">
                 {clientsText.deleteModal.items.map((item) => (
                   <li key={item}>{item}</li>
@@ -684,7 +702,7 @@ export default function ClientsPage() {
               <div className="flex gap-3">
                 <button
                   onClick={handleDeleteCancel}
-                className="flex-1 rounded-xl border border-[#F5D2E0] px-4 py-2.5 text-sm font-medium text-[#8D5D7A] transition-colors hover:bg-[#FDF1F6]"
+                className={`${adminGhostBtnClassName} flex-1`}
                 >
                 {clientsText.deleteModal.cancel}
                 </button>
@@ -700,12 +718,12 @@ export default function ClientsPage() {
         )}
 
       {showActiveClientsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl max-h-[80vh] flex flex-col">
+        <div className={adminModalOverlayClassName}>
+          <div className={`${adminModalPanelClassName} flex max-h-[80vh] w-full max-w-2xl flex-col`} style={adminModalPanelStyle}>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-semibold text-[#3C1E35]">Actieve Clients</h2>
-                <p className="text-sm text-[#8D5D7A] mt-1">
+                <h2 className="text-2xl font-semibold text-white">Actieve Clients</h2>
+                <p className="mt-1 text-sm text-white/55">
                   {activeClientNames.length} {activeClientNames.length === 1 ? 'client' : 'clients'}
                 </p>
               </div>
@@ -728,14 +746,14 @@ export default function ClientsPage() {
                       <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                         {name.charAt(0).toUpperCase()}
                       </div>
-                      <span className="text-sm font-medium text-[#3C1E35]">{name}</span>
+                      <span className="text-sm font-medium text-white">{name}</span>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
             
-            <div className="mt-6 pt-4 border-t border-[#F5D2E0]">
+            <div className="mt-6 border-t border-white/10 pt-4">
               <button
                 onClick={() => setShowActiveClientsModal(false)}
                 className="w-full rounded-xl bg-gradient-to-r from-[#E11C48] to-[#F36B8D] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#E11C48]/30 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl"

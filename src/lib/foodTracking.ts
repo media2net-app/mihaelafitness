@@ -11,6 +11,7 @@ export const FOOD_MEAL_SLOTS = [
 
 export type FoodMealSlot = (typeof FOOD_MEAL_SLOTS)[number]['slot'];
 
+/** Local calendar date key (browser / user-facing "today"). */
 export function toDateKey(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -18,17 +19,28 @@ export function toDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-export function parseDateKey(key: string): Date {
-  const [y, m, d] = key.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setHours(0, 0, 0, 0);
-  return date;
+/** Calendar date key from a Prisma `@db.Date` value (always UTC). */
+export function toDateKeyFromDb(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
+/** Parse YYYY-MM-DD to UTC midnight for that calendar day (DB storage/query). */
+export function parseDateKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+/** Start of a local calendar day as a UTC date for DB. */
 export function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return parseDateKey(toDateKey(date));
+}
+
+/** Start of a calendar day stored in the database. */
+export function startOfDayFromDb(date: Date): Date {
+  return parseDateKey(toDateKeyFromDb(date));
 }
 
 export function isDayComplete(photoCount: number): boolean {
@@ -38,13 +50,34 @@ export function isDayComplete(photoCount: number): boolean {
 /** Days from start (inclusive) through end (inclusive), as date keys. */
 export function eachDateKey(from: Date, to: Date): string[] {
   const keys: string[] = [];
-  const cur = startOfDay(from);
-  const end = startOfDay(to);
-  while (cur <= end) {
-    keys.push(toDateKey(cur));
-    cur.setDate(cur.getDate() + 1);
+  let cur = parseDateKey(toDateKey(from));
+  const end = parseDateKey(toDateKey(to));
+  while (cur.getTime() <= end.getTime()) {
+    keys.push(toDateKeyFromDb(cur));
+    cur = new Date(cur.getTime() + 86400000);
   }
   return keys;
+}
+
+/** Add calendar days to a date key (YYYY-MM-DD). */
+export function addDaysToDateKey(key: string, days: number): string {
+  const next = new Date(parseDateKey(key).getTime() + days * 86400000);
+  return toDateKeyFromDb(next);
+}
+
+export function isDemoFoodTrackingClient(client: {
+  name?: string | null;
+  email?: string | null;
+}): boolean {
+  const email = client.email?.toLowerCase() ?? '';
+  const name = client.name?.toLowerCase() ?? '';
+  return (
+    email.includes('demo@mihaelafitness.com') ||
+    email.includes('demo-online@') ||
+    email.includes('demo-klant@') ||
+    name === 'demo user' ||
+    name === 'demo klant'
+  );
 }
 
 export function getMealLabel(slot: number, language: 'en' | 'ro'): string {

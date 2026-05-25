@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Search, Filter, Calendar, User, Ruler, TrendingUp, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, User, Ruler, TrendingUp, Edit, Trash2, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import { adminCardStyle, adminInputClassName, adminPrimaryBtnClassName } from '@/lib/adminStyles';
 
 interface Measurement {
   id: string;
@@ -83,36 +85,17 @@ export default function MeasurementsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading measurements...</p>
+      <AdminPageContent>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#F36088]" />
         </div>
-      </div>
+      </AdminPageContent>
     );
   }
 
   return (
-    <div className="min-h-full">
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-        {/* Header */}
-        <div className="mb-4 sm:mb-8">
-          <div className="flex items-center gap-2 sm:gap-4 mb-3 sm:mb-6">
-            <button
-              onClick={() => router.push('/admin')}
-              className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-800 hover:bg-white rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-800">Measurements</h1>
-              <p className="text-sm sm:text-base text-gray-600">Track client progress and measurements</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 mb-4 sm:mb-8">
+    <AdminPageContent>
+        <div className="mb-4 rounded-xl p-3 sm:mb-8 sm:p-6" style={adminCardStyle}>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
             <div className="flex-1">
               <div className="relative">
@@ -122,7 +105,7 @@ export default function MeasurementsPage() {
                   placeholder="Search by client name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                  className={`${adminInputClassName} pl-10`}
                 />
               </div>
             </div>
@@ -130,7 +113,7 @@ export default function MeasurementsPage() {
               <select
                 value={filterWeek}
                 onChange={(e) => setFilterWeek(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                className={adminInputClassName}
               >
                 <option value="">All Weeks</option>
                 {Array.from(new Set(measurements.map(m => m.week))).sort((a, b) => a - b).map(week => (
@@ -139,8 +122,9 @@ export default function MeasurementsPage() {
               </select>
             </div>
             <button
+              type="button"
               onClick={handleAddMeasurement}
-              className="bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors flex items-center gap-2 text-sm sm:text-base"
+              className={`${adminPrimaryBtnClassName} text-sm sm:text-base`}
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Add Measurement</span>
@@ -226,7 +210,6 @@ export default function MeasurementsPage() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+    </AdminPageContent>
   );
 }

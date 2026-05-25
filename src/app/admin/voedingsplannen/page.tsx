@@ -1,5 +1,10 @@
+import AdminPageContent from '@/components/admin/AdminPageContent';
 import MobileNutritionPlansPage from './MobileNutritionPlansPage';
 
 export default function VoedingsplannenPage() {
-  return <MobileNutritionPlansPage />;
+  return (
+    <AdminPageContent>
+      <MobileNutritionPlansPage />
+    </AdminPageContent>
+  );
 }

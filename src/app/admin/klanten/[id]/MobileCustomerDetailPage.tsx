@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Mail, Phone, Calendar, Star, Users, Dumbbell, Apple, Calculator, Edit, Trash2, Download, Share2, Eye, X, Ruler, TrendingUp, Plus, Clock, Target, Award, Camera, Upload, Image as ImageIcon, DollarSign } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  adminModalOverlayClassName,
+  adminModalPanelClassName,
+  adminModalPanelStyle,
+} from '@/lib/adminStyles';
 
 // Edit Pricing Form Component
 function EditPricingForm({ pricing, onSave, onCancel }: { pricing: any, onSave: (data: any) => void, onCancel: () => void }) {
@@ -914,8 +919,8 @@ function PhotoUploadForm({ customerId, onSave, onCancel, existingPhotos }: {
 
     {/* Upload Progress Overlay */}
     {uploading && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4">
+      <div className={adminModalOverlayClassName}>
+        <div className={`${adminModalPanelClassName} max-w-sm`} style={adminModalPanelStyle}>
           <div className="text-center">
             {/* Spinning loader */}
             <div className="w-16 h-16 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin mx-auto mb-4"></div>
@@ -2593,8 +2598,8 @@ export default function MobileCustomerDetailPage() {
 
         {/* Edit Pricing Modal */}
         {showEditPricingModal && editingPricing && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-gray-800">Edit Pricing</h3>
                 <button
@@ -2622,8 +2627,8 @@ export default function MobileCustomerDetailPage() {
 
         {/* Edit Measurement Modal */}
         {showEditMeasurementModal && editingMeasurement && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-gray-800">Edit Measurement</h3>
                 <button
@@ -2651,8 +2656,8 @@ export default function MobileCustomerDetailPage() {
 
         {/* Edit Customer Modal */}
         {showEditCustomerModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-gray-800">Edit Customer</h3>
                 <button
@@ -2674,8 +2679,8 @@ export default function MobileCustomerDetailPage() {
 
         {/* Photo Upload Modal */}
         {showPhotoUploadModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={`${adminModalPanelClassName} max-w-2xl`} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-gray-800">Add Progress Photos</h3>
                 <button
@@ -2701,8 +2706,8 @@ export default function MobileCustomerDetailPage() {
 
         {/* Edit Photo Modal */}
         {showEditPhotoModal && editingPhoto && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className={adminModalOverlayClassName}>
+            <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-gray-800">Edit Photo</h3>
                 <button
@@ -2730,7 +2735,7 @@ export default function MobileCustomerDetailPage() {
 
         {/* Photo Gallery Modal - Full Screen */}
         {showPhotoGalleryModal && selectedPhoto && (
-          <div className="fixed inset-0 bg-black z-50 flex flex-col">
+          <div className="fixed inset-0 z-[100] bg-black flex flex-col">
             {/* Header */}
             <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/90 to-transparent p-4">
               <div className="flex items-center justify-between">

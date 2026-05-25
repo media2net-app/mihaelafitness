@@ -1,13 +1,16 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { adminPageShellClassName } from '@/lib/adminStyles';
 
 type AdminPageShellProps = {
   children: ReactNode;
   className?: string;
 };
 
-/** Wraps all /admin pages — pairs with `.admin-theme` global styles for legacy UIs */
+/** Theme wrapper for all /admin routes — use AdminPageContent for width/padding */
 export default function AdminPageShell({ children, className = '' }: AdminPageShellProps) {
-  return <div className={`admin-theme min-h-full w-full ${className}`.trim()}>{children}</div>;
+  return (
+    <div className={`admin-theme ${adminPageShellClassName} ${className}`.trim()}>{children}</div>
+  );
 }

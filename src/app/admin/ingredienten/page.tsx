@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Filter, Download, Plus, Edit, Trash2, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import { adminPrimaryBtnClassName } from '@/lib/adminStyles';
 
 interface Ingredient {
   id: string;
@@ -520,26 +522,9 @@ export default function IngredientenPage() {
   }
 
   return (
-    <div className="min-h-full">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header - Mobile Optimized */}
+    <AdminPageContent>
         <div className="mb-6">
           <div className="flex flex-col space-y-4">
-            {/* Back Button and Title */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              <div className="flex-1">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">Ingredienten Database</h1>
-                <p className="text-sm sm:text-base text-gray-600 mt-1">Tabel weergave van alle ingrediënten met macro waarden per 100g</p>
-              </div>
-            </div>
-
-            {/* Export Button */}
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowAddModal(true)}
@@ -877,7 +862,6 @@ export default function IngredientenPage() {
             </div>
           )}
         </div>
-      </div>
 
       {/* Add Ingredient Modal */}
       {showAddModal && (
@@ -1232,6 +1216,6 @@ export default function IngredientenPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPageContent>
   );
 }

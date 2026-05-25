@@ -33,6 +33,9 @@ import {
   Loader2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import AdminStatsCard from '@/components/admin/AdminStatsCard';
+import { adminInputClassName, adminPrimaryBtnClassName } from '@/lib/adminStyles';
 
 // Video Search Modal Component
 function VideoSearchModal({ exercise, isOpen, onClose, onSelectVideo, onUploadVideo }: {
@@ -842,39 +845,30 @@ export default function ExerciseLibraryV2Page() {
 
   if (loading) {
     return (
-      <div className="min-h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading exercises...</p>
+      <AdminPageContent fullWidth>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#F36088]" />
         </div>
-      </div>
+      </AdminPageContent>
     );
   }
 
   return (
-    <div className="min-h-full">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Exercise Library</h1>
-              <p className="text-sm sm:text-base text-gray-600 mt-0.5 sm:mt-1">Oefeningen met video's en instructies</p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex-1 sm:flex-none touch-manipulation min-w-0">
-                <Database className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
-                <span className="text-gray-700 text-sm sm:text-base truncate">Import</span>
-              </button>
-              <button className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex-1 sm:flex-none touch-manipulation min-w-0">
-                <Plus className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+    <AdminPageContent fullWidth>
+          <div className="mb-4 flex flex-shrink-0 items-center justify-end gap-2 sm:mb-6">
+              <button type="button" className={`${adminPrimaryBtnClassName} flex-1 sm:flex-none`}>
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span className="text-sm sm:text-base">Add Exercise</span>
               </button>
-            </div>
           </div>
 
-          {/* Quick Stats */}
-          <QuickStats stats={stats} />
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:mb-8 lg:grid-cols-5 sm:gap-6">
+            <AdminStatsCard title="Total Exercises" value={stats.totalExercises} icon={Dumbbell} trend={`+${stats.newThisMonth} this month`} />
+            <AdminStatsCard title="Categories" value={stats.categories} icon={Database} />
+            <AdminStatsCard title="With Video" value={`${stats.withVideo}%`} icon={Video} />
+            <AdminStatsCard title="Eigen video klaar" value={stats.withOwnVideo ?? 0} icon={CheckCircle} trend={`${stats.ownVideoToGo ?? 0} nog te doen`} />
+            <AdminStatsCard title="Avg Rating" value={stats.avgRating} icon={TrendingUp} />
+          </div>
 
           {/* Eigen videos stats card */}
           <div className="mb-4 sm:mb-8 p-4 sm:p-6 rounded-xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 shadow-sm">
@@ -950,11 +944,8 @@ export default function ExerciseLibraryV2Page() {
               <option value="newest">Nieuwste eerst</option>
             </select>
           </div>
-        </div>
-      </div>
 
-      {/* Content */}
-      <div className="px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
+      <div className="py-4 sm:py-6">
         {loadError && (
           <div className="mb-4 sm:mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3">
             <p className="text-red-800 font-medium text-sm sm:text-base">{loadError}</p>
@@ -1022,7 +1013,7 @@ export default function ExerciseLibraryV2Page() {
           onUploadVideo={handleUploadVideoClick}
         />
       )}
-    </div>
+    </AdminPageContent>
   );
 }
 

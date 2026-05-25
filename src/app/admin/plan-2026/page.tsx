@@ -2,21 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Users, 
-  Calendar, 
-  Dumbbell, 
-  ChefHat, 
-  Droplet, 
-  TrendingUp, 
+import {
+  Users,
+  Calendar,
+  Dumbbell,
+  ChefHat,
+  TrendingUp,
   AlertCircle,
   CheckCircle,
   Clock,
   Target,
   ArrowRight,
-  Plus,
-  FileText
+  FileText,
 } from 'lucide-react';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import AdminStatsCard from '@/components/admin/AdminStatsCard';
+import {
+  adminCardStyle,
+  adminGhostBtnClassName,
+  adminInnerCardStyle,
+  adminPrimaryBtnClassName,
+  adminStatsCardClassName,
+  getAdminStatusClassName,
+} from '@/lib/adminStyles';
 
 interface ClientWithRemainingSessions {
   id: string;
@@ -36,35 +44,6 @@ interface Plan2026Stats {
     nutritionPlans: number;
     activeClients: number;
   };
-}
-
-function StatsCard({ 
-  title, 
-  value, 
-  icon: Icon, 
-  color, 
-  subtitle 
-}: { 
-  title: string; 
-  value: string | number; 
-  icon: any; 
-  color: string;
-  subtitle?: string;
-}) {
-  return (
-    <div className={`${color} rounded-xl p-6 shadow-lg`}>
-      <div className="flex items-center justify-between mb-2">
-        <Icon className="w-8 h-8 text-white/80" />
-        <div className="text-right">
-          <div className="text-3xl font-bold text-white">{value}</div>
-          <div className="text-sm text-white/80 mt-1">{title}</div>
-        </div>
-      </div>
-      {subtitle && (
-        <div className="text-xs text-white/70 mt-2">{subtitle}</div>
-      )}
-    </div>
-  );
 }
 
 export default function Plan2026Page() {
@@ -118,80 +97,40 @@ export default function Plan2026Page() {
 
   if (loading) {
     return (
-      <div className="min-h-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading Plan 2026 data...</p>
-            </div>
+      <AdminPageContent>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[#F36088]" />
+            <p className="text-white/55">Loading Plan 2026 data...</p>
           </div>
         </div>
-      </div>
+      </AdminPageContent>
     );
   }
 
   return (
-    <div className="min-h-full px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-4 sm:pt-6 lg:pt-0">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <AdminPageContent>
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-yellow-500 rounded-xl flex items-center justify-center">
-              <Target className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Plan 2026</h1>
-              <p className="text-gray-600 mt-1">The year of results and consistency</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Stats 2026 */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-yellow-600" />
+          <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
+            <TrendingUp className="h-5 w-5 text-amber-300" />
             2026 Overview
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatsCard
-              title="Active Clients"
-              value={stats?.totalActiveClients2026 || 0}
-              icon={Users}
-              color="bg-gradient-to-br from-blue-500 to-blue-600"
-              subtitle="In 2026"
-            />
-            <StatsCard
-              title="Training Sessions This Month"
-              value={stats?.monthlyStats.trainingSessions || 0}
-              icon={Dumbbell}
-              color="bg-gradient-to-br from-purple-500 to-purple-600"
-            />
-            <StatsCard
-              title="Active Nutrition Plans"
-              value={stats?.monthlyStats.nutritionPlans || 0}
-              icon={ChefHat}
-              color="bg-gradient-to-br from-orange-500 to-orange-600"
-            />
-            <StatsCard
-              title="Remaining Sessions 2025"
-              value={stats?.totalRemainingSessions2025 || 0}
-              icon={Clock}
-              color="bg-gradient-to-br from-red-500 to-red-600"
-              subtitle="To Use"
-            />
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <AdminStatsCard title="Active Clients" value={stats?.totalActiveClients2026 || 0} icon={Users} trend="In 2026" />
+            <AdminStatsCard title="Training Sessions This Month" value={stats?.monthlyStats.trainingSessions || 0} icon={Dumbbell} />
+            <AdminStatsCard title="Active Nutrition Plans" value={stats?.monthlyStats.nutritionPlans || 0} icon={ChefHat} />
+            <AdminStatsCard title="Remaining Sessions 2025" value={stats?.totalRemainingSessions2025 || 0} icon={Clock} trend="To use" />
           </div>
         </div>
 
-        {/* 2025 Remaining Sessions */}
         <div className="mb-8">
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500" />
+          <div className="rounded-xl p-6" style={adminCardStyle}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-xl font-semibold text-white">
+                <AlertCircle className="h-5 w-5 text-red-400" />
                 2025 - Remaining Sessions
               </h2>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-white/55">
                 {stats?.clientsWithRemainingSessions.length || 0} clients
               </span>
             </div>
@@ -200,36 +139,37 @@ export default function Plan2026Page() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Client</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Email</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Remaining Sessions</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Last Session</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Action</th>
+                    <tr className="border-b border-white/10">
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-white/70">Client</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-white/70">Email</th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold text-white/70">Remaining Sessions</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-white/70">Last Session</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-white/70">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stats.clientsWithRemainingSessions.map((client) => (
-                      <tr key={client.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-gray-900">{client.name}</div>
+                      <tr key={client.id} className="border-b border-white/5 hover:bg-white/[0.03]">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-white">{client.name}</div>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{client.email}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800">
+                        <td className="px-4 py-3 text-sm text-white/55">{client.email}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={getAdminStatusClassName('pending')}>
                             {client.remainingSessions}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
+                        <td className="px-4 py-3 text-sm text-white/55">
                           {client.lastSessionDate 
                             ? new Date(client.lastSessionDate).toLocaleDateString('en-US')
                             : 'None'
                           }
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="px-4 py-3 text-right">
                           <button
+                            type="button"
                             onClick={() => router.push(`/admin/clients/${client.id}`)}
-                            className="text-yellow-600 hover:text-yellow-700 font-medium text-sm flex items-center gap-1 ml-auto"
+                            className={`${adminGhostBtnClassName} ml-auto inline-flex py-1.5 text-sm`}
                           >
                             View
                             <ArrowRight className="w-4 h-4" />
@@ -241,96 +181,55 @@ export default function Plan2026Page() {
                 </table>
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500">
-                <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-500" />
+              <div className="py-12 text-center text-white/55">
+                <CheckCircle className="mx-auto mb-3 h-12 w-12 text-emerald-400" />
                 <p>No clients with remaining sessions from 2025</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Future Features - Coming Soon */}
         <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Target className="w-5 h-5 text-yellow-600" />
+          <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
+            <Target className="h-5 w-5 text-amber-300" />
             Plan 2026 Features (Coming Soon)
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Personal Plans */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-blue-600" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[
+              { icon: FileText, title: 'Personal Plans', desc: 'Create a personal plan for each client with training, nutrition and water intake goals.' },
+              { icon: CheckCircle, title: 'Daily Tasks', desc: 'Clients can check off their training, nutrition and water intake daily.' },
+              { icon: Calendar, title: 'Weekly Check-ins', desc: 'Every Monday a check-in form for clients to share their progress and feelings.' },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className={`${adminStatsCardClassName} p-6`}>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/[0.08]">
+                    <Icon className="h-5 w-5 text-white/80" />
+                  </div>
+                  <h3 className="font-semibold text-white">{title}</h3>
                 </div>
-                <h3 className="font-semibold text-gray-900">Personal Plans</h3>
+                <p className="mb-4 text-sm text-white/55">{desc}</p>
+                <button type="button" disabled className={`${adminGhostBtnClassName} w-full cursor-not-allowed opacity-50`}>
+                  Coming Soon
+                </button>
               </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Create a personal plan for each client with training, nutrition and water intake goals.
-              </p>
-              <button
-                disabled
-                className="w-full py-2 px-4 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed"
-              >
-                Coming Soon
-              </button>
-            </div>
-
-            {/* Daily Tasks */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900">Daily Tasks</h3>
-              </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Clients can check off their training, nutrition and water intake daily.
-              </p>
-              <button
-                disabled
-                className="w-full py-2 px-4 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed"
-              >
-                Coming Soon
-              </button>
-            </div>
-
-            {/* Weekly Check-in */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-purple-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900">Weekly Check-ins</h3>
-              </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Every Monday a check-in form for clients to share their progress and feelings.
-              </p>
-              <button
-                disabled
-                className="w-full py-2 px-4 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed"
-              >
-                Coming Soon
-              </button>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Info Section */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+        <div className="rounded-xl border border-amber-400/35 bg-amber-500/15 p-6">
           <div className="flex items-start gap-3">
-            <Target className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+            <Target className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" />
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Plan 2026 - The Year of Results</h3>
-              <p className="text-sm text-gray-700">
-                This page is the center for Plan 2026. From here we build step by step the features 
-                needed to help clients be consistent in their training, nutrition and water intake. 
+              <h3 className="mb-2 font-semibold text-amber-100">Plan 2026 - The Year of Results</h3>
+              <p className="text-sm text-amber-200/85">
+                This page is the center for Plan 2026. From here we build step by step the features
+                needed to help clients be consistent in their training, nutrition and water intake.
                 Focus on results and personal guidance per client.
               </p>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AdminPageContent>
   );
 }
 

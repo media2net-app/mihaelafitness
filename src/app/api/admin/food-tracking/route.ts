@@ -6,9 +6,11 @@ import {
   eachDateKey,
   FOOD_MEALS_PER_DAY,
   isDayComplete,
+  isDemoFoodTrackingClient,
   parseDateKey,
-  startOfDay,
+  startOfDayFromDb,
   toDateKey,
+  toDateKeyFromDb,
 } from '@/lib/foodTracking';
 
 export const runtime = 'nodejs';
@@ -29,6 +31,11 @@ export async function GET(request: NextRequest) {
     const date = parseDateKey(dateKey);
 
     if (customerId) {
+      const historyDays = Math.min(
+        31,
+        Math.max(7, parseInt(searchParams.get('historyDays') || '14', 10) || 14),
+      );
+
       const customer = await prisma.user.findFirst({
         where: { id: customerId, plan: ONLINE_PLAN },
         select: {
@@ -41,20 +48,25 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      if (!customer) {
+      if (!customer || isDemoFoodTrackingClient(customer)) {
         return NextResponse.json({ error: 'Client not found' }, { status: 404 });
       }
 
       const photos = await prisma.dailyFoodPhoto.findMany({
         where: { customerId, date },
         orderBy: { mealSlot: 'asc' },
+        select: {
+          id: true,
+          mealSlot: true,
+          imageUrl: true,
+          notes: true,
+        },
       });
 
-      const today = startOfDay(new Date());
-      const weekStart = new Date(today);
-      weekStart.setDate(weekStart.getDate() - 6);
-      const trackingStart = startOfDay(customer.joinDate || customer.createdAt);
-      const queryFrom = trackingStart > weekStart ? trackingStart : weekStart;
+      const today = parseDateKey(toDateKey(new Date()));
+      const rangeStart = new Date(today.getTime() - (historyDays - 1) * 86400000);
+      const trackingStart = startOfDayFromDb(customer.joinDate || customer.createdAt);
+      const queryFrom = trackingStart > rangeStart ? trackingStart : rangeStart;
 
       const recentPhotos = await prisma.dailyFoodPhoto.findMany({
         where: {
@@ -64,15 +76,23 @@ export async function GET(request: NextRequest) {
         select: { date: true, mealSlot: true },
       });
 
-      const countByDay = new Map<string, number>();
+      const slotsByDay = new Map<string, number[]>();
       for (const p of recentPhotos) {
-        const key = toDateKey(new Date(p.date));
-        countByDay.set(key, (countByDay.get(key) || 0) + 1);
+        const key = toDateKeyFromDb(p.date);
+        const slots = slotsByDay.get(key) ?? [];
+        if (!slots.includes(p.mealSlot)) slots.push(p.mealSlot);
+        slotsByDay.set(key, slots);
       }
 
-      const last7Days = eachDateKey(queryFrom, today).map((key) => {
-        const count = countByDay.get(key) || 0;
-        return { date: key, uploadedCount: count, completed: isDayComplete(count) };
+      const history = eachDateKey(queryFrom, today).map((key) => {
+        const filledSlots = (slotsByDay.get(key) ?? []).sort((a, b) => a - b);
+        const uploadedCount = filledSlots.length;
+        return {
+          date: key,
+          uploadedCount,
+          completed: isDayComplete(uploadedCount),
+          filledSlots,
+        };
       });
 
       return NextResponse.json({
@@ -80,14 +100,23 @@ export async function GET(request: NextRequest) {
         date: dateKey,
         photos,
         uploadedCount: photos.length,
-        completed: photos.length >= FOOD_MEALS_PER_DAY,
+        completed: isDayComplete(photos.length),
         requiredCount: FOOD_MEALS_PER_DAY,
-        last7Days,
+        history,
       });
     }
 
     const clients = await prisma.user.findMany({
-      where: { plan: ONLINE_PLAN },
+      where: {
+        plan: ONLINE_PLAN,
+        NOT: {
+          OR: [
+            { email: { contains: 'demo@mihaelafitness.com', mode: 'insensitive' } },
+            { email: { contains: 'demo-online@', mode: 'insensitive' } },
+            { email: { contains: 'demo-klant@', mode: 'insensitive' } },
+          ],
+        },
+      },
       select: {
         id: true,
         name: true,
@@ -111,25 +140,20 @@ export async function GET(request: NextRequest) {
               date,
             },
             select: {
-              id: true,
               customerId: true,
               mealSlot: true,
-              imageUrl: true,
-              notes: true,
             },
-            orderBy: { mealSlot: 'asc' },
           });
 
-    const photosByCustomer = new Map<string, typeof dayPhotos>();
+    const slotsByCustomer = new Map<string, number[]>();
     for (const photo of dayPhotos) {
-      const list = photosByCustomer.get(photo.customerId) ?? [];
-      list.push(photo);
-      photosByCustomer.set(photo.customerId, list);
+      const slots = slotsByCustomer.get(photo.customerId) ?? [];
+      if (!slots.includes(photo.mealSlot)) slots.push(photo.mealSlot);
+      slotsByCustomer.set(photo.customerId, slots);
     }
 
-    const today = startOfDay(new Date());
-    const weekStart = new Date(today);
-    weekStart.setDate(weekStart.getDate() - 6);
+    const today = parseDateKey(toDateKey(new Date()));
+    const weekStart = new Date(today.getTime() - 6 * 86400000);
 
     const weekPhotos =
       clientIds.length === 0
@@ -144,7 +168,7 @@ export async function GET(request: NextRequest) {
 
     const weekCountsByCustomer = new Map<string, Map<string, number>>();
     for (const p of weekPhotos) {
-      const key = toDateKey(new Date(p.date));
+      const key = toDateKeyFromDb(p.date);
       if (!weekCountsByCustomer.has(p.customerId)) {
         weekCountsByCustomer.set(p.customerId, new Map());
       }
@@ -153,8 +177,8 @@ export async function GET(request: NextRequest) {
     }
 
     const clientsSummary = clients.map((client) => {
-      const photos = photosByCustomer.get(client.id) ?? [];
-      const uploadedCount = photos.length;
+      const filledSlots = (slotsByCustomer.get(client.id) ?? []).sort((a, b) => a - b);
+      const uploadedCount = filledSlots.length;
       const dayCounts = weekCountsByCustomer.get(client.id);
       let weekCompleted = 0;
       if (dayCounts) {
@@ -168,7 +192,7 @@ export async function GET(request: NextRequest) {
         uploadedCount,
         completed: isDayComplete(uploadedCount),
         requiredCount: FOOD_MEALS_PER_DAY,
-        photos,
+        filledSlots,
         weekCompleted,
         weekTotal: weekKeys.length,
       };

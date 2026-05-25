@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Save, X, Ruler, Weight, TrendingUp, Calendar, User } from 'lucide-react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  adminModalPanelClassName,
+  adminModalPanelStyle,
+  adminInputClassName,
+  adminLabelClassName,
+  adminPrimaryBtnClassName,
+  adminGhostBtnClassName,
+} from '@/lib/adminStyles';
 
 export default function MeasurementsPage() {
   const router = useRouter();
@@ -213,7 +221,7 @@ export default function MeasurementsPage() {
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm">
+        <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Information */}
             <div className="space-y-4">

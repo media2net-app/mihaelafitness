@@ -3,6 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileEdit, Save, Eye, Download, Plus, Trash2, Settings } from 'lucide-react';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import AdminStatsCard from '@/components/admin/AdminStatsCard';
+import {
+  adminCardStyle,
+  adminGhostBtnClassName,
+  adminPrimaryBtnClassName,
+  getAdminStatusClassName,
+} from '@/lib/adminStyles';
 
 export default function PDFTemplateBuilderPage() {
   const router = useRouter();
@@ -19,85 +27,23 @@ export default function PDFTemplateBuilderPage() {
   };
 
   return (
-    <div className="min-h-full p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <FileEdit className="w-6 h-6 text-purple-600" />
-              </div>
-              <h1 className="text-3xl font-bold text-gray-900">PDF Template Builder</h1>
-            </div>
-            <button className="flex items-center gap-2 bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition-colors">
-              <Plus className="w-5 h-5" />
+    <AdminPageContent>
+        <div className="mb-6 flex justify-end">
+            <button type="button" className={adminPrimaryBtnClassName}>
+              <Plus className="h-5 w-5" />
               New Template
             </button>
-          </div>
-          <p className="text-gray-600">Create and manage PDF templates for nutrition plans, training schedules, and invoices</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Templates</p>
-                <p className="text-2xl font-bold text-gray-900">{templates.length}</p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <FileEdit className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Nutrition Templates</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {templates.filter(t => t.type === 'nutrition').length}
-                </p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <FileEdit className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Training Templates</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {templates.filter(t => t.type === 'training').length}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <FileEdit className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Invoice Templates</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {templates.filter(t => t.type === 'invoice').length}
-                </p>
-              </div>
-              <div className="p-3 bg-orange-100 rounded-lg">
-                <FileEdit className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </div>
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-6">
+          <AdminStatsCard title="Total Templates" value={templates.length} icon={FileEdit} />
+          <AdminStatsCard title="Nutrition Templates" value={templates.filter((t) => t.type === 'nutrition').length} icon={FileEdit} />
+          <AdminStatsCard title="Training Templates" value={templates.filter((t) => t.type === 'training').length} icon={FileEdit} />
+          <AdminStatsCard title="Invoice Templates" value={templates.filter((t) => t.type === 'invoice').length} icon={FileEdit} />
         </div>
 
-        {/* Templates Grid */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Available Templates</h2>
+        <div className="rounded-xl p-6" style={adminCardStyle}>
+          <h2 className="mb-6 text-xl font-bold text-white">Available Templates</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {templates.map((template) => (
@@ -114,11 +60,7 @@ export default function PDFTemplateBuilderPage() {
                   <div className="p-3 bg-purple-100 rounded-lg">
                     <FileEdit className="w-6 h-6 text-purple-600" />
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    template.type === 'nutrition' ? 'bg-green-100 text-green-700' :
-                    template.type === 'training' ? 'bg-blue-100 text-blue-700' :
-                    'bg-orange-100 text-orange-700'
-                  }`}>
+                  <span className={getAdminStatusClassName(template.type === 'nutrition' ? 'active' : template.type === 'training' ? 'scheduled' : 'pending')}>
                     {template.type}
                   </span>
                 </div>
@@ -195,8 +137,7 @@ export default function PDFTemplateBuilderPage() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </AdminPageContent>
   );
 }
 

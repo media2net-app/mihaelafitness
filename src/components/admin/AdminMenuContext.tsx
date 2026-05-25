@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import AdminMobileHeader from './AdminMobileHeader';
-import AdminNav from './AdminNav';
+import AdminTaskTopBar from './AdminTaskTopBar';
+import AdminNav, { AdminNavDesktop } from './AdminNav';
 
 type Ctx = { openMenu: () => void };
 
@@ -13,9 +14,15 @@ export function AdminMenuProvider({ children }: { children: ReactNode }) {
 
   return (
     <AdminMenuContext.Provider value={{ openMenu: () => setMenuOpen(true) }}>
+      <div className="flex min-h-screen w-full">
+        <div className="min-w-0 flex-1">
+          <AdminTaskTopBar />
+          <AdminMobileHeader />
+          {children}
+        </div>
+        <AdminNavDesktop />
+      </div>
       <AdminNav menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
-      <AdminMobileHeader />
-      {children}
     </AdminMenuContext.Provider>
   );
 }

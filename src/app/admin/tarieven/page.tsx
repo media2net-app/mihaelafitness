@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Calculator, Plus, Save, Download, Euro, Users, Clock, Target, TrendingUp, X, Search } from 'lucide-react';
+import AdminPageContent from '@/components/admin/AdminPageContent';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 function TarievenPageContent() {
@@ -346,16 +347,10 @@ function TarievenPageContent() {
   };
 
   return (
-    <div className="min-h-full">
-      <main className="container mx-auto px-4 py-8">
-        {/* Header */}
+    <AdminPageContent>
         <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2">Pricing Calculator</h1>
-              <p className="text-gray-600">Calculate prices and rates for your services</p>
-            </div>
-            <div className="flex gap-2 mt-4 md:mt-0">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-end">
+            <div className="mt-4 flex gap-2 md:mt-0">
               <button
                 onClick={saveCalculation}
                 className="bg-green-500 text-white px-3 sm:px-4 py-2 rounded-xl font-medium hover:bg-green-600 transition-colors duration-200 flex items-center gap-2 text-sm sm:text-base"
@@ -852,20 +847,18 @@ function TarievenPageContent() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+    </AdminPageContent>
   );
 }
 
 export default function TarievenPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-rose-500"></div>
-          <p className="text-rose-600 font-medium">Loading...</p>
+      <AdminPageContent>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#F36088]" />
         </div>
-      </div>
+      </AdminPageContent>
     }>
       <TarievenPageContent />
     </Suspense>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, TrendingUp, Users, CreditCard, Calendar, AlertCircle, CheckCircle, Clock, Filter, Download, RefreshCw, Edit, X } from 'lucide-react';
 import MobilePaymentsPage from './MobilePaymentsPage';
+import AdminPageContent from '@/components/admin/AdminPageContent';
 
 interface PaymentOverview {
   summary: {
@@ -110,24 +111,28 @@ export default function PaymentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-full flex items-center justify-center">
+      <AdminPageContent>
+      <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading payments overview...</p>
         </div>
       </div>
+      </AdminPageContent>
     );
   }
 
   if (!overview) {
     return (
-      <div className="min-h-full flex items-center justify-center">
+      <AdminPageContent>
+      <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Data</h2>
           <p className="text-gray-600">Failed to load payments overview. Please try again.</p>
         </div>
       </div>
+      </AdminPageContent>
     );
   }
 
@@ -135,20 +140,17 @@ export default function PaymentsPage() {
 
   // Render mobile version on mobile devices
   if (isMobile) {
-    return <MobilePaymentsPage />;
+    return (
+      <AdminPageContent>
+        <MobilePaymentsPage />
+      </AdminPageContent>
+    );
   }
 
   return (
-    <div className="min-h-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+    <AdminPageContent>
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Payments Overview</h1>
-              <p className="mt-2 text-gray-600">Complete financial overview of all subscriptions and payments</p>
-            </div>
-            
+          <div className="flex items-center justify-end">
             {/* Currency Switcher */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700">Currency:</span>
@@ -549,7 +551,6 @@ export default function PaymentsPage() {
             )}
           </div>
         </div>
-      </div>
 
       {/* Edit Payment Modal */}
       {showEditPaymentModal && editingPayment && (
@@ -711,7 +712,7 @@ export default function PaymentsPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPageContent>
   );
 }
 

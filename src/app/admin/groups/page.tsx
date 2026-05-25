@@ -6,33 +6,14 @@ import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-
-// Stats Cards Component
-function StatsCard({ title, value, icon: Icon, color, trend }: {
-  title: string;
-  value: string | number;
-  icon: any;
-  color: string;
-  trend?: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-xl ${color}`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        {trend && (
-          <div className="flex items-center gap-1 text-sm text-emerald-600">
-            <TrendingUp className="w-4 h-4" />
-            <span>{trend}</span>
-          </div>
-        )}
-      </div>
-      <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{value}</div>
-      <div className="text-sm text-gray-500">{title}</div>
-    </div>
-  );
-}
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import AdminStatsCard from '@/components/admin/AdminStatsCard';
+import {
+  adminCardStyle,
+  adminGhostBtnClassName,
+  adminInputClassName,
+  adminPrimaryBtnClassName,
+} from '@/lib/adminStyles';
 
 // Draggable Member Component
 function DraggableMember({ 
@@ -456,68 +437,42 @@ export default function GroupsPage() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="min-h-full">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="px-4 sm:px-6 py-6 sm:py-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Groups</h1>
-                <p className="text-gray-600 mt-1">Manage your training groups - Drag members between groups</p>
-              </div>
+      <AdminPageContent>
+            <div className="mb-6 flex items-center justify-between gap-4">
               <button
+                type="button"
                 onClick={() => router.push('/admin/tarieven')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg hover:shadow-xl"
+                className={adminPrimaryBtnClassName}
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="h-5 w-5" />
                 Add Group
               </button>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-              <StatsCard
-                title="Total Groups"
-                value={stats.total}
-                icon={Users2}
-                color="bg-blue-500"
-              />
-              <StatsCard
-                title="Total Members"
-                value={stats.totalMembers}
-                icon={User}
-                color="bg-emerald-500"
-              />
-              <StatsCard
-                title="Avg. Group Size"
-                value={stats.averageGroupSize}
-                icon={Users2}
-                color="bg-purple-500"
-              />
+            <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
+              <AdminStatsCard title="Total Groups" value={stats.total} icon={Users2} />
+              <AdminStatsCard title="Total Members" value={stats.totalMembers} icon={User} />
+              <AdminStatsCard title="Avg. Group Size" value={stats.averageGroupSize} icon={Users2} />
             </div>
 
-            {/* Search & Filters */}
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <div className="mb-6 flex items-center gap-4">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40" />
                 <input
                   type="text"
                   placeholder="Search groups or members..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  className={`${adminInputClassName} pl-10`}
                 />
               </div>
-              <button className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                <Filter className="w-5 h-5 text-gray-600" />
-                <span className="text-gray-700">Filter</span>
+              <button type="button" className={adminGhostBtnClassName}>
+                <Filter className="h-5 w-5" />
+                Filter
               </button>
             </div>
-          </div>
-        </div>
 
-        {/* Content */}
-        <div className="px-4 sm:px-6 py-6 sm:py-8 pb-24">
+        <div className="pb-24">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
@@ -704,7 +659,7 @@ export default function GroupsPage() {
             </div>
           </div>
         )}
-      </div>
+      </AdminPageContent>
     </DndProvider>
   );
 }

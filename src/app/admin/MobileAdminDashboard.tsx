@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Users, Dumbbell, Apple, Calculator, BarChart3, Calendar, TrendingUp, Clock, Ruler, X, DollarSign, CheckSquare, BookOpen, ChefHat, FileText, MapPin, Scale, FileImage, ArrowRight, Check } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Users, Dumbbell, Apple, Calculator, BarChart3, Calendar, TrendingUp, Clock, Ruler, X, DollarSign, CheckSquare, BookOpen, ChefHat, FileText, MapPin, Scale, FileImage, ArrowRight, Check, ChevronDown } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { statsService } from '@/lib/database';
@@ -11,7 +11,14 @@ import {
   ADMIN_PRIMARY_GRADIENT,
   adminCardStyle as cardStyle,
   adminInnerCardStyle as innerCardStyle,
+  adminContentContainerClassName,
 } from '@/lib/adminStyles';
+import {
+  STATS_PERIOD_OPTIONS,
+  REVENUE_KPI_LABELS,
+  formatEuro,
+  type StatsPeriod,
+} from '@/lib/statsPeriod';
 
 const PRIMARY_GRADIENT = ADMIN_PRIMARY_GRADIENT;
 
@@ -77,13 +84,21 @@ export default function MobileAdminDashboard() {
   const { t, language } = useLanguage();
   const router = useRouter();
   const [stats, setStats] = useState({
-    totalUsers: 0,
-    activeUsers: 0,
-    totalWorkouts: 0,
-    totalNutritionPlans: 0,
-    totalServices: 0
+    revenue: 0,
+    paymentCount: 0,
+    averagePayment: 0,
+    maxPayment: 0,
   });
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('all');
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
+  const periodMenuRef = useRef<HTMLDivElement>(null);
+  const statsPeriodRef = useRef(statsPeriod);
+  const skipStatsPeriodEffect = useRef(true);
+  statsPeriodRef.current = statsPeriod;
+  const selectedPeriodLabel =
+    STATS_PERIOD_OPTIONS.find((o) => o.id === statsPeriod)?.label ?? 'All time';
   const [showMeasurementsModal, setShowMeasurementsModal] = useState(false);
   const [clients, setClients] = useState<Array<{id: string, name: string, email: string}>>([]);
   const [selectedClient, setSelectedClient] = useState<{id: string, name: string} | null>(null);
@@ -95,33 +110,34 @@ export default function MobileAdminDashboard() {
   const [updatingTodaySessionStatus, setUpdatingTodaySessionStatus] = useState(false);
 
   const loadDashboardStats = useCallback(
-    async (options: { withLoader?: boolean } = {}) => {
-      const { withLoader = false } = options;
+    async (options: { withLoader?: boolean; period?: StatsPeriod } = {}) => {
+      const { withLoader = false, period = statsPeriod } = options;
       if (withLoader) {
-        setLoading(true);
+        setStatsLoading(true);
       }
 
       try {
-        console.log('Fetching dashboard stats...');
-        const data = await statsService.getDashboardStats();
+        console.log('Fetching dashboard stats...', { period });
+        const data = await statsService.getDashboardStats(period);
         console.log('Stats received:', data);
         setStats(data);
       } catch (error) {
         console.error('Error fetching stats:', error);
         if (withLoader) {
-        setStats({
-          totalUsers: 0,
-          activeUsers: 0,
-          totalWorkouts: 0,
-          totalNutritionPlans: 0,
-          totalServices: 0
-        });
+          setStats({
+            revenue: 0,
+            paymentCount: 0,
+            averagePayment: 0,
+            maxPayment: 0,
+          });
         }
       } finally {
-        setLoading(false);
+        if (withLoader) {
+          setStatsLoading(false);
+        }
       }
     },
-    []
+    [statsPeriod]
   );
 
   const loadTodaySchedule = useCallback(async (options: { withLoader?: boolean } = {}) => {
@@ -217,26 +233,38 @@ export default function MobileAdminDashboard() {
   };
 
   useEffect(() => {
-    loadDashboardStats({ withLoader: true });
-    loadRecentActivities({ withLoader: true });
-    loadTodaySchedule({ withLoader: true });
+    let cancelled = false;
+
+    const init = async () => {
+      setInitialLoading(true);
+      await Promise.all([
+        loadDashboardStats({ withLoader: true, period: statsPeriod }),
+        loadRecentActivities({ withLoader: true }),
+        loadTodaySchedule({ withLoader: true }),
+      ]);
+      if (!cancelled) {
+        setInitialLoading(false);
+      }
+    };
+
+    init();
 
     const handleFocus = () => {
-      loadDashboardStats();
+      loadDashboardStats({ withLoader: true, period: statsPeriodRef.current });
       loadRecentActivities();
       loadTodaySchedule();
     };
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        loadDashboardStats();
+        loadDashboardStats({ withLoader: true, period: statsPeriodRef.current });
         loadRecentActivities();
         loadTodaySchedule();
       }
     };
 
     const intervalId = setInterval(() => {
-      loadDashboardStats();
+      loadDashboardStats({ withLoader: true, period: statsPeriodRef.current });
       loadRecentActivities();
       loadTodaySchedule();
     }, 60000);
@@ -245,11 +273,32 @@ export default function MobileAdminDashboard() {
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
+      cancelled = true;
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
       clearInterval(intervalId);
     };
-  }, [loadDashboardStats, loadRecentActivities, loadTodaySchedule]);
+  }, [loadRecentActivities, loadTodaySchedule]);
+
+  useEffect(() => {
+    if (initialLoading) return;
+    if (skipStatsPeriodEffect.current) {
+      skipStatsPeriodEffect.current = false;
+      return;
+    }
+    loadDashboardStats({ withLoader: true, period: statsPeriod });
+  }, [statsPeriod, initialLoading, loadDashboardStats]);
+
+  useEffect(() => {
+    if (!periodMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (periodMenuRef.current && !periodMenuRef.current.contains(event.target as Node)) {
+        setPeriodMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [periodMenuOpen]);
 
   const todayDateLabel = new Date().toLocaleDateString(language === 'ro' ? 'ro-RO' : 'en-GB', {
     weekday: 'long',
@@ -383,37 +432,29 @@ export default function MobileAdminDashboard() {
 
   const adminStats = [
     {
-      title: t.admin.dashboard.totalCustomers,
-      value: stats.totalUsers,
-      change: '+12%',
-      icon: Users,
-      gradient: PRIMARY_GRADIENT,
-      href: '/admin/clients'
+      title: REVENUE_KPI_LABELS.revenue,
+      value: formatEuro(stats.revenue),
+      icon: DollarSign,
+      href: '/admin/payments',
     },
     {
-      title: t.admin.dashboard.activeWorkouts,
-      value: stats.totalWorkouts,
-      change: '+5%',
-      icon: Dumbbell,
-      gradient: PRIMARY_GRADIENT,
-      href: '/admin/v2/training-schedules'
-    },
-    {
-      title: t.admin.dashboard.nutritionPlans,
-      value: stats.totalNutritionPlans,
-      change: '+8%',
-      icon: Apple,
-      gradient: PRIMARY_GRADIENT,
-      href: '/admin/v2/nutrition-plans'
-    },
-    {
-      title: t.admin.dashboard.activeCustomers,
-      value: stats.activeUsers,
-      change: '+3%',
+      title: REVENUE_KPI_LABELS.paymentCount,
+      value: stats.paymentCount.toString(),
       icon: BarChart3,
-      gradient: PRIMARY_GRADIENT,
-      href: '/admin/clients'
-    }
+      href: '/admin/payments',
+    },
+    {
+      title: REVENUE_KPI_LABELS.averagePayment,
+      value: formatEuro(stats.averagePayment),
+      icon: Calculator,
+      href: '/admin/payments',
+    },
+    {
+      title: REVENUE_KPI_LABELS.maxPayment,
+      value: formatEuro(stats.maxPayment),
+      icon: TrendingUp,
+      href: '/admin/payments',
+    },
   ];
 
   const quickActions = [
@@ -537,7 +578,7 @@ export default function MobileAdminDashboard() {
     { label: 'File Storage', status: 'Online' }
   ];
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="min-h-screen px-4" style={{ backgroundColor: onlineTheme.bg }}>
         <div className="flex h-full min-h-screen items-center justify-center">
@@ -557,36 +598,110 @@ export default function MobileAdminDashboard() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: onlineTheme.bg }}>
-      <div className="mx-auto max-w-lg px-3 pb-4 sm:max-w-xl sm:px-6 lg:max-w-none lg:px-6 lg:pb-6 lg:pt-2">
-        <div
-          className="rounded-3xl border p-3 sm:p-5 lg:border-0 lg:bg-transparent lg:p-0"
-          style={{
-            borderColor: onlineTheme.cardBorder,
-            backgroundColor: onlineTheme.bgElevated,
-          }}
-        >
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
+      <div className={`${adminContentContainerClassName} pb-4 lg:pb-6`}>
+        <div className="mb-4">
+          <div ref={periodMenuRef} className="relative mb-3 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setPeriodMenuOpen((open) => !open)}
+              aria-expanded={periodMenuOpen}
+              aria-haspopup="listbox"
+              aria-label="Revenue period"
+              className="flex h-12 w-full items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-4 text-left text-sm font-semibold text-white transition-colors hover:border-white/25 hover:bg-white/[0.1] focus:outline-none focus-visible:border-white/25"
+              style={innerCardStyle}
+            >
+              <span className="min-w-0 flex-1 leading-none">{selectedPeriodLabel}</span>
+              <ChevronDown
+                className={`h-5 w-5 shrink-0 text-white/50 transition-transform ${periodMenuOpen ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
+            </button>
+            {periodMenuOpen && (
+              <ul
+                role="listbox"
+                aria-label="Revenue period"
+                className="absolute left-0 right-0 top-full z-20 mt-1.5 overflow-hidden rounded-2xl border border-white/15 shadow-xl"
+                style={{
+                  borderColor: onlineTheme.cardBorder,
+                  background: onlineTheme.bgElevated,
+                }}
+              >
+                {STATS_PERIOD_OPTIONS.map((option) => {
+                  const active = statsPeriod === option.id;
+                  return (
+                    <li key={option.id} role="option" aria-selected={active}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStatsPeriod(option.id);
+                          setPeriodMenuOpen(false);
+                        }}
+                        className={`flex h-11 w-full items-center px-4 text-left text-sm font-medium transition-colors ${
+                          active
+                            ? 'bg-white/10 text-white'
+                            : 'text-white/70 hover:bg-white/[0.06] hover:text-white'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <div className="mb-3 hidden flex-wrap gap-1.5 sm:gap-2 lg:flex">
+            {STATS_PERIOD_OPTIONS.map((option) => {
+              const active = statsPeriod === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setStatsPeriod(option.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm ${
+                    active
+                      ? `bg-gradient-to-r ${PRIMARY_GRADIENT} text-white shadow-md shadow-[#E11C48]/30`
+                      : 'border border-white/15 bg-white/[0.06] text-white/70 hover:border-white/25 hover:bg-white/[0.1] hover:text-white'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className={`relative grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4 ${statsLoading ? 'opacity-60' : ''}`}>
+            {statsLoading && (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                <div
+                  className="h-8 w-8 animate-spin rounded-full border-2 border-transparent"
+                  style={{ borderTopColor: onlineTheme.accentMid }}
+                />
+              </div>
+            )}
             {adminStats.map((stat) => {
               const value = stat.value.toString();
               return (
                 <button
                   key={stat.title}
                   onClick={() => router.push(stat.href)}
-                  className={`relative flex w-full rounded-2xl bg-gradient-to-r ${PRIMARY_GRADIENT} p-2.5 text-left shadow-md shadow-[#E11C48]/30 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] sm:rounded-3xl sm:p-4 sm:shadow-lg`}
+                  disabled={statsLoading}
+                  className="relative flex w-full rounded-2xl border border-white/15 bg-white/[0.06] p-2.5 text-left transition-colors hover:border-white/25 hover:bg-white/[0.1] active:bg-white/[0.08] disabled:pointer-events-none sm:rounded-3xl sm:p-4"
+                  style={innerCardStyle}
                 >
-                  <div className="absolute right-2 top-2 flex items-center gap-0.5 text-[10px] leading-none text-white/80 sm:right-3 sm:top-3 sm:text-xs">
-                    <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    <span className="whitespace-nowrap">{stat.change}</span>
-                  </div>
-                  <div className="flex min-w-0 flex-1 items-center gap-2.5 pr-10 pt-0.5 sm:gap-3 sm:pr-12">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/25 sm:h-11 sm:w-11">
-                      <stat.icon className="h-4 w-4 text-white sm:h-5 sm:w-5" />
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
+                    <div
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] sm:h-11 sm:w-11"
+                      style={{ borderColor: onlineTheme.cardBorder }}
+                    >
+                      <stat.icon className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: onlineTheme.accentLight }} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xl font-bold leading-none text-white sm:text-2xl lg:text-3xl">
+                      <div className="text-lg font-bold leading-none text-white sm:text-xl lg:text-2xl">
                         {value}
                       </div>
-                      <p className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-tight text-white/90 sm:text-xs">
+                      <p className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-tight text-white/55 sm:text-xs">
                         {stat.title}
                       </p>
                     </div>
@@ -597,10 +712,11 @@ export default function MobileAdminDashboard() {
           </div>
         </div>
 
-        <div
-          className="mt-3 w-full rounded-3xl p-4 text-left shadow-xl sm:p-5"
-          style={cardStyle}
-        >
+        <div className="mt-3 grid grid-cols-1 gap-4 lg:mt-6 lg:grid-cols-3 lg:gap-6 lg:items-start">
+          <div
+            className="lg:col-span-2 rounded-3xl p-4 text-left shadow-xl sm:p-5"
+            style={cardStyle}
+          >
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
               <div
@@ -712,11 +828,29 @@ export default function MobileAdminDashboard() {
             {t.admin.dashboard.viewFullSchedule}
             <ArrowRight className="h-4 w-4" />
           </button>
-        </div>
-      </div>
+          </div>
 
-      <div className="px-3 py-4 sm:px-6 sm:py-8 lg:px-6">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-8">
+          <div className="rounded-3xl p-4 shadow-xl sm:p-5 lg:p-6" style={cardStyle}>
+            <h3 className="text-lg font-semibold text-white">System Status</h3>
+            <div className="mt-4 space-y-3">
+              {systemStatus.map((status) => (
+                <div
+                  key={status.label}
+                  className="flex items-center justify-between rounded-2xl border px-3 py-2"
+                  style={innerCardStyle}
+                >
+                  <span className="text-sm text-white/55">{status.label}</span>
+                  <span className="flex items-center gap-2 text-sm font-medium text-[#2E8B57]">
+                    <span className="h-2 w-2 rounded-full bg-[#48BB78]" />
+                    {status.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:mt-6 lg:grid-cols-3 lg:gap-6">
           <div className="lg:col-span-2">
             <div className="rounded-3xl p-4 shadow-xl sm:p-6" style={cardStyle}>
               <div>
@@ -749,9 +883,9 @@ export default function MobileAdminDashboard() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="rounded-3xl p-6 shadow-xl" style={cardStyle}>
-              <div className="mb-6 flex items-center justify-between">
+          <div>
+            <div className="rounded-3xl p-4 shadow-xl sm:p-6" style={cardStyle}>
+              <div className="mb-4 flex items-center justify-between sm:mb-6">
                 <h3 className="text-lg font-semibold text-white">Recent Activities</h3>
                 <button
                   onClick={() => loadRecentActivities({ withLoader: true })}
@@ -796,29 +930,10 @@ export default function MobileAdminDashboard() {
                             {formatTimeAgo(activity.timestamp)}
                           </div>
                         </div>
-            </div>
+                      </div>
                     );
                   })
                 )}
-        </div>
-      </div>
-
-            <div className="rounded-3xl p-6 shadow-xl" style={cardStyle}>
-              <h3 className="text-lg font-semibold text-white">System Status</h3>
-              <div className="mt-4 space-y-3">
-                {systemStatus.map((status) => (
-                  <div
-                    key={status.label}
-                    className="flex items-center justify-between rounded-2xl border px-3 py-2"
-                    style={innerCardStyle}
-                  >
-                    <span className="text-sm text-white/55">{status.label}</span>
-                    <span className="flex items-center gap-2 text-sm font-medium text-[#2E8B57]">
-                      <span className="h-2 w-2 rounded-full bg-[#48BB78]" />
-                      {status.status}
-                    </span>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

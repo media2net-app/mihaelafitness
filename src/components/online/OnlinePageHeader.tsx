@@ -12,6 +12,8 @@ type Props = {
   title: string;
   subtitle?: string;
   trailing?: ReactNode;
+  /** Hide hamburger on lg+ (admin desktop uses permanent sidebar) */
+  hideMenuOnLargeScreens?: boolean;
 };
 
 export function OnlineTopMenuRow({ children }: { children?: ReactNode }) {
@@ -27,7 +29,12 @@ export function OnlineTopMenuRow({ children }: { children?: ReactNode }) {
   );
 }
 
-export default function OnlinePageHeader({ title, subtitle, trailing }: Props) {
+export default function OnlinePageHeader({
+  title,
+  subtitle,
+  trailing,
+  hideMenuOnLargeScreens = false,
+}: Props) {
   const { user } = useAuth();
   const menu = useAppMenu();
   const pathname = usePathname();
@@ -74,7 +81,12 @@ export default function OnlinePageHeader({ title, subtitle, trailing }: Props) {
 
       {trailing ? <div className="flex shrink-0 items-center gap-2">{trailing}</div> : null}
 
-      {menu && !hideMenu ? <OnlineMenuButton onClick={menu.openMenu} /> : null}
+      {menu && !hideMenu ? (
+        <OnlineMenuButton
+          onClick={menu.openMenu}
+          className={hideMenuOnLargeScreens ? 'lg:hidden' : ''}
+        />
+      ) : null}
     </header>
   );
 }

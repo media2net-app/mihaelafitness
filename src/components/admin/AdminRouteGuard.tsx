@@ -39,7 +39,17 @@ export default function AdminRouteGuard({ children }: { children: React.ReactNod
   }
 
   if (!isAuthenticated || !isAdminRole(user?.role)) {
-    return null;
+    return (
+      <div
+        className="flex min-h-[40vh] items-center justify-center"
+        style={{ backgroundColor: onlineTheme.bg }}
+      >
+        <div
+          className="h-8 w-8 animate-spin rounded-full border-2 border-transparent"
+          style={{ borderTopColor: onlineTheme.accentMid }}
+        />
+      </div>
+    );
   }
 
   return <>{children}</>;

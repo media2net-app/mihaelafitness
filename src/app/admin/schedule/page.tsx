@@ -1,3 +1,4 @@
+import AdminPageContent from '@/components/admin/AdminPageContent';
 import { getWeekDates } from '@/lib/utils';
 import MobileScheduleClient from './MobileScheduleClient';
 
@@ -13,9 +14,11 @@ export default async function CoachingSchedulePage({ searchParams }: CoachingSch
   const weekDates = getWeekDates(initialDate);
 
   return (
-    <MobileScheduleClient
-      initialWeekDates={weekDates.map(d => d.toISOString())}
-      initialCurrentWeek={initialDate.toISOString()}
-    />
+    <AdminPageContent fullWidth>
+      <MobileScheduleClient
+        initialWeekDates={weekDates.map(d => d.toISOString())}
+        initialCurrentWeek={initialDate.toISOString()}
+      />
+    </AdminPageContent>
   );
 }

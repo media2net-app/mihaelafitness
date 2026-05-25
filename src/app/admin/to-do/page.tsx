@@ -4,6 +4,18 @@ import { useState, useEffect } from 'react';
 import { Plus, Check, Trash2, Edit2, X, Calendar, Clock, Star, Target, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import AdminPageContent from '@/components/admin/AdminPageContent';
+import AdminStatsCard from '@/components/admin/AdminStatsCard';
+import {
+  adminCardStyle,
+  adminGhostBtnClassName,
+  adminInputClassName,
+  adminLabelClassName,
+  adminModalOverlayClassName,
+  adminModalPanelClassName,
+  adminModalPanelStyle,
+  adminPrimaryBtnClassName,
+} from '@/lib/adminStyles';
 
 interface Todo {
   id: string;
@@ -233,76 +245,34 @@ export default function TodoPage() {
   
   if (loading) {
     return (
-      <div className="min-h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your tasks...</p>
+      <AdminPageContent>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#F36088]" />
         </div>
-      </div>
+      </AdminPageContent>
     );
   }
 
   return (
-    <div className="min-h-full">
-      <main className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">My To-Do List</h1>
-              <p className="text-gray-600">Stay organized and track your tasks</p>
-            </div>
+    <AdminPageContent>
+        <div className="mb-6 flex justify-end">
             <button
+              type="button"
               onClick={() => setShowAddModal(true)}
-              className="bg-rose-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-rose-600 transition-colors flex items-center gap-2"
+              className={adminPrimaryBtnClassName}
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="h-5 w-5" />
               Add Task
             </button>
-          </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 xs:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-xl p-4 shadow-lg border border-white/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Target className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-800">{totalCount}</div>
-                <div className="text-sm text-gray-600">Total Tasks</div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-4 shadow-lg border border-white/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-800">{activeCount}</div>
-                <div className="text-sm text-gray-600">Active Tasks</div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl p-4 shadow-lg border border-white/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Check className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-800">{completedCount}</div>
-                <div className="text-sm text-gray-600">Completed</div>
-              </div>
-            </div>
-          </div>
+        <div className="mb-6 grid grid-cols-1 gap-4 xs:grid-cols-3">
+          <AdminStatsCard title="Total Tasks" value={totalCount} icon={Target} />
+          <AdminStatsCard title="Active Tasks" value={activeCount} icon={Clock} />
+          <AdminStatsCard title="Completed" value={completedCount} icon={Check} />
         </div>
 
-        {/* Filters and Sort */}
-        <div className="bg-white rounded-xl shadow-lg border border-white/20 p-4 mb-6">
+        <div className="mb-6 rounded-xl p-4" style={adminCardStyle}>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex gap-2">
               <button
@@ -336,7 +306,7 @@ export default function TodoPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'date' | 'priority' | 'title')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                className={adminInputClassName}
               >
                 <option value="date">Date</option>
                 <option value="priority">Priority</option>
@@ -453,8 +423,8 @@ export default function TodoPage() {
 
         {/* Add Todo Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div className={adminModalOverlayClassName}>
+            <div className={`${adminModalPanelClassName} max-w-md`} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-800">Add New Task</h2>
                 <button
@@ -535,8 +505,8 @@ export default function TodoPage() {
 
         {/* Edit Todo Modal */}
         {showEditModal && editingTodo && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div className={adminModalOverlayClassName}>
+            <div className={`${adminModalPanelClassName} max-w-md`} style={adminModalPanelStyle}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-800">Edit Task</h2>
                 <button
@@ -614,7 +584,6 @@ export default function TodoPage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </AdminPageContent>
   );
 }
