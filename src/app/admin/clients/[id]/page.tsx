@@ -9,11 +9,19 @@ import {
   adminModalOverlayClassName,
   adminModalPanelClassName,
   adminModalPanelStyle,
+  adminModalPanelShellClassName,
+  adminModalPanelHeaderClassName,
+  adminModalPanelBodyClassName,
   adminInputClassName,
   adminLabelClassName,
   adminGhostBtnClassName,
   adminPrimaryBtnClassName,
 } from '@/lib/adminStyles';
+import {
+  buildPhotoWeekMeta,
+  getPhotoDisplayWeek,
+  photoWeeksNeedRenumber,
+} from '@/lib/photoWeeks';
 
 
 // Period Tracking Component
@@ -970,12 +978,10 @@ function PhotoUploadForm({
 }) {
   const { t } = useLanguage();
   
-  // Calculate next week based on existing photos
+  // Next week = chronological count + 1 (not max stored week + 1)
   const getNextWeek = () => {
     if (editingPhoto) return editingPhoto.week;
-    if (existingPhotos.length === 0) return 1;
-    const maxWeek = Math.max(...existingPhotos.map(p => p.week));
-    return maxWeek + 1;
+    return buildPhotoWeekMeta(existingPhotos).nextStoredWeek;
   };
 
   // Get existing photo notes for the week
@@ -1426,17 +1432,22 @@ export default function ClientDetailPage() {
   const [showEditClientModal, setShowEditClientModal] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<'weight' | 'chest' | 'waist' | 'hips' | 'thigh' | 'arm' | 'neck'>('weight');
 
-  const photoWeeks = useMemo(() => {
-    if (!customerPhotos.length) {
-      return [];
-    }
+  const photoWeekMeta = useMemo(
+    () => buildPhotoWeekMeta(customerPhotos),
+    [customerPhotos]
+  );
 
-    return Array.from(new Set(customerPhotos.map(photo => photo.week))).sort((a, b) => a - b);
-  }, [customerPhotos]);
+  const {
+    ordered: photoWeeksOrdered,
+    displayByStored: photoWeekDisplayByStored,
+    firstStoredWeek: firstPhotoWeek,
+    lastStoredWeek: lastPhotoWeek,
+  } = photoWeekMeta;
 
-  const firstPhotoWeek = photoWeeks[0];
-  const lastPhotoWeek = photoWeeks[photoWeeks.length - 1];
-  const hasPhotoComparison = typeof firstPhotoWeek === 'number';
+  const getDisplayWeek = (storedWeek: number) =>
+    getPhotoDisplayWeek(storedWeek, photoWeekDisplayByStored);
+
+  const hasPhotoComparison = photoWeeksOrdered.length > 0;
   const photoPositions = ['front', 'side', 'back'] as const;
 
   const getComparisonPhotosForPosition = (position: string) => {
@@ -1447,13 +1458,12 @@ export default function ClientDetailPage() {
       endPhoto: customerPhotos.find((p) => p.week === endWeek && p.position === position) ?? null,
       baseWeek,
       endWeek,
+      baseDisplayWeek: getDisplayWeek(baseWeek),
+      endDisplayWeek: getDisplayWeek(endWeek),
     };
   };
-  const comparisonPhotoWeek = typeof lastPhotoWeek === 'number'
-    ? lastPhotoWeek
-    : typeof firstPhotoWeek === 'number'
-      ? firstPhotoWeek
-      : undefined;
+
+  const comparisonPhotoWeek = lastPhotoWeek ?? firstPhotoWeek;
 
   const renderVisualProgress = () => {
     if (!hasPhotoComparison) {
@@ -1462,14 +1472,16 @@ export default function ClientDetailPage() {
 
     const baseWeek = firstPhotoWeek as number;
     const comparisonWeek = (comparisonPhotoWeek ?? baseWeek) as number;
+    const baseDisplayWeek = getDisplayWeek(baseWeek);
+    const comparisonDisplayWeek = getDisplayWeek(comparisonWeek);
 
     return (
       <div className="mt-4 sm:mt-6 border-t border-gray-100 pt-4 sm:pt-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-4">
           <h5 className="text-sm sm:text-base font-semibold text-gray-800">Visual Progress</h5>
           <p className="text-xs text-gray-500">
-            Week {baseWeek}
-            {comparisonWeek !== baseWeek ? ` vs Week ${comparisonWeek}` : ''}
+            Week {baseDisplayWeek}
+            {comparisonDisplayWeek !== baseDisplayWeek ? ` vs Week ${comparisonDisplayWeek}` : ''}
           </p>
         </div>
         <div className="space-y-4">
@@ -1481,14 +1493,14 @@ export default function ClientDetailPage() {
               <div key={position} className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-700 capitalize">{position} view</span>
-                  {comparisonWeek !== baseWeek && (
-                    <span className="text-xs text-gray-500">Week {baseWeek} → Week {comparisonWeek}</span>
+                  {comparisonDisplayWeek !== baseDisplayWeek && (
+                    <span className="text-xs text-gray-500">Week {baseDisplayWeek} → Week {comparisonDisplayWeek}</span>
                   )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   {[
-                    { label: `Week ${baseWeek}`, photo: firstWeekPhoto },
-                    { label: `Week ${comparisonWeek}`, photo: latestWeekPhoto }
+                    { label: `Week ${baseDisplayWeek}`, photo: firstWeekPhoto },
+                    { label: `Week ${comparisonDisplayWeek}`, photo: latestWeekPhoto }
                   ].map(({ label, photo }, index) => (
                     <div key={`${position}-${label}-${index}`} className="flex flex-col gap-2">
                       <div className="text-sm font-medium text-gray-700">{label}</div>
@@ -1837,8 +1849,7 @@ export default function ClientDetailPage() {
       const refreshed = await fetch(`/api/customer-photos?customerId=${clientId}`);
       if (refreshed.ok) {
         const refreshedPhotos = await refreshed.json();
-        setCustomerPhotos(refreshedPhotos);
-        setPhotos(refreshedPhotos);
+        await applyCustomerPhotos(refreshedPhotos);
       }
       
       setShowDeletePhotoModal(false);
@@ -1854,7 +1865,8 @@ export default function ClientDetailPage() {
     if (!clientId) return;
     
     // Show confirmation modal instead of simple confirm
-    if (!window.confirm(`Weet je zeker dat je alle foto's voor Week ${week} wilt verwijderen?\n\nWeek nummers na deze week worden automatisch met 1 verlaagd.\n\nDeze actie kan niet ongedaan worden gemaakt.`)) {
+    const displayWeek = getPhotoDisplayWeek(week, photoWeekDisplayByStored);
+    if (!window.confirm(`Weet je zeker dat je alle foto's voor Week ${displayWeek} wilt verwijderen?\n\nWeek nummers na deze week worden automatisch met 1 verlaagd.\n\nDeze actie kan niet ongedaan worden gemaakt.`)) {
       return;
     }
 
@@ -1869,10 +1881,9 @@ export default function ClientDetailPage() {
       const refreshed = await fetch(`/api/customer-photos?customerId=${clientId}`);
       if (refreshed.ok) {
         const refreshedPhotos = await refreshed.json();
-        setCustomerPhotos(refreshedPhotos);
-        setPhotos(refreshedPhotos);
+        await applyCustomerPhotos(refreshedPhotos);
       }
-      alert(`Week ${week} verwijderd. ${data.shiftedCount || 0} volgende foto's bijgewerkt.`);
+      alert(`Week ${displayWeek} verwijderd. ${data.shiftedCount || 0} volgende foto's bijgewerkt.`);
     } catch (e) {
       console.error('Delete week error', e);
       alert('Verwijderen mislukt');
@@ -1890,6 +1901,32 @@ export default function ClientDetailPage() {
   });
 
   const clientId = params.id as string;
+
+  const applyCustomerPhotos = async (photos: typeof customerPhotos) => {
+    if (!clientId || !photos.length || !photoWeeksNeedRenumber(photos)) {
+      setCustomerPhotos(photos);
+      setPhotos(photos);
+      return;
+    }
+    try {
+      const res = await fetch('/api/customer-photos/renumber', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const normalized = data.photos ?? photos;
+        setCustomerPhotos(normalized);
+        setPhotos(normalized);
+        return;
+      }
+    } catch (e) {
+      console.warn('Could not renumber photo weeks:', e);
+    }
+    setCustomerPhotos(photos);
+    setPhotos(photos);
+  };
 
   useEffect(() => {
     const loadClientData = async () => {
@@ -1910,8 +1947,7 @@ export default function ClientDetailPage() {
             // Set all data from the combined response
             setClient(clientData);
             setMeasurements(clientData.measurements || []);
-            setCustomerPhotos(clientData.customerPhotos || []);
-            setPhotos(clientData.customerPhotos || []); // Legacy compatibility
+            await applyCustomerPhotos(clientData.customerPhotos || []);
             setCustomerPricing(clientData.pricingCalculations || []);
             setTrainingSessions(clientData.trainingSessions || []);
             setNutritionPlans(clientData.customerNutritionPlans || []);
@@ -1949,8 +1985,7 @@ export default function ClientDetailPage() {
         }
         if (photosRes.ok) {
           const data = await photosRes.json();
-          setCustomerPhotos(data);
-          setPhotos(data);
+          await applyCustomerPhotos(data);
         }
         if (pricingRes.ok) {
           const data = await pricingRes.json();
@@ -2615,20 +2650,25 @@ export default function ClientDetailPage() {
 
               {customerPhotos.length > 0 ? (
                 <div className="space-y-4 sm:space-y-6">
-                  {Array.from(new Set(customerPhotos.map(p => p.week))).sort((a, b) => b - a).map(week => (
-                    <div key={week} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+                  {[...photoWeeksOrdered].reverse().map(({ storedWeek, date }) => (
+                    <div key={storedWeek} className="border border-gray-200 rounded-lg p-3 sm:p-4">
                       <div className="flex items-center justify-between mb-3 sm:mb-4">
-                        <h4 className="text-base sm:text-lg font-semibold text-gray-800">Week {week}</h4>
+                        <h4 className="text-base sm:text-lg font-semibold text-gray-800">
+                          Week {getDisplayWeek(storedWeek)}
+                        </h4>
+                        <span className="text-xs text-gray-500">
+                          {new Date(date).toLocaleDateString()}
+                        </span>
                         <button
                           className="text-red-600 text-sm hover:underline"
-                          onClick={() => deleteWeekAndRenumber(week)}
+                          onClick={() => deleteWeekAndRenumber(storedWeek)}
                         >
                           Delete Week
                         </button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                         {['front', 'side', 'back'].map(position => {
-                          const photo = customerPhotos.find(p => p.week === week && p.position === position);
+                          const photo = customerPhotos.find(p => p.week === storedWeek && p.position === position);
                           return (
                             <div key={position} className="text-center">
                               <h5 className="text-sm sm:text-base font-medium text-gray-700 mb-3 capitalize">{position} View</h5>
@@ -2636,7 +2676,7 @@ export default function ClientDetailPage() {
                                 <div className="relative group">
                                   <img
                                     src={photo.imageUrl}
-                                    alt={`${position} view week ${week}`}
+                                    alt={`${position} view week ${getDisplayWeek(storedWeek)}`}
                                     className="w-full h-56 sm:h-64 md:h-48 object-contain bg-gray-50 rounded-lg border-2 border-gray-200 cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
                                     onClick={() => handleOpenPhotoGallery(photo)}
                                     loading="lazy"
@@ -2656,7 +2696,7 @@ export default function ClientDetailPage() {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setEditingPhoto({ week, position, existingPhoto: photo });
+                                        setEditingPhoto({ week: storedWeek, position, existingPhoto: photo });
                                         setShowPhotoUploadModal(true);
                                       }}
                                       className="bg-blue-500 text-white p-2.5 sm:p-2 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-blue-600 active:bg-blue-700 shadow-lg"
@@ -2667,7 +2707,7 @@ export default function ClientDetailPage() {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleDeletePhotoClick({ id: photo.id, week, position });
+                                        handleDeletePhotoClick({ id: photo.id, week: storedWeek, position });
                                       }}
                                       className="bg-red-500 text-white p-2.5 sm:p-2 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-red-600 active:bg-red-700 shadow-lg"
                                       title="Foto verwijderen"
@@ -2682,7 +2722,7 @@ export default function ClientDetailPage() {
                                     <span className="text-gray-400 text-sm sm:text-base mb-3">No {position} photo</span>
                                     <button
                                       onClick={() => {
-                                        setEditingPhoto({ week, position, existingPhoto: null });
+                                        setEditingPhoto({ week: storedWeek, position, existingPhoto: null });
                                         setShowPhotoUploadModal(true);
                                       }}
                                       className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 active:bg-blue-700 text-sm sm:text-base font-medium flex items-center gap-2 shadow-md"
@@ -2697,10 +2737,10 @@ export default function ClientDetailPage() {
                           );
                         })}
                       </div>
-                      {customerPhotos.find(p => p.week === week && p.notes) && (
+                      {customerPhotos.find(p => p.week === storedWeek && p.notes) && (
                         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                           <p className="text-sm text-gray-600">
-                            <strong>Notes:</strong> {customerPhotos.find(p => p.week === week && p.notes)?.notes}
+                            <strong>Notes:</strong> {customerPhotos.find(p => p.week === storedWeek && p.notes)?.notes}
                           </p>
                         </div>
                       )}
@@ -3383,32 +3423,53 @@ export default function ClientDetailPage() {
 
         {/* Modals */}
         {showAddMeasurementModal && (
-          <div className={adminModalOverlayClassName}>
-            <div className={`${adminModalPanelClassName} max-w-2xl`} style={adminModalPanelStyle}>
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div
+            className={adminModalOverlayClassName}
+            onClick={() => setShowAddMeasurementModal(false)}
+          >
+            <div
+              className={`${adminModalPanelClassName} max-w-2xl ${adminModalPanelShellClassName}`}
+              style={adminModalPanelStyle}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={`${adminModalPanelHeaderClassName} flex items-center justify-between`}>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Add Measurement</h2>
                 <button
+                  type="button"
                   onClick={() => setShowAddMeasurementModal(false)}
                   className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
-              <EditMeasurementForm
-                measurement={{}}
-                onSave={handleAddMeasurement}
-                onCancel={() => setShowAddMeasurementModal(false)}
-              />
+              <div className={adminModalPanelBodyClassName}>
+                <EditMeasurementForm
+                  measurement={{}}
+                  onSave={handleAddMeasurement}
+                  onCancel={() => setShowAddMeasurementModal(false)}
+                />
+              </div>
             </div>
           </div>
         )}
 
         {showEditMeasurementModal && editingMeasurement && (
-          <div className={adminModalOverlayClassName}>
-            <div className={`${adminModalPanelClassName} max-w-2xl`} style={adminModalPanelStyle}>
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div
+            className={adminModalOverlayClassName}
+            onClick={() => {
+              setShowEditMeasurementModal(false);
+              setEditingMeasurement(null);
+            }}
+          >
+            <div
+              className={`${adminModalPanelClassName} max-w-2xl ${adminModalPanelShellClassName}`}
+              style={adminModalPanelStyle}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={`${adminModalPanelHeaderClassName} flex items-center justify-between`}>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800">Edit Measurement</h2>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowEditMeasurementModal(false);
                     setEditingMeasurement(null);
@@ -3418,14 +3479,16 @@ export default function ClientDetailPage() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <EditMeasurementForm
-                measurement={editingMeasurement}
-                onSave={handleUpdateMeasurement}
-                onCancel={() => {
-                  setShowEditMeasurementModal(false);
-                  setEditingMeasurement(null);
-                }}
-              />
+              <div className={adminModalPanelBodyClassName}>
+                <EditMeasurementForm
+                  measurement={editingMeasurement}
+                  onSave={handleUpdateMeasurement}
+                  onCancel={() => {
+                    setShowEditMeasurementModal(false);
+                    setEditingMeasurement(null);
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -3515,7 +3578,8 @@ export default function ClientDetailPage() {
 
         {/* Photo comparison viewer — start vs end week, side by side */}
         {selectedPhoto && (() => {
-          const { startPhoto, endPhoto, baseWeek, endWeek } = getComparisonPhotosForPosition(selectedPhoto.position);
+          const { startPhoto, endPhoto, baseWeek, endWeek, baseDisplayWeek, endDisplayWeek } =
+            getComparisonPhotosForPosition(selectedPhoto.position);
           const currentPositionIndex = photoPositions.indexOf(
             selectedPhoto.position as (typeof photoPositions)[number]
           );
@@ -3566,8 +3630,8 @@ export default function ClientDetailPage() {
                       {selectedPhoto.position} View
                     </h3>
                     <p className="text-xs sm:text-sm text-gray-300">
-                      Start vs eind — Week {baseWeek}
-                      {endWeek !== baseWeek ? ` vs Week ${endWeek}` : ''}
+                      Start vs eind — Week {baseDisplayWeek}
+                      {endDisplayWeek !== baseDisplayWeek ? ` vs Week ${endDisplayWeek}` : ''}
                     </p>
                   </div>
                   <button
@@ -3580,12 +3644,12 @@ export default function ClientDetailPage() {
               </div>
 
               <div className="flex-1 flex items-stretch justify-center gap-2 sm:gap-4 p-2 sm:p-4 pt-16 sm:pt-20 pb-20 sm:pb-24 min-h-0">
-                {renderComparisonPanel(startPhoto, 'Start', baseWeek)}
+                {renderComparisonPanel(startPhoto, 'Start', baseDisplayWeek)}
                 <div className="w-px bg-white/20 shrink-0 self-stretch my-8" aria-hidden />
                 {renderComparisonPanel(
                   endPhoto,
-                  endWeek !== baseWeek ? 'Eind' : 'Start (zelfde week)',
-                  endWeek
+                  endDisplayWeek !== baseDisplayWeek ? 'Eind' : 'Start (zelfde week)',
+                  endDisplayWeek
                 )}
               </div>
 
