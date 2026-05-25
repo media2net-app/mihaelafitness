@@ -60,10 +60,18 @@ export const adminPageSubtitleClassName = 'mt-1 text-sm text-white/55';
 export const adminLabelClassName = 'mb-1.5 block text-xs font-medium text-white/70 sm:text-sm';
 
 export const adminModalOverlayClassName =
-  'fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-3 py-6 sm:px-4 overscroll-contain';
+  'fixed inset-0 z-[100] flex items-end justify-center bg-black/70 sm:items-center sm:px-4 sm:py-6';
 
 export const adminModalPanelClassName =
-  'admin-modal-panel w-full max-w-md rounded-xl sm:rounded-2xl border border-white/10 p-4 sm:p-6 shadow-2xl max-h-[min(90dvh,720px)] overflow-y-auto overscroll-y-contain';
+  'admin-modal-panel w-full max-w-md rounded-t-3xl sm:rounded-2xl border border-white/10 shadow-2xl sm:max-w-md';
+
+export const adminModalPanelShellClassName =
+  'flex max-h-[min(92dvh,720px)] w-full flex-col overflow-hidden';
+
+export const adminModalPanelHeaderClassName = 'shrink-0 p-4 sm:p-6 pb-0 sm:pb-0';
+
+export const adminModalPanelBodyClassName =
+  'min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-6 pt-4 [-webkit-overflow-scrolling:touch] touch-pan-y';
 
 export const adminModalPanelStyle: CSSProperties = adminCardStyle;
 

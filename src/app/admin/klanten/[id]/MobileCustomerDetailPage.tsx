@@ -8,6 +8,9 @@ import {
   adminModalOverlayClassName,
   adminModalPanelClassName,
   adminModalPanelStyle,
+  adminModalPanelShellClassName,
+  adminModalPanelHeaderClassName,
+  adminModalPanelBodyClassName,
 } from '@/lib/adminStyles';
 
 // Edit Pricing Form Component
@@ -2627,11 +2630,22 @@ export default function MobileCustomerDetailPage() {
 
         {/* Edit Measurement Modal */}
         {showEditMeasurementModal && editingMeasurement && (
-          <div className={adminModalOverlayClassName}>
-            <div className={adminModalPanelClassName} style={adminModalPanelStyle}>
-              <div className="flex items-center justify-between mb-6">
+          <div
+            className={adminModalOverlayClassName}
+            onClick={() => {
+              setShowEditMeasurementModal(false);
+              setEditingMeasurement(null);
+            }}
+          >
+            <div
+              className={`${adminModalPanelClassName} ${adminModalPanelShellClassName}`}
+              style={adminModalPanelStyle}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={`${adminModalPanelHeaderClassName} flex items-center justify-between`}>
                 <h3 className="text-xl font-bold text-gray-800">Edit Measurement</h3>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowEditMeasurementModal(false);
                     setEditingMeasurement(null);
@@ -2641,15 +2655,16 @@ export default function MobileCustomerDetailPage() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
-              <EditMeasurementForm 
-                measurement={editingMeasurement}
-                onSave={handleUpdateMeasurement}
-                onCancel={() => {
-                  setShowEditMeasurementModal(false);
-                  setEditingMeasurement(null);
-                }}
-              />
+              <div className={adminModalPanelBodyClassName}>
+                <EditMeasurementForm
+                  measurement={editingMeasurement}
+                  onSave={handleUpdateMeasurement}
+                  onCancel={() => {
+                    setShowEditMeasurementModal(false);
+                    setEditingMeasurement(null);
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}
